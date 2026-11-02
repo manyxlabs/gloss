@@ -130,7 +130,7 @@ export function remap(p: Project, docId: string, sheets: Sheet[], ratios: number
 }
 
 /** Deletes every object nothing in the document refers to any more, such as deleted pages, so the file shrinks with them. */
-function prune(pdf: PDFDocument) {
+export function prune(pdf: PDFDocument) {
   const ctx = pdf.context;
   const reached = new Set<string>();
   const stack: (PDFObject | undefined)[] = [ctx.trailerInfo.Root, ctx.trailerInfo.Info];
