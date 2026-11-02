@@ -46,7 +46,7 @@ test('passages link within a document and across two side by side, and the links
   // From a highlight's popup: linking mode says what to do until a passage is picked.
   await highlight(page, 'Coral reefs occupy', 'of all marine species.');
   await clickHighlight(page, 'Coral reefs occupy');
-  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link' }).click();
+  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link', exact: true }).click();
   await expect(banner(page)).toContainText('Select text or click a highlight to link to');
   await expect(page.locator('.hl.linking')).toHaveCount(2);
   await shot(page, 'links-linking-mode');
@@ -81,7 +81,7 @@ test('passages link within a document and across two side by side, and the links
 
   // Escape leaves linking mode without a link.
   await clickHighlight(page, 'Coral reefs occupy');
-  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link' }).click();
+  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link', exact: true }).click();
   await expect(banner(page)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(banner(page)).toHaveCount(0);
@@ -407,7 +407,7 @@ test('links and shared comments survive a backup, and comments saved before shar
   await openProject(page);
   await highlight(page, 'Coral reefs occupy');
   await clickHighlight(page, 'Coral reefs occupy');
-  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link' }).click();
+  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link', exact: true }).click();
   await select(page, 'Rising sea temperatures');
   await clickHighlight(page, 'Rising sea temperatures');
   await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Comment' }).click();

@@ -38,7 +38,16 @@ export const extractPages = (docId: string, pages: number[], pane: Pane) =>
     const { doc, sheets, blob, name } = await pagesPdf(docId, pages);
     const id = uid();
     await addFiles([[id, blob]]);
-    const added: DocMeta = { id, name, pages: pages.length, size: blob.size, ...(doc.source ? { source: doc.source } : {}), ...(doc.zotero ? { zotero: doc.zotero } : {}) };
+    const added: DocMeta = {
+      id,
+      name,
+      pages: pages.length,
+      size: blob.size,
+      ...(doc.source ? { source: doc.source } : {}),
+      ...(doc.zotero ? { zotero: doc.zotero } : {}),
+      // Pages of a document kept on this device stay on it.
+      ...(doc.local ? { local: true as const } : {}),
+    };
     edit((p) => {
       // The marks as they would be were the document cut down to these pages, then copied with new ids.
       const cut = remap(p, docId, sheets, []);

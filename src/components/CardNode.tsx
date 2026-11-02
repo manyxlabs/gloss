@@ -6,7 +6,10 @@ import { where } from '../links';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
 import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
+import { CanvasCard, CardInk, inkBottom, SketchCard } from './CanvasCards';
 import { CardLinks } from './CardLinks';
+import { LinkChips } from './LinkChips';
+import { MentionSuggest } from './Mentions';
 
 /** Focuses a field once its new card shows: React Flow keeps a card hidden until it has measured it, and a hidden field cannot take focus. */
 function useAutoFocus(ref: RefObject<HTMLElement | null>, on: boolean | undefined) {
@@ -79,6 +82,7 @@ function Grow({
           onDone?.();
         }}
       />
+      <MentionSuggest field={ref} />
     </div>
   );
 }
@@ -188,6 +192,10 @@ export function CardNode(props: NodeProps<Card>) {
           <InkCard data={data} selected={selected} />
           <CardLinks cardId={props.id} />
         </>
+      ) : data.kind === 'sketch' ? (
+        <SketchCard id={props.id} data={data} selected={selected} />
+      ) : data.kind === 'canvas' ? (
+        <CanvasCard id={props.id} data={data} selected={selected} />
       ) : (
         <TextCard {...props} data={data} />
       )}
@@ -207,7 +215,10 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
   const [commenting, setCommenting] = useState(false);
 
   return (
-    <article className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}`}>
+    <article
+      className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}`}
+      style={data.kind === 'note' && data.strokes?.length ? { minHeight: inkBottom(data.strokes) } : undefined}
+    >
       <NodeResizeControl
         variant={ResizeControlVariant.Line}
         position={Position.Right}
@@ -253,6 +264,8 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
       ) : (
         <p className="missing">The text this came from is gone.</p>
       )}
+      {data.kind === 'note' && data.strokes?.length ? <CardInk strokes={data.strokes} /> : null}
+      <LinkChips text={data.kind === 'note' ? data.text : (data.comment ?? '')} />
       <CardLinks cardId={id} />
     </article>
   );

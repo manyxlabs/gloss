@@ -46,8 +46,8 @@ async function inkBelow(page: Page, text: string) {
 }
 
 async function replaceWith(page: Page, pages: string[][]) {
-  await page.getByRole('button', { name: 'All documents' }).first().click();
-  await page.getByRole('dialog', { name: 'All documents' }).getByRole('button', { name: 'Actions for Reef essay' }).click();
+  // From the open document's tab menu; the list of all documents has the same item.
+  await page.getByRole('button', { name: 'More for this document' }).first().click();
   await page.getByRole('menuitem', { name: 'Replace with a newer version…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Replace “Reef essay”' });
   await expect(dialog).toContainText('move to the same words');

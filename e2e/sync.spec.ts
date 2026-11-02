@@ -211,7 +211,7 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   // A link from the first passage to the one above it.
   const coral = (await a.page.locator('.textLayer span', { hasText: 'Coral reefs occupy' }).first().boundingBox())!;
   await a.page.mouse.click(coral.x + 30, coral.y + coral.height / 2);
-  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link' }).click();
+  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link', exact: true }).click();
   await select(a.page, 'The ocean covers');
   await expect(a.page.locator('.page:not([data-copy]) .link-mark')).toHaveCount(2);
 

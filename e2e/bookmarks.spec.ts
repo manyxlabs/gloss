@@ -22,6 +22,8 @@ async function action(page: Page, name: string, item: string) {
   await page.getByRole('menu', { name }).getByRole('menuitem', { name: item }).click();
 }
 
+test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
 test('bookmarks are added from the toolbar and with Ctrl+D, named, reordered, deleted, jumped to, kept, undone and exported', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openProject(page);
@@ -115,6 +117,16 @@ test('bookmarks are added from the toolbar and with Ctrl+D, named, reordered, de
         2,
       ),
     );
+  });
+
+  await test.step('A copied link to a bookmark opens the document at its place', async () => {
+    await action(page, 'Mangroves', 'Copy link');
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    expect(link).toMatch(/#\/p\/[\w-]+\/b\/[\w-]+$/);
+    await sidebar(page).getByRole('button', { name: /^Kelp/ }).click();
+    await expect(pageNo(page)).toContainText('3 / 3');
+    await page.goto(link);
+    await expect(pageNo(page)).toContainText('2 / 3');
   });
 });
 

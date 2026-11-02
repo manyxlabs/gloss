@@ -8,6 +8,7 @@ import { DocPanes } from './DocPanes';
 import { ExportMenu } from './ExportMenu';
 import { InkLink } from './InkLink';
 import { Lost } from './Lost';
+import { useLinkTarget } from './OpenLink';
 import { Search } from './Search';
 import { Share } from './Share';
 import { ThemeToggle } from './ThemeToggle';
@@ -32,6 +33,7 @@ export function Workspace({ id }: { id: string }) {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const body = useRef<HTMLDivElement>(null);
+  useLinkTarget((problem) => setProblems((p) => [...p, problem]));
 
   useEffect(() => {
     void openProject(id).then((p) => setMissing(!p));

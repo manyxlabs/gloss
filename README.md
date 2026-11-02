@@ -24,7 +24,10 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   What cannot be found is listed as unplaced in the sidebar's Highlights tab, with its comments and excerpts, to place on a selection or delete; undo puts the old version back.
 - **Extract pages** from a page's menu: to a new document in the project, with the highlights, comments, links, handwriting and bookmarks on them, or as a PDF to download.
 - **Excerpts that link back.** Select text and press Excerpt, or drag the selection onto the canvas. The card opens the document at the passage, and clicking the passage shows its card.
-- **Highlights** in five colours, kept apart from excerpts until you want them on the canvas.
+- **Highlights** in 32 colours, kept apart from excerpts until you want them on the canvas.
+  Five favourites sit in every highlight toolbar and More opens the rest; Edit favourites in the palette changes which five, on each device.
+  The five colours Gloss started with keep their names and shades.
+- **Lasso**: with the pen, draw a loop round words on a page to excerpt exactly those words, or round a picture to excerpt it as a figure. A stroke that does not close stays handwriting.
 - **Figures and tables**: pick Snip and draw a box around one. Excerpted, its card shows that part of the page as a picture, drawn from the PDF.
 - **Comments in the margin**: comment on a selection or on any highlight. A marker beside the line opens the comment to edit.
   One comment can be attached to several passages, in any of the documents: its marker shows beside each, and editing it beside one edits it everywhere.
@@ -42,6 +45,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Password protected PDFs** open after you enter the password, which is kept with the project (and, in a shared project, travels with it end-to-end encrypted).
 - **Squeeze** the text between two passages out of view to read them side by side: pinch two fingers held one above the other, or select what is in between and press Squeeze. A bar marks each squeeze and opens it again.
 - **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen, and once one has been used, a finger or palm scrolls and pans instead of drawing.
+  An **ink box** is a card to write in, resized from its corners, and writing on a note keeps the strokes in the note.
+  The notes exports show handwriting as pictures.
+  On the canvas the eraser also takes away the links it passes over: lines between cards, a card's links to passages, and its links to other canvases; undo brings them back.
 - **Groups**: select cards and group them under a name, or pinch two cards together on a touch screen; drag a card in or out, move the group to move them all, and collapse it to its name (pinch it closed, spread it open) with its links ending on it.
 - **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them, and your bookmarks in its outline.
   **Documents as one PDF**, from Export notes, puts the documents you choose, in the order you choose, into one annotated PDF with an outline entry for each, and the canvas on show as a last page if you like.
@@ -51,6 +57,11 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **A list of all the documents** from the tab bar: put them in folders, pin them to come first, and reorder them by dragging their tabs or rows.
 - **Zotero**: connect your library with a key of your own, search it, and add items' PDFs with their title, authors, year and citation key; send a document's highlights and comments back to its item as a note.
 - **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
+  A **nested canvas** card opens a canvas inside the one it is on, with a path back up; the tabs show the top level, and each tab's menu the canvases in it.
+  A card can link to any canvas, with a chip that opens it, and deleting a nested canvas's card takes the canvas and everything in it, until undone.
+- **Canvas style**: each canvas has its own background (dots, grid or plain), note colour and accent, which travel with it to the other devices.
+- **Copy links** to a passage, card, comment, canvas or document. Opening one opens the project there; pasted into a note or a comment, it shows as a chip with a few words of what it leads to, in this project or another one on the same device.
+  In a shared project a link names the project's room, so it works for everyone who has the project, and only for them.
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
 - **Installable and offline**: install Gloss as an app from the browser; once visited it opens and works with no network, and an installed copy on a computer can open PDFs, Word and PowerPoint files from the file manager. A new version is loaded only when you choose.
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
@@ -67,18 +78,22 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   Exported files are not changed.
 - **Phones**: one side at a time, touch selection, and pinch to zoom the page.
 - **Sync and work together**, end-to-end encrypted, when you choose to share a project.
+  Type @ in a note or comment to mention someone who has been in the project; the bell lists mentions, replies and what the others did since you last looked.
 
 ## Sync and sharing
 
 A project stays on its device until you press **Share** in its header and create a link.
 Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, comments, linked passages, handwriting, squeezes, canvases, bookmarks, page edits, replaced documents, the documents' order, pins and folders, and the project's name.
 Library folders stay with each device.
+A document or a canvas marked **Only on this device** stays here, with everything on it; see below.
 Everyone in the project shows as an avatar with where they are reading, and their pointer shows on the canvas.
 Edits made offline are kept and merge when the connection returns.
 **Stop syncing on this device** keeps the local copy but stops exchanging changes; the others carry on.
 
 Each project is a [Yjs](https://yjs.dev) document with a map per kind of thing, so edits to different things merge and the last edit to one card, highlight or stroke wins.
 Selection, undo history and the page you were reading on stay with each device.
+Beside the project, the shared document keeps who has been in it, by a random id each device makes and the name they gave, and a month of who added, changed or removed what, one entry per person and thing.
+Mentions, replies and the activity list come from these, and which of them are read is kept on each device; the server relays them like any other change, encrypted.
 The Worker relays changes through a Durable Object per shared project, over a WebSocket that hibernates while nobody is editing, and keeps the PDFs in R2.
 It keeps a log of changes, which devices replace with a snapshot once it grows long.
 An edit to a document's pages stores a new version of its file under a new name; the document's entry names that version, so the other devices fetch it, and switch to it once it has arrived.
@@ -91,6 +106,12 @@ An edit to a document's pages stores a new version of its file under a new name;
 - The server stores and relays scrambled bytes. It learns the room id, sizes and timing, document ids, and how many devices are connected, but not names, text, PDFs or who is who.
 - A password protected PDF's password travels with a shared project, encrypted like everything else, so the others can open it; anyone with the link can read the document in any case.
 - Anyone with the link can read and edit the project, and there is no way to take access back short of moving to a new link: stop syncing, share again, and pass on the new link.
+- **Only on this device.** A document or a canvas can be kept back from a shared project, from the lock in the document's toolbar or in Canvas style.
+  It is left out of the shared document with everything anchored to it: a document's highlights, comments only it has, handwriting, squeezes, excerpts and links to them; a canvas's cards, the canvases nested in it and the lines and links to its cards.
+  None of it is sent, encrypted or not, its file is not uploaded, and the others are not even told its id, in presence either.
+- Marking something private after it was shared sends its removal: the other devices delete it, file and all, and the room's copy of the file is deleted.
+  What the others already saw, or kept in a backup, cannot be called back, so mark things private before sharing when that matters.
+  Sharing it again sends it as new; undo does either.
 
 ## Develop
 
@@ -121,7 +142,7 @@ npx playwright test -c playwright.links.config.ts
 ```
 
 The end-to-end tests build the app, drive it in Chromium on a desktop and a phone viewport, and leave screenshots and the exported notes in `test-results/artifacts/`.
-The sync test runs against the Worker under wrangler with three browser contexts as three devices, and checks that no WebSocket frame or uploaded file holds any of the text or PDF in the clear.
+The sync tests (`sync.spec.ts` and `*.sync.spec.ts`) run against the Worker under wrangler with browser contexts as devices, and check that no WebSocket frame or uploaded file holds any of the text or PDF in the clear, and that what is kept on one device never reaches the other's copy of the shared document.
 Set `CHROMIUM` to a system Chromium where Playwright's own browser download is unavailable, and `BASE_URL` to test a deployed copy instead.
 
 ## Converted documents

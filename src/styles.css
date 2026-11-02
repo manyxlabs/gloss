@@ -20,16 +20,7 @@
   --shadow: 0 1px 2px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.4)), 0 12px 32px -12px var(--shadow-tint);
   --danger: light-dark(#c2410c, #fb923c);
 
-  --hl-yellow: #fde047;
-  --hl-green: #86efac;
-  --hl-blue: #93c5fd;
-  --hl-pink: #f9a8d4;
-  --hl-purple: #c4b5fd;
-  --edge-yellow: #ca8a04;
-  --edge-green: #16a34a;
-  --edge-blue: #2563eb;
-  --edge-pink: #db2777;
-  --edge-purple: #7c3aed;
+  /* The highlight colours, --hl-<colour> and --edge-<colour>, are set from src/palette.ts. */
 }
 
 :root[data-theme='light'] {
@@ -1284,27 +1275,6 @@ a.button.primary {
   mix-blend-mode: multiply;
   border-radius: 2px;
   background: var(--hl);
-}
-
-.hl-yellow {
-  --hl: var(--hl-yellow);
-  --edge: var(--edge-yellow);
-}
-.hl-green {
-  --hl: var(--hl-green);
-  --edge: var(--edge-green);
-}
-.hl-blue {
-  --hl: var(--hl-blue);
-  --edge: var(--edge-blue);
-}
-.hl-pink {
-  --hl: var(--hl-pink);
-  --edge: var(--edge-pink);
-}
-.hl-purple {
-  --hl: var(--hl-purple);
-  --edge: var(--edge-purple);
 }
 
 /* An excerpt on the canvas is underlined in the document, so it is clear the passage was used. */

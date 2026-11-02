@@ -3,6 +3,7 @@ import { useState, type DragEvent } from 'react';
 import { bookmarksOf, moveBookmark, removeBookmark, renameBookmark } from '../../store/bookmarks';
 import { showPage, useStore, type Pane } from '../../store/project';
 import type { Bookmark } from '../../types';
+import { CopyLink } from '../LinkChips';
 import { Menu } from '../Menu';
 
 const MIME = 'application/x-gloss-bookmark';
@@ -100,6 +101,7 @@ export function Bookmarks({ docId, pane, fresh, onJump }: { docId: string; pane:
           <button role="menuitem" onClick={() => (setRenaming(menu.mark.id), setMenu(null))}>
             <Pencil size={16} /> Rename
           </button>
+          <CopyLink target={{ kind: 'b', id: menu.mark.id }} role="menuitem" className="" text="Copy link" />
           <button
             role="menuitem"
             disabled={marks[0]?.id === menu.mark.id}

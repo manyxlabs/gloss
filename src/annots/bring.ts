@@ -1,6 +1,6 @@
 import { PDFArray, PDFDict, PDFName, PDFRef } from 'pdf-lib';
 import { PAPER } from '../ink';
-import { HIGHLIGHT } from '../pdf/annotate';
+import { SWATCHES } from '../palette';
 import { editable, rewrite, saveVersion } from '../pdf/pages';
 import { loadDoc, textIn } from '../pdf/pdfjs';
 import { canvasSpot, newCard, uid } from '../store/project';
@@ -91,7 +91,7 @@ async function convert(docId: string): Promise<string[]> {
     comments.push(comment);
     return { commentId: comment.id };
   };
-  const color = (f: Foreign) => nearest<Color>(COLORS, (c) => HIGHLIGHT[c]!, f.color, 'yellow');
+  const color = (f: Foreign) => nearest<Color>(COLORS, (c) => SWATCHES[c].fill, f.color, 'yellow');
 
   for (const f of found) {
     if (f.kind === 'mark') {
