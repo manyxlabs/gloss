@@ -40,10 +40,22 @@ type State = {
   docTool: DocTool;
   canvasTool: Tool;
   inkColor: InkColor;
+  /** A stylus has been used on this device: from then on a finger or palm scrolls rather than writes. */
+  penSeen: boolean;
 };
 
 const MAX_UNDO = 200;
 export const uid = () => crypto.randomUUID();
+
+const PEN_KEY = 'gloss:pen';
+function remembered(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    // Storage can be blocked; the device is then treated as new.
+    return null;
+  }
+}
 
 export const useStore = create<State>(() => ({
   project: null,
@@ -58,6 +70,7 @@ export const useStore = create<State>(() => ({
   docTool: 'select',
   canvasTool: 'select',
   inkColor: 'ink',
+  penSeen: remembered(PEN_KEY) === '1',
 }));
 const { getState: get, setState: set } = useStore;
 
@@ -575,4 +588,15 @@ export function regroup(cardId: string, groupId: string | null) {
     // Kept after its group in the list, as React Flow requires.
     return { cards: [...cards, moved] };
   });
+}
+
+/** Notes that this device has a stylus, for palm rejection. */
+export function notePen() {
+  if (get().penSeen) return;
+  set({ penSeen: true });
+  try {
+    localStorage.setItem(PEN_KEY, '1');
+  } catch {
+    // Not remembered; it is noticed again the next time the pen touches.
+  }
 }

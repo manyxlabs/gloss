@@ -16,6 +16,7 @@ import {
   addInk,
   excerpt,
   jumped,
+  notePen,
   recolor,
   rememberPage,
   removeDoc,
@@ -411,8 +412,18 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     for (const id of inkAlong(from, { x, y }, (el) => (el as SVGElement).dataset?.inkId)) removeInk(id);
   };
 
+  // With a stylus about, a finger on the page scrolls it even while the pen is chosen: the page
+  // takes no touches of its own then, so the scroll is done here.
+  const fingerScroll = useRef<{ id: number; x: number; y: number; left: number; top: number } | null>(null);
+
   const onPointerDown = (e: ReactPointerEvent) => {
+    if (e.pointerType === 'pen') notePen();
     if (!activeDocId || tool === 'select' || (e.target as HTMLElement).closest('.popup, .fold-bar')) return;
+    if (e.pointerType === 'touch' && useStore.getState().penSeen) {
+      const c = scroller.current!;
+      fingerScroll.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: c.scrollLeft, top: c.scrollTop };
+      return;
+    }
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     eraser.current = null;
@@ -435,6 +446,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   };
 
   const onPointerMove = (e: ReactPointerEvent) => {
+    const f = fingerScroll.current;
+    if (f && f.id === e.pointerId) return scroller.current!.scrollTo(f.left - (e.clientX - f.x), f.top - (e.clientY - f.y));
     if (snip.current) return drawSnip(snip.current, e.clientX, e.clientY);
     if (tool === 'eraser' && e.buttons) return erase(e.clientX, e.clientY);
     const s = stroke.current;
@@ -446,6 +459,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   };
 
   const finishStroke = () => {
+    fingerScroll.current = null;
     const s = stroke.current;
     stroke.current = null;
     drawLive(null);
