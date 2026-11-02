@@ -1357,41 +1357,27 @@ button.big.primary {
 }
 
 /* A narrow pane, such as one of two side by side, gets a compact toolbar. */
-.doc-pane {
-  container-type: inline-size;
-}
-
-@container (max-width: 460px) {
-  .doc-status {
-    gap: 0;
-    padding: 3px;
-  }
-
-  .page-no .long {
-    display: none;
-  }
-
-  .zoom .scale {
-    min-width: 40px;
-  }
-
-  .doc-status button.icon {
-    width: 28px;
-  }
-}
-
-/* A narrow pane, such as half of two side by side or a phone, wraps the toolbar rather than spilling out of the pane. */
-.doc-status {
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.narrow .doc-status {
+/* Where the page is narrow (a phone, half of two panes, or beside the sidebar) the toolbar
+   tightens up to stay on one line inside the pane. */
+.narrow .doc-status,
+.sidebar-beside .doc-status {
   gap: 0;
+  padding: 3px;
 }
 
-.narrow .page-no .long {
+.narrow .page-no .long,
+.sidebar-beside .page-no .long {
   display: none;
+}
+
+.narrow .zoom .scale,
+.sidebar-beside .zoom .scale {
+  min-width: 40px;
+}
+
+.narrow .doc-status button.icon,
+.sidebar-beside .doc-status button.icon {
+  width: 28px;
 }
 
 .page-no {
