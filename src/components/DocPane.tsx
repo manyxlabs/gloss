@@ -8,13 +8,13 @@ import { outline, PAPER, pathOf } from '../ink';
 import { commentOf } from '../links';
 import { highlightAt, locate, pageAt, pointOnPage, selectionAnchor, textBoxes, type Anchor } from '../pdf/anchor';
 import { annotatedPdf } from '../pdf/annotate';
+import { keepStroke } from '../pdf/lasso';
 import { layoutFolds, refreshTails } from '../pdf/folds';
 import { loadDoc, textIn } from '../pdf/pdfjs';
 import {
   addDocs,
   addFold,
   addHighlight,
-  addInk,
   excerpt,
   jumped,
   notePen,
@@ -500,8 +500,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const s = stroke.current;
     stroke.current = null;
     drawLive(null);
-    // Strokes are kept in fractions of the page's width and height.
-    if (s && activeDocId) addInk(activeDocId, s.page, s.points, INK_SIZE, s.pen);
+    // Strokes are kept in fractions of the page's width and height; a loop excerpts what it goes round.
+    if (s && activeDocId) void keepStroke(scroller.current!, activeDocId, active?.password, s, INK_SIZE, color);
   };
 
   /** The box being snipped as page fractions, kept to the page and to the stretch of it in view. */
