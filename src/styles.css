@@ -2714,3 +2714,82 @@ dialog.sheet::backdrop {
   font-size: 14px;
   color: var(--muted);
 }
+
+/* Touch screens: everything that can be tapped is at least 32 pixels each way, or reaches that far. */
+@media (pointer: coarse) {
+  /* Swatches keep their look and spacing; their reach grows past their edges, into the gaps. */
+  .ink-swatch,
+  .swatch {
+    position: relative;
+  }
+
+  .ink-swatch::after,
+  .swatch::after,
+  .canvas .react-flow__handle::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+
+  .canvas .react-flow__handle {
+    width: 14px;
+    height: 14px;
+  }
+
+  .canvas .react-flow__controls-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .divider::after {
+    content: '';
+    position: absolute;
+    inset: 0 -10px;
+  }
+
+  .divider {
+    position: relative;
+    z-index: 3;
+  }
+
+  .tab button.close {
+    min-width: 32px;
+    min-height: 32px;
+    opacity: 0.7;
+  }
+
+  .tab button {
+    min-height: 32px;
+  }
+
+  .canvas-tabs .add,
+  .zoom .scale,
+  .doc-status button.icon,
+  .narrow .doc-status button.icon {
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .card .source,
+  .card .ghost,
+  .card-links button {
+    min-height: 32px;
+  }
+
+  button.link,
+  .foot a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+  }
+
+  .group .fold {
+    width: 32px;
+    height: 32px;
+  }
+
+  .group button {
+    min-height: 32px;
+    opacity: 1;
+  }
+}
