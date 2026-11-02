@@ -52,3 +52,19 @@
   outline: 2px solid var(--edge);
   outline-offset: 1px;
 }
+
+.more-colors.other {
+  background: color-mix(in srgb, var(--hl) 40%, transparent) !important;
+}
+
+.more-colors.other svg {
+  color: var(--edge);
+}
+
+/* A toolbar wider than a phone goes onto two rows rather than off the screen. */
+.popup[role='toolbar'] {
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
