@@ -6,6 +6,9 @@ import { commentOf, docName, endsOf, quoted } from '../../links';
 import { cardText } from '../../search';
 import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
+import { useTagView } from '../../store/tags';
+import { passes } from '../../tags';
+import { TagChips, TagFilter } from '../Tags';
 import type { Highlight } from '../../types';
 import { Pages } from './Pages';
 
@@ -59,6 +62,16 @@ export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: stri
   );
 }
 
+/** Opens a document at an entry of its contents. */
+export async function showEntry(doc: PDFDocumentProxy, docId: string, dest: OutlineItem['dest'], pane: Pane) {
+  const explicit = typeof dest === 'string' ? await doc.getDestination(dest) : dest;
+  const ref = explicit?.[0];
+  if (ref === undefined) return;
+  // A destination names its page by reference, or in some files by number.
+  const index = typeof ref === 'object' && ref ? await doc.getPageIndex(ref) : Number(ref);
+  showPage(docId, index + 1, { pane, dest: explicit! });
+}
+
 function Contents({ doc, docId, pane, onJump }: { doc: PDFDocumentProxy; docId: string; pane: Pane; onJump: () => void }) {
   const [outline, setOutline] = useState<OutlineItem[] | null | undefined>(undefined);
   useEffect(() => {
@@ -71,12 +84,7 @@ function Contents({ doc, docId, pane, onJump }: { doc: PDFDocumentProxy; docId: 
   }, [doc]);
 
   const go = async (dest: OutlineItem['dest']) => {
-    const explicit = typeof dest === 'string' ? await doc.getDestination(dest) : dest;
-    const ref = explicit?.[0];
-    if (ref === undefined) return;
-    // A destination names its page by reference, or in some files by number.
-    const index = typeof ref === 'object' && ref ? await doc.getPageIndex(ref) : Number(ref);
-    showPage(docId, index + 1, { pane, dest: explicit! });
+    await showEntry(doc, docId, dest, pane);
     onJump();
   };
 
@@ -110,59 +118,70 @@ const byPlace = (a: Highlight, b: Highlight) =>
 
 function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump: () => void }) {
   const project = useStore((s) => s.project);
-  const mine = (project?.highlights ?? []).filter((h) => h.docId === docId).sort(byPlace);
-  if (!project || !mine.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
+  const filter = useTagView((s) => s.filter);
+  const all = (project?.highlights ?? []).filter((h) => h.docId === docId);
+  const mine = all.filter((h) => passes(h.tags, filter)).sort(byPlace);
+  if (!project || !all.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
   return (
-    <ul className="marks">
-      {mine.map((h) => (
-        <li key={h.id}>
-          <button
-            className={`hl-${h.color}`}
-            onClick={() => {
-              showSource(h.id, pane);
-              onJump();
-            }}
-          >
-            <span className="what">
-              {h.area && <Image size={14} aria-label="Figure" />}
-              <span className="text">{h.text || (h.area ? 'Figure' : '')}</span>
-              <span className="page">p. {h.parts[0]?.page}</span>
-            </span>
-            {h.commentId && <span className="note">{commentOf(project, h)?.text}</span>}
-          </button>
-          {endsOf(project, h.id).map((end) =>
-            'highlight' in end ? (
-              <button
-                key={end.link.id}
-                className={`end hl-${end.highlight.color}`}
-                onClick={() => {
-                  showEnd(end.highlight.id, pane);
-                  onJump();
-                }}
-              >
-                <Link2 size={13} aria-label="Linked passage" />
-                <span className="text">{quoted(end.highlight) || 'Figure'}</span>
-                <span className="page">
-                  {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}p. {end.highlight.parts[0]?.page}
-                </span>
-              </button>
-            ) : (
-              <button
-                key={end.link.id}
-                className="end"
-                onClick={() => {
-                  showCard(end.card.id);
-                  onJump();
-                }}
-              >
-                <StickyNote size={13} aria-label="Linked card" />
-                <span className="text">{cardText(project, end.card) || 'Handwriting'}</span>
-                <span className="page">card</span>
-              </button>
-            ),
-          )}
-        </li>
-      ))}
-    </ul>
+    <>
+      {project.tags.length > 0 && (
+        <div className="side-filter">
+          <TagFilter />
+        </div>
+      )}
+      {!mine.length && <p className="side-empty">No highlight here has the tags chosen.</p>}
+      <ul className="marks">
+        {mine.map((h) => (
+          <li key={h.id}>
+            <button
+              className={`hl-${h.color}`}
+              onClick={() => {
+                showSource(h.id, pane);
+                onJump();
+              }}
+            >
+              <span className="what">
+                {h.area && <Image size={14} aria-label="Figure" />}
+                <span className="text">{h.text || (h.area ? 'Figure' : '')}</span>
+                <span className="page">p. {h.parts[0]?.page}</span>
+              </span>
+              {h.commentId && <span className="note">{commentOf(project, h)?.text}</span>}
+              <TagChips ids={h.tags} />
+            </button>
+            {endsOf(project, h.id).map((end) =>
+              'highlight' in end ? (
+                <button
+                  key={end.link.id}
+                  className={`end hl-${end.highlight.color}`}
+                  onClick={() => {
+                    showEnd(end.highlight.id, pane);
+                    onJump();
+                  }}
+                >
+                  <Link2 size={13} aria-label="Linked passage" />
+                  <span className="text">{quoted(end.highlight) || 'Figure'}</span>
+                  <span className="page">
+                    {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}p. {end.highlight.parts[0]?.page}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  key={end.link.id}
+                  className="end"
+                  onClick={() => {
+                    showCard(end.card.id);
+                    onJump();
+                  }}
+                >
+                  <StickyNote size={13} aria-label="Linked card" />
+                  <span className="text">{cardText(project, end.card) || 'Handwriting'}</span>
+                  <span className="page">card</span>
+                </button>
+              ),
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

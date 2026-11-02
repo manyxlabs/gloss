@@ -1,5 +1,5 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
+import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Tag, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
@@ -31,11 +31,15 @@ import {
   type Pane,
 } from '../store/project';
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
+import { setTag } from '../store/tags';
 import { COLORS, type Color, type Point, type Rect } from '../types';
+import { Collapse } from './doc/Collapse';
 import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
+import { DefinedTerms, TermsToggle } from './doc/Terms';
+import { TagPicker, TagRow } from './Tags';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
 import { onTabKeys, revealTab } from './tabs';
@@ -52,8 +56,8 @@ for (const type of ['keyup', 'selectionchange'])
   });
 
 type Viewer = { viewer: PDFViewer; bus: EventBus; links: PDFLinkService };
-/** A toolbar for a selection or a highlight, or with `editing` the comment on it. */
-type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string; links?: boolean });
+/** A toolbar for a selection or a highlight, or with `editing` the comment on it, or with `tagging` its tags. */
+type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string; links?: boolean; tagging?: boolean });
 type Stroke = { page: number; box: DOMRect; points: Point[]; pen: boolean };
 /** A box being drawn on a page, kept to the stretch of the page in view where it started. */
 type Snip = { page: number; box: DOMRect; from: number; to: number; x: number; y: number };
@@ -157,11 +161,13 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const snip = useRef<Snip | null>(null);
   const tabList = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  /** Tags chosen while writing a comment on a selection, put on its highlight when it is saved. */
+  const [draftTags, setDraftTags] = useState<string[]>([]);
 
   useEffect(() => revealTab(tabList.current), [activeDocId, docs.length]);
 
   // Escape puts a toolbar away, with the selection it was for; a selection gone by other means takes its toolbar with it.
-  const toolbar = popup && !popup.editing ? popup : null;
+  const toolbar = popup && !popup.editing && !('tagging' in popup && popup.tagging) ? popup : null;
   useEffect(() => {
     if (!toolbar) return;
     const onKey = (e: KeyboardEvent) => {
@@ -667,7 +673,16 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     setPopup(null);
     if ('highlightId' in shown) return setComment(shown.highlightId, text) && shown.highlightId;
     getSelection()?.removeAllRanges();
-    return text.trim() ? commentSelection(activeDocId!, shown.anchor, color, text)?.id : undefined;
+    const tags = draftTags;
+    setDraftTags([]);
+    const h = text.trim()
+      ? commentSelection(activeDocId!, shown.anchor, color, text)
+      : tags.length
+        ? addHighlight(activeDocId!, shown.anchor.parts, shown.anchor.text, color)
+        : undefined;
+    // In the same undo step as the highlight.
+    if (h) for (const t of tags) setTag({ highlights: [h.id] }, t, true, false);
+    return h?.id;
   };
 
   return (
@@ -786,6 +801,11 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 }}
                 onDetach={() => (setPopup(null), highlight && detachComment(highlight.id))}
               />
+              {highlight ? (
+                <TagRow on={highlight.tags ?? []} onToggle={(id, on, fresh) => setTag({ highlights: [highlight.id] }, id, on, !fresh)} />
+              ) : (
+                <TagRow on={draftTags} onToggle={(id, on) => setDraftTags((d) => (on ? [...d, id] : d.filter((t) => t !== id)))} />
+              )}
             </div>
           )}
           {shown && !shown.editing && 'anchor' in shown && (
@@ -818,9 +838,22 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 aria-label="Comment"
                 title="Highlight with a comment in the margin"
                 // The comment is written below the selection, where a box taller than the toolbar has room.
-                onClick={() => setPopup({ ...(selectionPopup(scroller.current!, true, activeDocId) ?? shown), editing: true })}
+                onClick={() => (setDraftTags([]), setPopup({ ...(selectionPopup(scroller.current!, true, activeDocId) ?? shown), editing: true }))}
               >
                 <MessageSquarePlus size={17} />
+              </button>
+              <button
+                className="icon"
+                aria-label="Highlight with tag"
+                title="Highlight with a tag"
+                onClick={() => {
+                  // Below the selection's last line, as the comment editor is, where the list has room.
+                  const at = selectionPopup(scroller.current!, true, activeDocId) ?? shown;
+                  const h = fromSelection(shown.anchor, color);
+                  setPopup({ docId: at.docId, highlightId: h.id, tagging: true, below: true, x: at.x, y: at.y });
+                }}
+              >
+                <Tag size={16} />
               </button>
               <button
                 className="icon"
@@ -855,7 +888,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             </div>
           )}
           {shown && 'links' in shown && shown.links && highlight && <LinkPopover highlight={highlight} pane={pane} x={shown.x} y={shown.y} onClose={() => setPopup(null)} />}
-          {shown && !shown.editing && !('links' in shown && shown.links) && highlight && (
+          {shown && 'tagging' in shown && shown.tagging && highlight && (
+            <div className={`popup tag-popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Tags">
+              <TagPicker on={highlight.tags ?? []} onToggle={(id, on, fresh) => setTag({ highlights: [highlight.id] }, id, on, !fresh)} onClose={() => setPopup(null)} />
+            </div>
+          )}
+          {shown && !shown.editing && !('links' in shown && shown.links) && !('tagging' in shown && shown.tagging) && highlight && (
             <div
               className={`popup${shown.below ? ' below' : ''}`}
               style={{ left: shown.x, top: shown.y }}
@@ -890,6 +928,9 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               >
                 <MessageSquare size={16} />
               </button>
+              <button className="icon" aria-label="Tag" title="Tag this passage" onClick={() => setPopup({ ...shown, below: true, tagging: true })}>
+                <Tag size={16} />
+              </button>
               <button className="icon" aria-label="Link" title="Link this passage to another" onClick={() => (setPopup(null), startLinking({ kind: 'link', from: highlight.id }))}>
                 <Link2 size={16} />
               </button>
@@ -900,6 +941,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           )}
         </div>
 
+        <DefinedTerms viewer={viewerDiv} scroller={scroller} docId={ready ? active.id : null} pane={pane} />
         <div className="snip-live" ref={snipLive} style={{ display: 'none' }} />
         <svg className="ink-live" aria-hidden="true">
           <path ref={live} fill={PAPER[inkColor]} />
@@ -948,6 +990,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <Plus size={16} />
             </button>
           </span>
+          <Collapse docId={active.id} />
+          <TermsToggle docId={active.id} />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>

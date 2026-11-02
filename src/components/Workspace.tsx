@@ -2,7 +2,8 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { take } from '../notices';
-import { closeProject, openProject, redo, rename, setView, undo, useStore } from '../store/project';
+import { takeArrival } from '../arrive';
+import { closeProject, openProject, redo, rename, setView, showCard, showPage, showSource, undo, useStore } from '../store/project';
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
 import { ExportMenu } from './ExportMenu';
@@ -10,7 +11,9 @@ import { InkLink } from './InkLink';
 import { LinkBanner } from './LinkBanner';
 import { Lost } from './Lost';
 import { Search } from './Search';
+import { Palette } from './Palette';
 import { Share } from './Share';
+import { TagsDialog } from './TagsDialog';
 import { ThemeToggle } from './ThemeToggle';
 
 const SPLIT_KEY = 'gloss:split';
@@ -36,7 +39,13 @@ export function Workspace({ id }: { id: string }) {
   const body = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    void openProject(id).then((p) => setMissing(!p));
+    void openProject(id).then((p) => {
+      setMissing(!p);
+      const to = p && takeArrival(p.id);
+      if (to && 'cardId' in to) showCard(to.cardId);
+      else if (to && 'highlightId' in to) showSource(to.highlightId);
+      else if (to && 'docId' in to) showPage(to.docId, to.page, { query: to.query });
+    });
     return closeProject;
   }, [id]);
 
@@ -153,6 +162,8 @@ export function Workspace({ id }: { id: string }) {
         </ReactFlowProvider>
       </div>
       <InkLink />
+      <TagsDialog />
+      <Palette />
     </div>
   );
 }

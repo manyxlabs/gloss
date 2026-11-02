@@ -73,6 +73,7 @@ export async function restore(file: File, again: (name: string, original: boolea
     folds: (old.folds ?? []).map((f) => ({ ...f, docId: doc(f.docId) })),
     cards: old.cards ?? [],
     links: old.links ?? [],
+    tags: old.tags ?? [],
     canvases: old.canvases ?? [{ id: 'main', name: 'Canvas' }],
   };
   await addFiles(blobs);

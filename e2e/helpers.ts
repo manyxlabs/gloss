@@ -28,6 +28,14 @@ export async function picture(page: Page, width: number, height: number, color: 
   return Buffer.from(bytes);
 }
 
+/** Starts a project from these PDFs, as a reader opening them from the start page would. */
+export async function openWith(page: Page, files: { name: string; buffer: Buffer }[]) {
+  await page.goto('/');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
+  await chooser.setFiles(files.map((f) => ({ ...f, mimeType: 'application/pdf' })));
+  await expect(page.locator('.textLayer span').first()).toBeVisible();
+}
+
 export async function openProject(page: Page) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
@@ -53,3 +61,5 @@ export const card = (page: Page, text: string) => page.locator('.react-flow__nod
 
 /** Opens an exported PDF in Node with pdf.js, as a reader would read it. */
 export const readPdf = (file: string) => getDocument({ data: new Uint8Array(readFileSync(file)), standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/' });
+
+export const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };

@@ -20,6 +20,7 @@ function item(i: NoteItem) {
       : [quoted(i.text), quoted(`(${i.doc}, p. ${i.page})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
   return [
     ...body,
+    ...(i.tags.length ? [para(`Tags: ${i.tags.join(' ')}`, MUTED)] : []),
     ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, MUTED)] : []),
     ...i.passages.map((l) => para(`Linked passage: ${l}`, MUTED)),
   ];
@@ -29,7 +30,7 @@ function item(i: NoteItem) {
 export function notesDocx(o: Outline) {
   const children = [heading(o.title, HeadingLevel.TITLE)];
   for (const s of o.sections) {
-    if (s.title !== undefined) children.push(heading(s.title, HeadingLevel.HEADING_1));
+    if (s.title !== undefined) children.push(heading(s.title, HeadingLevel.HEADING_1), ...(s.tags?.length ? [para(`Tags: ${s.tags.join(' ')}`, MUTED)] : []));
     for (const i of s.items) children.push(...item(i));
   }
   if (o.highlights.length) {
@@ -40,6 +41,7 @@ export function notesDocx(o: Outline) {
         children.push(
           new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}`) }),
           ...(h.note ? [new Paragraph({ indent: { left: 720 }, children: runs(`Comment: ${h.note}`) })] : []),
+          ...(h.tags.length ? [new Paragraph({ indent: { left: 720 }, children: runs(`Tags: ${h.tags.join(' ')}`, MUTED) })] : []),
           ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(`Linked passage: ${l}`, MUTED) })),
         );
     }

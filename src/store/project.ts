@@ -11,8 +11,8 @@ import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProje
 /** Which version of each document's file a document has, as page edits are undone with the rest. */
 export type Version = Pick<DocMeta, 'file' | 'pages' | 'size'>;
 /** A step of history. Its documents carry the version of each file, so undo brings back a removed document and an earlier version alike. */
-type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
-const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks }: Project): Snapshot => ({
+type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks' | 'tags'>;
+const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks, tags }: Project): Snapshot => ({
   docs,
   highlights,
   cards,
@@ -23,6 +23,7 @@ const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comme
   comments,
   passageLinks,
   cardLinks,
+  tags,
 });
 /** A document at a version. */
 const atVersion = (d: DocMeta, v: Version | undefined): DocMeta => {
@@ -218,8 +219,10 @@ export async function openProject(id: string) {
     void putProject(stored);
     for (const d of stored.docs) void dropOldVersions(d);
   }
-  // Projects saved before handwriting, squeezing and several canvases existed lack those lists.
-  const old = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
+  // Projects saved before handwriting, squeezing, several canvases and tags existed lack those lists.
+  const old = stored
+    ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }], tags: stored.tags ?? [] }
+    : null;
   const project = old && migrate(old);
   // Saved before sync starts, which then shares the change as newer than its own state rather than undoing it.
   if (project && project !== old) await putProject(project);
@@ -264,6 +267,7 @@ export const newProject = (name: string): Project => ({
   comments: [],
   passageLinks: [],
   cardLinks: [],
+  tags: [],
 });
 
 export const rename = (name: string) => edit(() => ({ name }), false);
@@ -363,7 +367,7 @@ export function addHighlight(docId: string, parts: Part[], text: string, color: 
 }
 
 export const CARD_WIDTH = 280;
-const newCard = (data: CardData, position: XYPosition): Card => ({
+export const newCard = (data: CardData, position: XYPosition): Card => ({
   id: uid(),
   type: 'card',
   position,

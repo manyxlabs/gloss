@@ -11,7 +11,10 @@ export type Part = { page: number; rects: Rect[] };
  * Marked text, or with `area` a box drawn around a figure or table. `commentId` is the comment
  * pinned beside it in the document's margin, which other passages may share.
  */
-export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; commentId?: string };
+export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; commentId?: string; tags?: string[] };
+
+/** A label put on passages and cards, to find and filter them by; `category` names the heading it is listed under. */
+export type Tag = { id: string; name: string; category?: string; color?: Color };
 
 /** A comment in the margin, shown beside every highlight whose `commentId` names it; it goes with the last of them. */
 export type Comment = { id: string; text: string };
@@ -80,8 +83,11 @@ export type InkData = {
 };
 /** A collapsed group shows only its name and how many cards it holds; `openHeight` is its height when open. */
 export type GroupData = { kind: 'group'; title: string; collapsed?: boolean; openHeight?: number };
-/** Every card sits on one of the project's canvases; cards from before there were several have none and sit on the first. */
-export type CardData = (ExcerptData | NoteData | InkData | GroupData) & { canvasId?: string };
+/**
+ * Every card sits on one of the project's canvases; cards from before there were several have none and sit on the first.
+ * `tags` are a note's, a group's or handwriting's own; an excerpt shows its passage's tags instead.
+ */
+export type CardData = (ExcerptData | NoteData | InkData | GroupData) & { canvasId?: string; tags?: string[] };
 export type CanvasMeta = { id: string; name: string };
 export type Card = Node<CardData, 'card'>;
 export type Link = Edge;
@@ -101,6 +107,7 @@ export type Project = {
   comments: Comment[];
   passageLinks: PassageLink[];
   cardLinks: CardLink[];
+  tags: Tag[];
   /** The backup this project was restored from, as its project's id and last change, to notice the same backup restored twice. */
   restoredFrom?: string;
   /** The sync room this project is shared through, with its key; absent while the project stays on this device. */

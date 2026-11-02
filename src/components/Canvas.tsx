@@ -40,6 +40,7 @@ import { CardNode } from './CardNode';
 import { EXCERPT_MIME, type ExcerptDrag } from './dnd';
 import { Cursors } from './Presence';
 import { SelectionBar } from './SelectionBar';
+import { TagFilter } from './Tags';
 import { Tools } from './Tools';
 
 const nodeTypes = { card: CardNode };
@@ -399,6 +400,7 @@ export function Canvas() {
             <StickyNote size={16} /> Note
           </button>
           <Tools side="canvasTool" />
+          {project?.tags.length ? <TagFilter /> : null}
         </div>
         {!cards.length && (
           <p className="canvas-hint">
