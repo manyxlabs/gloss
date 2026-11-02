@@ -190,7 +190,7 @@ test('a password protected PDF asks for its password, refuses a wrong one and op
   const [again] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
   await again.setFiles({ name: 'Other.pdf', mimeType: 'application/pdf', buffer: await encryptedPdf('reef') });
   await page.getByRole('dialog', { name: 'Password needed' }).getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByRole('tab')).toHaveCount(3);
+  await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(3);
 });
 
 /** A page with lines of text, a green chart drawn as a filled box, and its caption, at known places in PDF points. */
