@@ -2114,3 +2114,157 @@ dialog.sheet::backdrop {
   gap: 8px;
   margin: 0;
 }
+
+/* Menus opened from a button, drawn over everything (see Menu.tsx). */
+.menu.floating {
+  position: fixed;
+  right: auto;
+  z-index: 60;
+  min-width: 200px;
+  /* Nearly solid: it often opens over a white page, which thinner glass would smear through. */
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+
+.menu.floating button {
+  gap: 10px;
+  padding: 7px 12px;
+}
+
+.menu.floating button svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.menu button.danger,
+.menu button.danger svg {
+  color: var(--danger);
+}
+
+.menu hr {
+  width: auto;
+  margin: 4px 8px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Page tools in the sidebar's Pages tab. */
+.thumbs li {
+  position: relative;
+}
+
+.thumbs.busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.thumbs button[aria-pressed='true'],
+.thumbs button[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.thumbs .page-more {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 99px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.22);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.thumbs .page-more:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+.thumbs li:hover .page-more,
+.thumbs li.picked .page-more,
+.thumbs .page-more:focus-visible,
+.thumbs .page-more[aria-expanded='true'] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .thumbs .page-more {
+    opacity: 1;
+  }
+}
+
+.thumbs li.drop-before::before,
+.thumbs li.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.thumbs li.drop-before::before {
+  top: -6px;
+}
+
+.thumbs li.drop-after::after {
+  bottom: -6px;
+}
+
+.pages-bar {
+  position: sticky;
+  top: -6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: -6px -6px 6px;
+  padding: 4px 4px 4px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+
+.pages-bar span {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.side-note {
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.side-problem {
+  position: relative;
+  margin: 0 0 6px;
+  padding: 8px 30px 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.side-problem p {
+  margin: 0;
+}
+
+.side-problem button.icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  color: inherit;
+}
