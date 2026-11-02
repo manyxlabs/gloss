@@ -9,7 +9,7 @@ import { asPresence, presence, useMe, useSync, type Presence, type Status } from
 
 // The project as a Yjs document: a map per list, keyed by id, holding each entity as plain JSON,
 // so concurrent edits merge per entity and the last write to one entity wins.
-const LISTS = ['docs', 'highlights', 'cards', 'links', 'inks', 'folds', 'canvases'] as const;
+const LISTS = ['docs', 'highlights', 'cards', 'links', 'inks', 'folds', 'canvases', 'comments', 'passageLinks', 'cardLinks'] as const;
 type List = (typeof LISTS)[number];
 type Entity = { id: string };
 type Shared = { name?: string } & Record<List, Entity[]>;

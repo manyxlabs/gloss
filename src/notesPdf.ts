@@ -12,7 +12,7 @@ function item(i: NoteItem): Block[] {
           ...(i.note ? [para(`Comment: ${i.note}`)] : []),
           ...(i.comment ? [para(i.comment)] : []),
         ];
-  return i.links.length ? [...body, para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, true)] : body;
+  return [...body, ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, true)] : []), ...i.passages.map((l) => para(`Linked passage: ${l}`, true))];
 }
 
 /** The notes typeset as a PDF, in the outline's order. */
@@ -27,7 +27,11 @@ export async function notesPdf(o: Outline) {
     for (const d of o.highlights)
       blocks.push(
         { kind: 'heading', level: 3, runs: [{ text: d.doc }] },
-        { kind: 'list', ordered: false, items: d.items.map((h) => [para(`p. ${h.page}: ${h.text}${h.note ? ` (comment: ${h.note})` : ''}`)]) },
+        {
+          kind: 'list',
+          ordered: false,
+          items: d.items.map((h) => [para(`p. ${h.page}: ${h.text}${h.note ? ` (comment: ${h.note})` : ''}`), ...h.passages.map((l) => para(`Linked passage: ${l}`, true))]),
+        },
       );
   }
   const { bytes } = await typeset(o.title, blocks);

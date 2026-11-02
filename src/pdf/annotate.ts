@@ -1,5 +1,6 @@
-import { PDFDocument, PDFHexString, PDFString, type PDFPage } from 'pdf-lib';
+import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFPage } from 'pdf-lib';
 import { outline, PAGE_PIXELS, PAPER } from '../ink';
+import { cite, commentOf, endsOf } from '../links';
 import { getFile } from '../store/db';
 import type { Project } from '../types';
 import { loadDoc } from './pdfjs';
@@ -26,8 +27,9 @@ const n = (v: number) => +v.toFixed(3);
 /**
  * The document with its highlights and handwriting added as standard PDF annotations, so any
  * reader shows them and can edit them. Each carries its own appearance, as some readers do not
- * draw an annotation without one. A boxed figure becomes a Square. The highlight's own comment and
- * its excerpt's comment become the annotation's note.
+ * draw an annotation without one. A boxed figure becomes a Square. The highlight's own comment,
+ * its excerpt's comment and the passages linked to it become the annotation's note, and a link to
+ * a passage in the same document is also a Link annotation over the passage that goes there.
  */
 export async function annotatedPdf(project: Project, docId: string) {
   const bytes = await getFile(docId);
@@ -85,8 +87,27 @@ export async function annotatedPdf(project: Project, docId: string) {
   for (const h of project.highlights.filter((x) => x.docId === docId)) {
     const color = rgb(HIGHLIGHT[h.color]!);
     // The comment in the margin and the one on the excerpt's card, when there are both.
-    const note = [h.note, comments.get(h.id)].filter(Boolean).join('\n\n');
+    const others = endsOf(project, h.id).flatMap((e) => ('highlight' in e ? [e.highlight] : []));
+    const note = [commentOf(project, h)?.text, comments.get(h.id), ...others.map((o) => `Linked passage: ${cite(project, o)}`)].filter(Boolean).join('\n\n');
     const contents = note ? { Contents: PDFHexString.fromText(note) } : {};
+    for (const o of others.filter((x) => x.docId === docId)) {
+      const [from, to] = [h.parts[0], o.parts[0]];
+      if (!from?.rects.length || !to?.rects[0]) continue;
+      const [x, y] = (await pointOf(to.page))(to.rects[0][0], to.rects[0][1]);
+      const at = await pointOf(from.page);
+      const link = ctx.register(
+        ctx.obj({
+          Type: 'Annot',
+          Subtype: 'Link',
+          Rect: bounds(from.rects.flatMap(([rx, ry, w, hgt]) => [at(rx, ry), at(rx + w, ry + hgt)])),
+          Border: [0, 0, 0],
+          F: 4,
+          // Lands with the passage's first line at the top of the view, at the reader's own zoom.
+          A: { S: 'GoTo', D: [pdf.getPage(to.page - 1).ref, PDFName.of('XYZ'), n(x), n(y), null] },
+        } as never),
+      );
+      pdf.getPage(from.page - 1).node.addAnnot(link);
+    }
     for (const part of h.parts) {
       const at = await pointOf(part.page);
       // Corners in the order readers expect: top left, top right, bottom left, bottom right.
