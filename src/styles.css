@@ -2318,6 +2318,19 @@ dialog.sheet::backdrop {
   font-size: 14px;
 }
 
+/* Where the Document and Canvas switch sits under the header, notices go to the foot instead,
+   clear of the document toolbar, so they never cover the switch. */
+@media (max-width: 900px) {
+  .toast {
+    top: auto;
+    bottom: 72px;
+    left: 12px;
+    right: 12px;
+    width: fit-content;
+    margin-inline: auto;
+  }
+}
+
 .library .install {
   font-size: 14px;
 }
