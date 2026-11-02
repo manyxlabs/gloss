@@ -92,29 +92,55 @@ export function pageTexts(docId: string, password?: string) {
   return pages;
 }
 
-/** The text whose middle lies inside a box on a page, in reading order. */
-export async function textIn(docId: string, password: string | undefined, pageNo: number, [x, y, w, h]: Rect) {
+let measure: OffscreenCanvasRenderingContext2D | null = null;
+
+/**
+ * How far into a run of text its first `upTo` characters reach, as a share of the run. The text
+ * layer draws each run in the font family pdf.js names and stretches it to the run's width, so
+ * measuring in that family places words where the text layer, and so a selection, has them.
+ */
+export function runShare(str: string, upTo: number, family = 'sans-serif') {
+  if (upTo <= 0) return 0;
+  if (upTo >= str.length) return 1;
+  measure ??= new OffscreenCanvas(1, 1).getContext('2d')!;
+  measure.font = `100px ${family}`;
+  const whole = measure.measureText(str).width;
+  return whole ? measure.measureText(str.slice(0, upTo)).width / whole : upTo / str.length;
+}
+
+/**
+ * Each word on a page with its middle as fractions of the page, in reading order, and whether a
+ * line ends after it. pdf.js gives runs of text with their width; where each word of a run lies is
+ * estimated from the widths of its letters in a similar font.
+ */
+async function wordsOn(docId: string, password: string | undefined, pageNo: number) {
   const page = await (await loadDoc(docId, password)).getPage(pageNo);
   const viewport = page.getViewport({ scale: 1 });
-  let text = '';
-  const inside = (px: number, py: number) => {
-    const [vx, vy] = viewport.convertToViewportPoint(px, py) as [number, number];
-    const [fx, fy] = [vx / viewport.width, vy / viewport.height];
-    return fx >= x && fx <= x + w && fy >= y && fy <= y + h;
-  };
-  for (const item of (await page.getTextContent()).items) {
-    if (!('str' in item)) continue;
-    // A run is often a whole line, of which the box may hold only part: each word is kept when its
-    // middle is inside. Words are placed along the run by their share of its characters.
+  const { items, styles } = await page.getTextContent();
+  const words: { text: string; x: number; y: number; eol: boolean }[] = [];
+  for (const item of items) {
+    if (!('str' in item) || !item.str.trim()) continue;
+    const family = styles[item.fontName]?.fontFamily;
     const [a, b, c, d, e, f] = item.transform as number[];
     const along = Math.hypot(a!, b!) || 1;
-    const [ux, uy] = [((a! / along) * item.width) / (item.str.length || 1), ((b! / along) * item.width) / (item.str.length || 1)];
-    const words = [...item.str.matchAll(/\S+/g)].filter((m) => {
-      const mid = m.index + m[0].length / 2;
-      return inside(e! + ux * mid + c! / 2, f! + uy * mid + d! / 2);
-    });
-    if (words.length) text += words.map((m) => m[0]).join(' ') + (item.hasEOL ? '\n' : ' ');
+    const found = [...item.str.matchAll(/\S+/g)];
+    for (const [i, m] of found.entries()) {
+      // Halfway along the word on its baseline, then half up its height, whatever the rotation.
+      const mid = ((runShare(item.str, m.index, family) + runShare(item.str, m.index + m[0].length, family)) / 2) * item.width;
+      const [vx, vy] = viewport.convertToViewportPoint(e! + (a! / along) * mid + c! / 2, f! + (b! / along) * mid + d! / 2) as [number, number];
+      words.push({ text: m[0], x: vx / viewport.width, y: vy / viewport.height, eol: i === found.length - 1 && item.hasEOL });
+    }
   }
+  return words;
+}
+
+/** The words whose middles lie inside any of the boxes on a page, in reading order. */
+export async function textIn(docId: string, password: string | undefined, pageNo: number, rects: Rect[]) {
+  const inside = (w: { x: number; y: number }) => rects.some(([x, y, rw, rh]) => w.x >= x && w.x <= x + rw && w.y >= y && w.y <= y + rh);
+  const text = (await wordsOn(docId, password, pageNo))
+    .filter(inside)
+    .map((w) => w.text + (w.eol ? '\n' : ' '))
+    .join('');
   return cleanText(text);
 }
 

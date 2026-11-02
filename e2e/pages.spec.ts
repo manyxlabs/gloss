@@ -1,15 +1,7 @@
 import { copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
+import { ARTIFACTS, card, inside, openProject, readPdf, select, shot, type Box } from './helpers';
 import { encryptedPdf, makePdf } from './pdfs';
-
-type Box = { x: number; y: number; width: number; height: number };
-/** How much of box `a` lies inside box `b`. */
-const inside = (a: Box, b: Box) => {
-  const w = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const h = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  return (w * h) / (a.width * a.height);
-};
 
 const span = (page: Page, text: string) => page.locator('.page:not([data-copy]) .textLayer span', { hasText: text }).first();
 const sidebar = (page: Page) => page.getByRole('complementary', { name: 'Contents, pages and highlights' });
