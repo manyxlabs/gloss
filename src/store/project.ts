@@ -11,8 +11,8 @@ import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProje
 /** Which version of each document's file a document has, as page edits are undone with the rest. */
 export type Version = Pick<DocMeta, 'file' | 'pages' | 'size'>;
 /** A step of history. Its documents carry the version of each file, so undo brings back a removed document and an earlier version alike. */
-type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
-const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks }: Project): Snapshot => ({
+type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks' | 'bookmarks' | 'docFolders'>;
+const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks, bookmarks, docFolders }: Project): Snapshot => ({
   docs,
   highlights,
   cards,
@@ -23,6 +23,8 @@ const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comme
   comments,
   passageLinks,
   cardLinks,
+  bookmarks,
+  docFolders,
 });
 /** A document at a version. */
 const atVersion = (d: DocMeta, v: Version | undefined): DocMeta => {
@@ -34,14 +36,17 @@ const atVersion = (d: DocMeta, v: Version | undefined): DocMeta => {
 export type Tool = 'select' | 'pen' | 'eraser';
 /** Documents also take a box drawn around a figure. */
 export type DocTool = Tool | 'snip';
-export type Pane = 0 | 1;
+/** The document panes, from the left: the main one, and up to two more beside it on a wide screen. */
+export type Pane = 0 | 1 | 2;
+export const PANES = ['activeDocId', 'sideDocId', 'thirdDocId'] as const;
 export const MAIN_CANVAS = 'main';
 
 type State = {
   project: Project | null;
-  /** The document in the main pane, and in the second pane while two are open side by side. */
+  /** The document in the main pane, and in the second and third while they are open beside it; the third opens only after the second. */
   activeDocId: string | null;
   sideDocId: string | null;
+  thirdDocId: string | null;
   /** The canvas on show, of the project's canvases. */
   canvasId: string;
   /** A request for a document pane to scroll to a highlight, or to a page with a place on it or a search match; `at` makes a repeat request distinct. */
@@ -86,6 +91,7 @@ export const useStore = create<State>(() => ({
   project: null,
   activeDocId: null,
   sideDocId: null,
+  thirdDocId: null,
   canvasId: MAIN_CANVAS,
   jump: null,
   focus: null,
@@ -143,9 +149,14 @@ function travel(from: 'past' | 'future') {
     [from]: stack.slice(0, -1),
     [to]: [...state[to], snapshot(state.project)],
     project: { ...state.project, ...target, docs, updatedAt: Date.now() },
-    activeDocId: shown(state.activeDocId) ? state.activeDocId : (docs[0]?.id ?? null),
-    sideDocId: shown(state.sideDocId) ? state.sideDocId : null,
+    ...panesShowing(state, shown, docs[0]?.id ?? null),
   });
+}
+
+/** The panes once documents not `shown` are gone: the main pane takes the first document, and the others close, those right of a closed one moving left. */
+export function panesShowing(s: Pick<State, (typeof PANES)[number]>, shown: (id: string | null) => boolean, first = useStore.getState().project?.docs[0]?.id ?? null) {
+  const rest = [s.sideDocId, s.thirdDocId].filter((id) => id !== null && shown(id));
+  return { activeDocId: shown(s.activeDocId) ? s.activeDocId : first, sideDocId: rest[0] ?? null, thirdDocId: rest[1] ?? null };
 }
 export const undo = () => travel('past');
 export const redo = () => travel('future');
@@ -219,7 +230,16 @@ export async function openProject(id: string) {
     for (const d of stored.docs) void dropOldVersions(d);
   }
   // Projects saved before handwriting, squeezing and several canvases existed lack those lists.
-  const old = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
+  const old = stored
+    ? {
+        ...stored,
+        inks: stored.inks ?? [],
+        folds: stored.folds ?? [],
+        canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }],
+        bookmarks: stored.bookmarks ?? [],
+        docFolders: stored.docFolders ?? [],
+      }
+    : null;
   const project = old && migrate(old);
   // Saved before sync starts, which then shares the change as newer than its own state rather than undoing it.
   if (project && project !== old) await putProject(project);
@@ -228,6 +248,7 @@ export async function openProject(id: string) {
     project,
     activeDocId: project?.docs[0]?.id ?? null,
     sideDocId: null,
+    thirdDocId: null,
     canvasId: project?.canvases[0]?.id ?? MAIN_CANVAS,
     past: [],
     future: [],
@@ -244,7 +265,7 @@ export function closeProject() {
   if (project) release(project, [], []);
   retired.clear();
   closeDocs();
-  set({ project: null, activeDocId: null, sideDocId: null, past: [], future: [] });
+  set({ project: null, activeDocId: null, sideDocId: null, thirdDocId: null, past: [], future: [] });
 }
 
 export const UNTITLED = 'Untitled project';
@@ -264,14 +285,30 @@ export const newProject = (name: string): Project => ({
   comments: [],
   passageLinks: [],
   cardLinks: [],
+  bookmarks: [],
+  docFolders: [],
 });
 
 export const rename = (name: string) => edit(() => ({ name }), false);
-export const setActiveDoc = (docId: string, pane: Pane = 0) => set(pane ? { sideDocId: docId } : { activeDocId: docId });
-/** Opens a second document pane beside the first, or closes it. */
-export const setSideBySide = (on: boolean) => set((s) => ({ sideDocId: on ? (s.project?.docs.find((d) => d.id !== s.activeDocId)?.id ?? s.activeDocId) : null }));
-/** The pane showing a document, preferring the main one. */
-const paneOf = (docId: string): Pane => (get().activeDocId !== docId && get().sideDocId === docId ? 1 : 0);
+export const setActiveDoc = (docId: string, pane: Pane = 0) => set({ [PANES[pane]]: docId });
+/** How many document panes are open. */
+export const paneCount = (s: Pick<State, (typeof PANES)[number]>) => (s.thirdDocId !== null ? 3 : s.sideDocId !== null ? 2 : 1);
+/** Opens another document pane to the right, showing a document the others do not, or another place in the last one. */
+export const openPane = () =>
+  set((s) => {
+    const n = paneCount(s);
+    if (n === 3) return {};
+    const shown = PANES.slice(0, n).map((k) => s[k]);
+    return { [PANES[n]]: s.project?.docs.find((d) => !shown.includes(d.id))?.id ?? shown.at(-1) ?? null };
+  });
+/** Closes a pane beside the main one; any to its right moves left. */
+export const closePane = (pane: 1 | 2) => set((s) => (pane === 1 ? { sideDocId: s.thirdDocId, thirdDocId: null } : { thirdDocId: null }));
+/** The pane showing a document, the leftmost where several do; the main one where none does. */
+export const paneOf = (docId: string): Pane => {
+  const s = get();
+  const at = PANES.slice(0, paneCount(s)).findIndex((k) => s[k] === docId);
+  return (at < 0 ? 0 : at) as Pane;
+};
 export const rememberPage = (docId: string, lastPage: number) =>
   edit(
     (p) => ({
@@ -336,7 +373,8 @@ export async function addDocs(files: Input[], options: ConvertOptions = {}) {
 
 /** Takes a document out with everything on it; undo brings it back, as its file is kept until the history is gone. */
 export function removeDoc(docId: string) {
-  const { project, activeDocId, sideDocId } = get();
+  const state = get();
+  const { project } = state;
   if (!project) return;
   const gone = new Set(project.highlights.filter((h) => h.docId === docId).map((h) => h.id));
   const cards = project.cards.filter((c) => !(c.data.kind === 'excerpt' && gone.has(c.data.highlightId)));
@@ -350,10 +388,10 @@ export function removeDoc(docId: string) {
     links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
     inks: project.inks.filter((i) => i.docId !== docId),
     folds: project.folds.filter((f) => f.docId !== docId),
+    bookmarks: project.bookmarks.filter((b) => b.docId !== docId),
     ...prune({ ...project, highlights, cards }),
   }));
-  if (activeDocId === docId) set({ activeDocId: docs[0]?.id ?? null });
-  if (sideDocId === docId) set({ sideDocId: null });
+  set(panesShowing(state, (id) => id !== docId, docs[0]?.id ?? null));
 }
 
 export function addHighlight(docId: string, parts: Part[], text: string, color: Color, extra: Pick<Highlight, 'area'> = {}) {

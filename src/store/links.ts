@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { prune } from '../links';
 import type { Anchor } from '../pdf/anchor';
 import type { Color, Highlight } from '../types';
-import { addHighlight, edit, setActiveDoc, showSource, uid, useStore, type Pane } from './project';
+import { addHighlight, edit, paneCount, PANES, setActiveDoc, showSource, uid, useStore, type Pane } from './project';
 
 /**
  * Waiting for the reader to pick a passage: the other end of a link from `from`, or another
@@ -83,14 +83,16 @@ export function linkCard(highlightId: string, cardId: string) {
 }
 
 /**
- * Shows the other end of a link: beside this one in the other pane while two are open, so both
- * passages are in view together, or else here.
+ * Shows the other end of a link: in another pane while several are open, so both passages are in
+ * view together (one already showing its document, or else the next to the right), or else here.
  */
 export function showEnd(highlightId: string, from: Pane) {
   const s = useStore.getState();
   const h = s.project?.highlights.find((x) => x.id === highlightId);
   if (!h) return;
-  const pane: Pane = s.sideDocId !== null ? (from ? 0 : 1) : from;
+  const n = paneCount(s);
+  const others = Array.from({ length: n - 1 }, (_, i) => ((from + 1 + i) % n) as Pane);
+  const pane = others.find((p) => s[PANES[p]] === h.docId) ?? others[0] ?? from;
   setActiveDoc(h.docId, pane);
   showSource(highlightId, pane);
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { outline, PAPER, pathOf } from '../ink';
 import { highlightAt, pageAt } from '../pdf/anchor';
 import { linkCard } from '../store/links';
-import { addInk, useStore } from '../store/project';
+import { addInk, PANES, useStore } from '../store/project';
 import type { Card, Point } from '../types';
 import { INK_SIZE } from './DocPane';
 
@@ -50,11 +50,12 @@ export function InkLink() {
 
     // Taken in the capture phase, before the document pane would start a stroke of its own.
     const onDown = (e: PointerEvent) => {
-      const { docTool, activeDocId, sideDocId, project } = useStore.getState();
+      const state = useStore.getState();
+      const { docTool, project } = state;
       const target = e.target as HTMLElement;
       const scroller = target.closest?.<HTMLElement>('.doc-scroll');
       if (docTool !== 'pen' || !scroller || !project || target.closest('.popup, .fold-bar') || e.button > 0) return;
-      const docId = [...document.querySelectorAll('.doc-pane')].indexOf(scroller.closest('.doc-pane')!) ? sideDocId : activeDocId;
+      const docId = state[PANES[[...document.querySelectorAll('.doc-pane')].indexOf(scroller.closest('.doc-pane')!)] ?? 'activeDocId'];
       const hit = pageAt(scroller, e.clientX, e.clientY);
       const h = docId && hit && highlightAt(project.highlights, docId, hit.page, (e.clientX - hit.box.left) / hit.box.width, (e.clientY - hit.box.top) / hit.box.height);
       if (!h) return;

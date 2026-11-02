@@ -93,7 +93,8 @@ export function remap(p: Project, docId: string, sheets: Sheet[], ratios: number
         return at ? [{ page: at.page, rects: part.rects.map((r) => turnRect(r, at.turn)) }] : [];
       })
       .sort((a, b) => a.page - b.page);
-    if (!parts.length) gone.add(h.id);
+    // An unplaced highlight had no page to lose.
+    if (!parts.length && h.parts.length) gone.add(h.id);
     return { ...h, parts };
   });
 
@@ -118,8 +119,14 @@ export function remap(p: Project, docId: string, sheets: Sheet[], ratios: number
     f.docId !== docId ? [f] : keeps(f) ? [{ ...f, from: { ...f.from, page: to.get(f.from.page)!.page }, to: { ...f.to, page: to.get(f.to.page)!.page } }] : [],
   );
 
+  const bookmarks = p.bookmarks.flatMap((b) => {
+    if (b.docId !== docId) return [b];
+    const at = to.get(b.page);
+    return at ? [{ ...b, page: at.page, y: turnPoint([0, b.y, 0], at.turn)[1] }] : [];
+  });
+
   const docs = p.docs.map((d) => (d.id === docId && d.lastPage ? { ...d, lastPage: to.get(d.lastPage)?.page ?? Math.min(d.lastPage, sheets.length) } : d));
-  return { ...without({ ...p, highlights }, new Set(), gone), inks, folds, docs };
+  return { ...without({ ...p, highlights }, new Set(), gone), inks, folds, bookmarks, docs };
 }
 
 /** Deletes every object nothing in the document refers to any more, such as deleted pages, so the file shrinks with them. */
@@ -147,7 +154,7 @@ const INHERITED = ['Resources', 'MediaBox', 'CropBox', 'Rotate'].map((n) => PDFN
  * forms and metadata stay: its page tree is laid flat in the new order, with what pages inherited
  * from the tree copied onto each page first.
  */
-function arrange(pdf: PDFDocument, sheets: Sheet[], added: PDFRef[]) {
+export function arrange(pdf: PDFDocument, sheets: Sheet[], added: PDFRef[]) {
   const ctx = pdf.context;
   const own = pdf.getPages();
   for (const { node } of own)
