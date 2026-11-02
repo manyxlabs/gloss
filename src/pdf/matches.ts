@@ -2,29 +2,13 @@ import type { PDFPageProxy } from 'pdfjs-dist';
 import type { TextItem, TextStyle } from 'pdfjs-dist/types/src/display/api';
 import type { Rect } from '../types';
 import { mergeLines } from './anchor';
-import { loadDoc } from './pdfjs';
+import { loadDoc, runShare } from './pdfjs';
 
 /** A match of a search in a document, as a highlight would hold it: page fractions, a box per line. */
 export type Match = { page: number; rects: Rect[]; text: string };
 
 /** Typed text as search compares it: spaces collapsed and lower case. */
 export const normalise = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-
-let ruler: CanvasRenderingContext2D | null = null;
-/**
- * How far into a run of text a character starts, as a share of the run. The text layer draws each
- * run in the font family pdf.js names and stretches it to the run's width, so measuring in that
- * family puts a match where the text layer, and so a selection, has it.
- */
-function share(str: string, upTo: number, family: string) {
-  if (upTo <= 0) return 0;
-  if (upTo >= str.length) return 1;
-  ruler ??= document.createElement('canvas').getContext('2d');
-  if (!ruler) return upTo / str.length;
-  ruler.font = `100px ${family}`;
-  const whole = ruler.measureText(str).width;
-  return whole ? ruler.measureText(str.slice(0, upTo)).width / whole : upTo / str.length;
-}
 
 type Page = { items: TextItem[]; styles: Record<string, TextStyle>; toPage: (x: number, y: number) => [number, number] };
 
@@ -54,7 +38,7 @@ function boxOf({ items, styles, toPage }: Page, index: number, from: number, to:
   // Padded to the height a selection of the same words has, which is the line box the browser draws.
   const ascent = (style?.ascent || 0.8) + 0.12;
   const descent = (style?.descent || -0.2) - 0.12;
-  const [s0, s1] = [share(item.str, from, style?.fontFamily ?? 'sans-serif') * item.width, share(item.str, to, style?.fontFamily ?? 'sans-serif') * item.width];
+  const [s0, s1] = [runShare(item.str, from, style?.fontFamily) * item.width, runShare(item.str, to, style?.fontFamily) * item.width];
   const corners = [
     [s0, descent],
     [s1, descent],

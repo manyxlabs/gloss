@@ -6,6 +6,8 @@ import { anchoredOn, duplicate, editPages, insert, move, PROTECTED, remove, rota
 import { regionImage } from '../../pdf/pdfjs';
 import { showPage, useStore, type Pane } from '../../store/project';
 import { Menu } from '../Menu';
+import { OcrMenuItem } from './OcrMenuItem';
+import { usePictures } from './photos';
 
 /** Thumbnail width in CSS pixels, drawn at the screen's own resolution. */
 const THUMB_WIDTH = 104;
@@ -233,6 +235,7 @@ export function Pages({
           <button role="menuitem" onClick={() => void run(duplicate(at))}>
             <CopyPlus size={16} /> Duplicate
           </button>
+          <OcrMenuItem docId={docId} pages={at} onClose={() => setMenu(null)} onProblems={setProblems} />
           <hr />
           <button role="menuitem" onClick={() => addFrom(at[0]! - 1)}>
             <FilePlus2 size={16} /> Insert pages before…
@@ -268,6 +271,7 @@ function Thumb({ doc, docId, password, page, ratio }: { doc: PDFDocumentProxy; d
   // Kept with the file it was drawn from, so a page edit never shows another page's picture.
   const [drawn, setDrawn] = useState<{ doc: PDFDocumentProxy; url: string; ratio: number } | null>(null);
   const shown = drawn?.doc === doc ? drawn : null;
+  const pictures = usePictures(docId, page);
   useEffect(() => {
     let stale = false;
     const seen = new IntersectionObserver(
@@ -291,6 +295,18 @@ function Thumb({ doc, docId, password, page, ratio }: { doc: PDFDocumentProxy; d
   return (
     <span className="thumb" ref={box} style={{ aspectRatio: shown?.ratio ?? ratio }}>
       {shown && <img src={shown.url} alt="" draggable={false} />}
+      {/* On a dark page, its pictures as they are: the same image again, unfiltered and cut to each picture. */}
+      {shown &&
+        pictures.map(([x, y, w, h], i) => (
+          <img
+            key={i}
+            className="thumb-photo"
+            src={shown.url}
+            alt=""
+            draggable={false}
+            style={{ clipPath: `inset(${y * 100}% ${(1 - x - w) * 100}% ${(1 - y - h) * 100}% ${x * 100}%)` }}
+          />
+        ))}
     </span>
   );
 }

@@ -10,6 +10,7 @@ import { highlightAt, locate, pageAt, pointOnPage, selectionAnchor, textBoxes, t
 import { annotatedPdf } from '../pdf/annotate';
 import { layoutFolds, refreshTails } from '../pdf/folds';
 import { loadDoc, textIn } from '../pdf/pdfjs';
+import { shownLook, useReading } from '../reading';
 import {
   addDocs,
   addFold,
@@ -35,7 +36,10 @@ import { setTag } from '../store/tags';
 import { COLORS, type Color, type Point, type Rect } from '../types';
 import { Collapse } from './doc/Collapse';
 import { LinkPopover } from './doc/LinkPopover';
+import { AnnotsBanner } from './doc/AnnotsBanner';
+import { PageLookMenu } from './doc/PageLookMenu';
 import { NoteEditor } from './doc/NoteEditor';
+import { OcrBanner } from './doc/OcrBanner';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
 import { DefinedTerms } from './doc/Terms';
@@ -131,6 +135,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
   const inkColor = useStore((s) => s.inkColor);
+  // Pictures are put back over dark pages as they are, which a repaint does.
+  const pictures = useReading((s) => shownLook(s) === 'dark' && s.keepImages);
 
   const scroller = useRef<HTMLDivElement>(null);
   const viewerDiv = useRef<HTMLDivElement>(null);
@@ -204,6 +210,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       eventBus: bus,
       linkService: links,
       findController,
+      imageResourcesPath: `${import.meta.env.BASE_URL}pdfjs/images/`,
     });
     links.setViewer(viewer);
     pdf.current = { viewer, bus, links };
@@ -388,7 +395,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (pdf.current) relayout(pdf.current.viewer, activeDocId);
   }, [folds, loaded, activeDocId]);
 
-  useEffect(() => paintPages(pdf.current?.viewer, flash.current, activeDocId), [highlights, cards, inks, comments, passageLinks, cardLinks, linking, loaded, activeDocId]);
+  useEffect(
+    () => paintPages(pdf.current?.viewer, flash.current, activeDocId),
+    [highlights, cards, inks, comments, passageLinks, cardLinks, linking, loaded, activeDocId, pictures],
+  );
 
   useEffect(() => {
     const p = pdf.current;
@@ -541,7 +551,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const rect = snipRect(s, x, y);
     if (rect[2] * s.box.width < MIN_SNIP || rect[3] * s.box.height < MIN_SNIP) return setPopup(null);
     const docId = activeDocId;
-    const text = await textIn(docId, active?.password, s.page, rect).catch(() => '');
+    const text = await textIn(docId, active?.password, s.page, [rect]).catch(() => '');
     const h = addHighlight(docId, [{ page: s.page, rects: [rect] }], text, color, { area: true });
     const c = scroller.current!;
     const top = Math.min(s.y, y);
@@ -942,6 +952,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         </div>
 
         <DefinedTerms viewer={viewerDiv} scroller={scroller} docId={ready ? active.id : null} pane={pane} />
+        {ready && (
+          <div className="doc-banners">
+            <AnnotsBanner doc={active} onProblems={onProblems} />
+            <OcrBanner doc={active} onProblems={onProblems} />
+          </div>
+        )}
         <div className="snip-live" ref={snipLive} style={{ display: 'none' }} />
         <svg className="ink-live" aria-hidden="true">
           <path ref={live} fill={PAPER[inkColor]} />
@@ -991,6 +1007,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             </button>
           </span>
           <Collapse docId={active.id} />
+          <PageLookMenu />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>
