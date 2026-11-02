@@ -18,12 +18,19 @@ The one other exception is adding a web page: its address goes to Gloss's server
 - **Highlights** in five colours, kept apart from excerpts until you want them on the canvas.
 - **Figures and tables**: pick Snip and draw a box around one. Excerpted, its card shows that part of the page as a picture, drawn from the PDF.
 - **Comments in the margin**: comment on a selection or on any highlight. A marker beside the line opens the comment to edit.
+  One comment can be attached to several passages, in any of the documents: its marker shows beside each, and editing it beside one edits it everywhere.
+  Deleting a passage takes the comment off it, and the comment goes with its last passage.
+- **Linked passages**: press Link on a highlight or a selection, then pick the other end, a highlight or new selection in any document or either pane (Escape cancels).
+  A marker in the left margin shows what a passage is linked to and goes there, opening it in the other pane when two are side by side, so both are in view.
+- **Ink links**: with the pen, draw from a highlight onto a card on the canvas to link them.
+  The card shows where its passage is, and the passage's marker shows the card.
 - **Contents, pages and highlights** in a sidebar beside each document: the PDF's table of contents, page thumbnails, and every highlight and comment in page order.
-- **Password protected PDFs** open after you enter the password, which is kept only in this browser.
+- **Password protected PDFs** open after you enter the password, which is kept with the project (and, in a shared project, travels with it end-to-end encrypted).
 - **Squeeze** the text between two passages out of view to read them side by side: pinch two fingers held one above the other, or select what is in between and press Squeeze. A bar marks each squeeze and opens it again.
 - **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen, and once one has been used, a finger or palm scrolls and pans instead of drawing.
 - **Groups**: select cards and group them under a name, or pinch two cards together on a touch screen; drag a card in or out, move the group to move them all, and collapse it to its name (pinch it closed, spread it open) with its links ending on it.
-- **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them. A password protected PDF cannot be exported this way; save a copy without the password first.
+- **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them.
+  Linked passages in the same document become links that go to each other; links to another document are named in the passage's note. A password protected PDF cannot be exported this way; save a copy without the password first.
 - **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one).
 - **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
@@ -31,14 +38,14 @@ The one other exception is adding a web page: its address goes to Gloss's server
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
 - **Search everything**: every page of every PDF, every card and every comment, with Ctrl+K.
 - **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z.
-- **Export notes** as Markdown, PDF or Word, with groups as sections and each excerpt's source and page.
+- **Export notes** as Markdown, PDF or Word, with groups as sections, each excerpt's source and page, and the passages linked to it.
 - **Phones**: one side at a time, touch selection, and pinch to zoom the page.
 - **Sync and work together**, end-to-end encrypted, when you choose to share a project.
 
 ## Sync and sharing
 
 A project stays on its device until you press **Share** in its header and create a link.
-Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, handwriting, squeezes, canvases and the project's name.
+Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, comments, linked passages, handwriting, squeezes, canvases and the project's name.
 Everyone in the project shows as an avatar with where they are reading, and their pointer shows on the canvas.
 Edits made offline are kept and merge when the connection returns.
 **Stop syncing on this device** keeps the local copy but stops exchanging changes; the others carry on.

@@ -2,13 +2,24 @@ import { addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type Edge
 import { create } from 'zustand';
 import { before } from '../pdf/folds';
 import type { Input } from '../convert';
+import { migrate, prune } from '../links';
 import { closeDocs, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { passwordAsker } from '../password';
 import { addFiles, deleteFile, getProject, putProject } from './db';
 
-type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases'>;
-const snapshot = ({ highlights, cards, links, inks, folds, canvases }: Project): Snapshot => ({ highlights, cards, links, inks, folds, canvases });
+type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
+const snapshot = ({ highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks }: Project): Snapshot => ({
+  highlights,
+  cards,
+  links,
+  inks,
+  folds,
+  canvases,
+  comments,
+  passageLinks,
+  cardLinks,
+});
 
 export type Tool = 'select' | 'pen' | 'eraser';
 /** Documents also take a box drawn around a figure. */
@@ -79,7 +90,7 @@ export const canvasSpot: { next: () => XYPosition } = {
   next: () => ({ x: 0, y: 0 }),
 };
 
-function edit(change: (p: Project) => Partial<Project>, undoable = true) {
+export function edit(change: (p: Project) => Partial<Project>, undoable = true) {
   const { project } = get();
   if (!project) return;
   if (undoable) checkpoint();
@@ -141,7 +152,10 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
 export async function openProject(id: string) {
   const stored = await getProject(id);
   // Projects saved before handwriting, squeezing and several canvases existed lack those lists.
-  const project = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
+  const old = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
+  const project = old && migrate(old);
+  // Saved before sync starts, which then shares the change as newer than its own state rather than undoing it.
+  if (project && project !== old) await putProject(project);
   set({
     project,
     activeDocId: project?.docs[0]?.id ?? null,
@@ -174,6 +188,9 @@ export const newProject = (name: string): Project => ({
   inks: [],
   folds: [],
   canvases: [{ id: MAIN_CANVAS, name: 'Canvas' }],
+  comments: [],
+  passageLinks: [],
+  cardLinks: [],
 });
 
 export const rename = (name: string) => edit(() => ({ name }), false);
@@ -251,14 +268,16 @@ export function removeDoc(docId: string) {
   const docs = project.docs.filter((d) => d.id !== docId);
   // Undo history refers to the removed highlights, and the file itself is deleted, so it starts over.
   set({ past: [], future: [] });
+  const highlights = project.highlights.filter((h) => !gone.has(h.id));
   edit(
     () => ({
       docs,
-      highlights: project.highlights.filter((h) => !gone.has(h.id)),
+      highlights,
       cards,
       links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
       inks: project.inks.filter((i) => i.docId !== docId),
       folds: project.folds.filter((f) => f.docId !== docId),
+      ...prune({ ...project, highlights, cards }),
     }),
     false,
   );
@@ -267,7 +286,7 @@ export function removeDoc(docId: string) {
   void deleteFile(docId);
 }
 
-export function addHighlight(docId: string, parts: Part[], text: string, color: Color, extra: Pick<Highlight, 'area' | 'note'> = {}) {
+export function addHighlight(docId: string, parts: Part[], text: string, color: Color, extra: Pick<Highlight, 'area'> = {}) {
   const highlight: Highlight = { id: uid(), docId, parts, text, color, ...extra };
   edit((p) => ({ highlights: [...p.highlights, highlight] }));
   return highlight;
@@ -314,16 +333,6 @@ export const recolor = (id: string, color: Color) =>
     highlights: p.highlights.map((h) => (h.id === id ? { ...h, color } : h)),
   }));
 
-/** Pins a note beside a highlight, or takes it away when empty. */
-export const setNote = (id: string, note: string) =>
-  edit((p) => ({
-    highlights: p.highlights.map((h) => {
-      if (h.id !== id) return h;
-      const { note: _, ...rest } = h;
-      return note.trim() ? { ...rest, note: note.trim() } : rest;
-    }),
-  }));
-
 /** Removes cards with their links, and the highlights of excerpts no other card still shows. */
 function without(p: Project, removed: Set<string>, highlightIds = new Set<string>()): Partial<Project> {
   // A group goes with the cards inside it.
@@ -332,10 +341,12 @@ function without(p: Project, removed: Set<string>, highlightIds = new Set<string
   const shown = new Set(cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
   const orphaned = new Set(p.cards.filter((c) => cardIds.has(c.id) && c.data.kind === 'excerpt').map((c) => (c.data as { highlightId: string }).highlightId));
   const kept = new Set(cards.map((c) => c.id));
+  const highlights = p.highlights.filter((h) => !highlightIds.has(h.id) && !(orphaned.has(h.id) && !shown.has(h.id)));
   return {
     cards,
-    highlights: p.highlights.filter((h) => !highlightIds.has(h.id) && !(orphaned.has(h.id) && !shown.has(h.id))),
+    highlights,
     links: p.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
+    ...prune({ ...p, cards, highlights }),
   };
 }
 

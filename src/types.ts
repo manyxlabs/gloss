@@ -8,10 +8,17 @@ export type Rect = [number, number, number, number];
 export type Part = { page: number; rects: Rect[] };
 
 /**
- * Marked text, or with `area` a box drawn around a figure or table. `note` is a comment pinned
- * beside it in the document's margin.
+ * Marked text, or with `area` a box drawn around a figure or table. `commentId` is the comment
+ * pinned beside it in the document's margin, which other passages may share.
  */
-export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; note?: string };
+export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; commentId?: string };
+
+/** A comment in the margin, shown beside every highlight whose `commentId` names it; it goes with the last of them. */
+export type Comment = { id: string; text: string };
+/** Two passages that refer to each other, in one document or across two. */
+export type PassageLink = { id: string; a: string; b: string };
+/** A passage linked to a card on the canvas, drawn with the pen from one to the other. */
+export type CardLink = { id: string; cardId: string; highlightId: string };
 
 export type DocMeta = {
   id: string;
@@ -84,6 +91,9 @@ export type Project = {
   inks: Ink[];
   folds: Fold[];
   canvases: CanvasMeta[];
+  comments: Comment[];
+  passageLinks: PassageLink[];
+  cardLinks: CardLink[];
   /** The sync room this project is shared through, with its key; absent while the project stays on this device. */
   sync?: { room: string; key: string };
 };

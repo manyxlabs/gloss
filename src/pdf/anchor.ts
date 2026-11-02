@@ -1,4 +1,4 @@
-import type { Part, Rect } from '../types';
+import type { Highlight, Part, Rect } from '../types';
 
 /**
  * The pages on screen with the stretch of each that is in view: pdf.js's own page divs, and
@@ -109,4 +109,11 @@ export function pointOnPage(root: HTMLElement, x: number, y: number) {
         fy: (y - hit.box.top) / hit.box.height,
       }
     : null;
+}
+
+/** The highlight drawn over a spot on a page, the last made where several overlap. */
+export function highlightAt(highlights: Highlight[], docId: string, page: number, fx: number, fy: number) {
+  return highlights.findLast(
+    (h) => h.docId === docId && h.parts.some((p) => p.page === page && p.rects.some(([x, y, w, hgt]) => fx >= x && fx <= x + w && fy >= y && fy <= y + hgt)),
+  );
 }

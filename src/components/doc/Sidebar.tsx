@@ -1,8 +1,11 @@
-import { Image } from 'lucide-react';
+import { Image, Link2, StickyNote } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useEffect, useRef, useState } from 'react';
 import { loadDoc, regionImage } from '../../pdf/pdfjs';
-import { showPage, showSource, useStore, type Pane } from '../../store/project';
+import { commentOf, docName, endsOf, quoted } from '../../links';
+import { cardText } from '../../search';
+import { showEnd } from '../../store/links';
+import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
 import type { Highlight } from '../../types';
 
 type OutlineItem = Awaited<ReturnType<PDFDocumentProxy['getOutline']>>[number];
@@ -177,9 +180,9 @@ const byPlace = (a: Highlight, b: Highlight) =>
   (a.parts[0]?.rects[0]?.[0] ?? 0) - (b.parts[0]?.rects[0]?.[0] ?? 0);
 
 function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump: () => void }) {
-  const all = useStore((s) => s.project?.highlights);
-  const mine = (all ?? []).filter((h) => h.docId === docId).sort(byPlace);
-  if (!mine.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
+  const project = useStore((s) => s.project);
+  const mine = (project?.highlights ?? []).filter((h) => h.docId === docId).sort(byPlace);
+  if (!project || !mine.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
   return (
     <ul className="marks">
       {mine.map((h) => (
@@ -196,8 +199,39 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
               <span className="text">{h.text || (h.area ? 'Figure' : '')}</span>
               <span className="page">p. {h.parts[0]?.page}</span>
             </span>
-            {h.note && <span className="note">{h.note}</span>}
+            {h.commentId && <span className="note">{commentOf(project, h)?.text}</span>}
           </button>
+          {endsOf(project, h.id).map((end) =>
+            'highlight' in end ? (
+              <button
+                key={end.link.id}
+                className={`end hl-${end.highlight.color}`}
+                onClick={() => {
+                  showEnd(end.highlight.id, pane);
+                  onJump();
+                }}
+              >
+                <Link2 size={13} aria-label="Linked passage" />
+                <span className="text">{quoted(end.highlight) || 'Figure'}</span>
+                <span className="page">
+                  {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}p. {end.highlight.parts[0]?.page}
+                </span>
+              </button>
+            ) : (
+              <button
+                key={end.link.id}
+                className="end"
+                onClick={() => {
+                  showCard(end.card.id);
+                  onJump();
+                }}
+              >
+                <StickyNote size={13} aria-label="Linked card" />
+                <span className="text">{cardText(project, end.card) || 'Handwriting'}</span>
+                <span className="page">card</span>
+              </button>
+            ),
+          )}
         </li>
       ))}
     </ul>

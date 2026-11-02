@@ -1,11 +1,12 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Columns2, Copy, FileDown, FoldVertical, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
+import { Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
 import { outline, PAPER, pathOf } from '../ink';
-import { locate, pageAt, pointOnPage, selectionAnchor, textBoxes, type Anchor } from '../pdf/anchor';
+import { commentOf } from '../links';
+import { highlightAt, locate, pageAt, pointOnPage, selectionAnchor, textBoxes, type Anchor } from '../pdf/anchor';
 import { annotatedPdf } from '../pdf/annotate';
 import { layoutFolds, refreshTails } from '../pdf/folds';
 import { loadDoc, textIn } from '../pdf/pdfjs';
@@ -24,13 +25,14 @@ import {
   removeHighlight,
   removeInk,
   setActiveDoc,
-  setNote,
   setSideBySide,
   showCard,
   useStore,
   type Pane,
 } from '../store/project';
-import { COLORS, type Color, type Highlight, type Point, type Rect } from '../types';
+import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
+import { COLORS, type Color, type Point, type Rect } from '../types';
+import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
@@ -41,14 +43,14 @@ import { Tools } from './Tools';
 
 type Viewer = { viewer: PDFViewer; bus: EventBus; links: PDFLinkService };
 /** A toolbar for a selection or a highlight, or with `editing` the comment on it. */
-type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string });
+type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string; links?: boolean });
 type Stroke = { page: number; box: DOMRect; points: Point[]; pen: boolean };
 /** A box being drawn on a page, kept to the stretch of the page in view where it started. */
 type Snip = { page: number; box: DOMRect; from: number; to: number; x: number; y: number };
 
 const FLASH_MS = 1600;
 /** Pen width as a fraction of the page's width: about a fine felt tip on A4. */
-const INK_SIZE = 0.005;
+export const INK_SIZE = 0.005;
 /** Fingers brought this close together, from where they started, squeeze the text between them. */
 const SQUEEZE_AT = 0.6;
 const POPUP_HALF_WIDTH = 190;
@@ -83,12 +85,6 @@ function selectionPopup(c: HTMLElement, touch: boolean, docId: string | null): P
   return { docId, anchor, below, ...inScroller(c, line.left + line.width / 2, below ? line.bottom : line.top) };
 }
 
-function highlightAt(highlights: Highlight[], docId: string, page: number, fx: number, fy: number) {
-  return highlights.findLast(
-    (h) => h.docId === docId && h.parts.some((p) => p.page === page && p.rects.some(([x, y, w, hgt]) => fx >= x && fx <= x + w && fy >= y && fy <= y + hgt)),
-  );
-}
-
 /** Repaints every page; only page divs that exist get marks, so this is cheap. */
 function paintPages(viewer: PDFViewer | undefined, flashId: string | null, docId: string | null) {
   if (!viewer?.pdfDocument) return;
@@ -108,6 +104,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const docs = useStore((s) => s.project?.docs ?? []);
   const highlights = useStore((s) => s.project?.highlights ?? []);
   const cards = useStore((s) => s.project?.cards ?? []);
+  const comments = useStore((s) => s.project?.comments);
+  const passageLinks = useStore((s) => s.project?.passageLinks);
+  const cardLinks = useStore((s) => s.project?.cardLinks);
+  const linking = useLinking((s) => s.linking);
   const inks = useStore((s) => s.project?.inks);
   const folds = useStore((s) => s.project?.folds);
   const activeDocId = useStore((s) => (pane ? s.sideDocId : s.activeDocId));
@@ -346,7 +346,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (pdf.current) relayout(pdf.current.viewer, activeDocId);
   }, [folds, loaded, activeDocId]);
 
-  useEffect(() => paintPages(pdf.current?.viewer, flash.current, activeDocId), [highlights, cards, inks, loaded, activeDocId]);
+  useEffect(() => paintPages(pdf.current?.viewer, flash.current, activeDocId), [highlights, cards, inks, comments, passageLinks, cardLinks, linking, loaded, activeDocId]);
 
   useEffect(() => {
     const p = pdf.current;
@@ -513,27 +513,38 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     drawSnip(null, 0, 0);
   };
 
-  /** A comment's marker in the margin opens the comment, below the marker. */
+  /** A comment's marker in the margin opens the comment, and a link's marker what it links to, below the marker. */
   const onClick = (e: ReactMouseEvent) => {
-    const mark = (e.target as HTMLElement).closest<HTMLElement>('.note-mark');
+    const mark = (e.target as HTMLElement).closest<HTMLElement>('.note-mark, .link-mark');
     if (!mark || !activeDocId) return;
     const box = mark.getBoundingClientRect();
-    setPopup({ docId: activeDocId, highlightId: mark.dataset.noteId!, editing: true, below: true, ...inScroller(scroller.current!, box.left + box.width / 2, box.top) });
+    const at = { docId: activeDocId, below: true, ...inScroller(scroller.current!, box.left + box.width / 2, box.top) };
+    setPopup(mark.dataset.noteId ? { ...at, highlightId: mark.dataset.noteId, editing: true } : { ...at, highlightId: mark.dataset.linkId!, links: true });
   };
 
   const onPointerUp = (e: ReactPointerEvent) => {
     if (tool === 'snip') return void finishSnip(e.clientX, e.clientY);
     if (tool !== 'select') return finishStroke();
-    if (!activeDocId || (e.target as HTMLElement).closest('.popup, .fold-bar, .note-mark')) return;
+    if (!activeDocId || (e.target as HTMLElement).closest('.popup, .fold-bar, .note-mark, .link-mark')) return;
     const docId = activeDocId;
     const c = scroller.current!;
     const touch = e.pointerType === 'touch';
     // The selection settles after the pointer is released.
     setTimeout(() => {
       const selected = selectionPopup(c, touch, docId);
-      if (selected) return setPopup(selected);
       const at = pointOnPage(c, e.clientX, e.clientY);
       const hit = at && highlightAt(useStore.getState().project?.highlights ?? [], docId, at.page, at.fx, at.fy);
+      // While linking, a mouse selection or a highlight is the other end at once; a touch selection is still being adjusted, so it waits for its toolbar.
+      if (useLinking.getState().linking && ((selected && !touch) || (!selected && hit))) {
+        setPopup(null);
+        const anchor = selected && selectionAnchor(c);
+        if (anchor) {
+          getSelection()?.removeAllRanges();
+          return pickSelection(docId, anchor, color);
+        }
+        return void pick(hit!.id);
+      }
+      if (selected) return setPopup(selected);
       setPopup(
         hit
           ? {
@@ -607,6 +618,15 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const shown = popup?.docId === activeDocId ? popup : null;
   const highlight = shown && 'highlightId' in shown ? highlights.find((h) => h.id === shown.highlightId) : undefined;
   const card = highlight && cards.find((c) => c.data.kind === 'excerpt' && c.data.highlightId === highlight.id);
+  const comment = highlight && comments && commentOf({ comments }, highlight);
+  /** Saves the comment being written, making its highlight first for a selection, and returns the passage it is on. */
+  const saveComment = (text: string) => {
+    if (!shown) return;
+    setPopup(null);
+    if ('highlightId' in shown) return setComment(shown.highlightId, text) && shown.highlightId;
+    getSelection()?.removeAllRanges();
+    return text.trim() ? commentSelection(activeDocId!, shown.anchor, color, text)?.id : undefined;
+  };
 
   return (
     <section
@@ -695,15 +715,16 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           {shown?.editing && ('anchor' in shown || highlight) && (
             <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Comment">
               <NoteEditor
-                note={highlight?.note}
+                note={comment?.text}
+                shared={comment ? highlights.filter((h) => h.commentId === comment.id).length : 1}
                 onCancel={() => setPopup(null)}
-                onSave={(note) => {
-                  if ('anchor' in shown) {
-                    if (note.trim()) addHighlight(activeDocId!, shown.anchor.parts, shown.anchor.text, color, { note: note.trim() });
-                    getSelection()?.removeAllRanges();
-                  } else setNote(shown.highlightId, note);
-                  setPopup(null);
+                onSave={saveComment}
+                onAttach={(text) => {
+                  const on = saveComment(text);
+                  const commentId = on && useStore.getState().project?.highlights.find((h) => h.id === on)?.commentId;
+                  if (commentId) startLinking({ kind: 'attach', commentId });
                 }}
+                onDetach={() => (setPopup(null), highlight && detachComment(highlight.id))}
               />
             </div>
           )}
@@ -734,6 +755,21 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               >
                 <MessageSquarePlus size={17} />
               </button>
+              <button
+                className="icon"
+                aria-label={linking ? 'Link here' : 'Link'}
+                title={linking ? 'Make this the other end' : 'Link this passage to another'}
+                onClick={() => {
+                  if (linking) {
+                    getSelection()?.removeAllRanges();
+                    setPopup(null);
+                    return pickSelection(activeDocId!, shown.anchor, color);
+                  }
+                  startLinking({ kind: 'link', from: fromSelection(shown.anchor, color).id });
+                }}
+              >
+                <Link2 size={17} />
+              </button>
               <button className="icon" aria-label="Squeeze" title="Squeeze these lines out of view" onClick={() => squeeze(shown.anchor)}>
                 <FoldVertical size={17} />
               </button>
@@ -742,7 +778,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               </button>
             </div>
           )}
-          {shown && !shown.editing && highlight && (
+          {shown && 'links' in shown && shown.links && highlight && <LinkPopover highlight={highlight} pane={pane} x={shown.x} y={shown.y} onClose={() => setPopup(null)} />}
+          {shown && !shown.editing && !('links' in shown && shown.links) && highlight && (
             <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="toolbar" aria-label="Highlight">
               {card ? (
                 <button className="primary" onClick={() => (setPopup(null), showCard(card.id))}>
@@ -765,11 +802,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <span className="sep" />
               <button
                 className="icon"
-                aria-label={highlight.note ? 'Edit comment' : 'Comment'}
-                title={highlight.note ? 'Edit the comment in the margin' : 'Add a comment in the margin'}
+                aria-label={comment ? 'Edit comment' : 'Comment'}
+                title={comment ? 'Edit the comment in the margin' : 'Add a comment in the margin'}
                 onClick={() => setPopup({ ...shown, below: true, editing: true })}
               >
                 <MessageSquare size={16} />
+              </button>
+              <button className="icon" aria-label="Link" title="Link this passage to another" onClick={() => (setPopup(null), startLinking({ kind: 'link', from: highlight.id }))}>
+                <Link2 size={16} />
               </button>
               <button className="icon" aria-label="Delete" title="Delete highlight" onClick={() => (setPopup(null), removeHighlight(highlight.id))}>
                 <Trash2 size={16} />

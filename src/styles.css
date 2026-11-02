@@ -1345,8 +1345,15 @@ button.link:hover:not(:disabled) {
   gap: 6px;
 }
 
-.note-editor .row .icon {
-  margin-right: auto;
+.note-editor .row .push {
+  margin-left: auto;
+}
+
+.note-editor .shared {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: normal;
 }
 
 .swatch {
@@ -2162,4 +2169,229 @@ dialog.sheet::backdrop {
 
 .library .install {
   font-size: 14px;
+}
+
+/* Links between passages, and from passages to cards. */
+
+/* A link's marker, in the left margin so it never meets a comment's in the right. */
+.link-mark {
+  position: absolute;
+  left: 1.2%;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  translate: 0 -50%;
+  border: 0;
+  border-radius: 50%;
+  background: var(--edge) !important;
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  pointer-events: auto;
+}
+
+.tool-pen .link-mark,
+.tool-eraser .link-mark,
+.tool-snip .link-mark {
+  pointer-events: none;
+}
+
+/* The passage a link is being drawn from, until its other end is picked. */
+.hl.linking {
+  outline: 2px solid var(--edge);
+  outline-offset: 2px;
+  animation: linking 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes linking {
+  to {
+    outline-color: transparent;
+  }
+}
+
+.link-popover {
+  flex-direction: column;
+  align-items: stretch;
+  width: min(320px, calc(100% - 16px));
+  white-space: normal;
+}
+
+.link-popover ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.link-popover li {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.link-popover .end {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 1px 7px;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px !important;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+}
+
+.link-popover .end svg {
+  margin-top: 3px;
+  color: var(--edge, var(--muted));
+}
+
+.link-popover .text,
+.marks .end .text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: 'Iowan Old Style', Charter, Georgia, serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.link-popover .where {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.link-popover .icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* Over the documents, where the passage is picked, above each pane's own toolbar. */
+.docs {
+  position: relative;
+}
+
+.link-banner {
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  bottom: 64px;
+  translate: -50% 0;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    var(--shadow),
+    0 0 0 2px var(--accent-soft);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  font-size: 14px;
+}
+
+.link-banner > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.link-banner p {
+  margin: 0;
+}
+
+.link-banner button {
+  flex: none;
+  padding: 5px 12px;
+  border-radius: 10px;
+}
+
+/* A pen stroke from a passage, followed over the whole workspace while it may end on a card. */
+.ink-link {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.react-flow__node.ink-target > .card,
+.react-flow__node.ink-target > .ink-card {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+}
+
+.card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 9px;
+}
+
+.card-links button {
+  min-width: 0;
+  max-width: 100%;
+  gap: 4px;
+  border: 0;
+  border-radius: 7px;
+  padding: 2px 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-links button svg {
+  flex: none;
+  color: var(--edge);
+}
+
+.card-links button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-links button:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+/* Under a handwriting card, which has no box of its own to hold it. */
+.ink-card + .card-links {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  max-width: 280px;
+  margin-top: 6px;
+}
+
+.side-list .marks button.end {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: -2px 0 4px 12px;
+  width: calc(100% - 12px);
+  padding: 3px 8px;
+  border-left: 0 !important;
+  color: var(--muted);
+}
+
+.marks .end svg {
+  flex: none;
+  align-self: center;
+  color: var(--edge, var(--accent));
+}
+
+.marks .end .text {
+  flex: 1;
+  font-size: 13px;
 }
