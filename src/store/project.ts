@@ -6,10 +6,11 @@ import { migrate, prune } from '../links';
 import { closeDocs, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { passwordAsker } from '../password';
-import { addFiles, deleteFile, getProject, putProject } from './db';
+import { addFiles, emptyTrash, getProject, putProject, trashFile } from './db';
 
-type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
-const snapshot = ({ highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks }: Project): Snapshot => ({
+type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
+const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks }: Project): Snapshot => ({
+  docs,
   highlights,
   cards,
   links,
@@ -116,10 +117,15 @@ function travel(from: 'past' | 'future') {
   const target = stack.at(-1);
   if (!state.project || !target) return;
   const to = from === 'past' ? 'future' : 'past';
+  // The place reached in each document is not part of an undo step.
+  const docs = target.docs.map((d) => ({ ...d, lastPage: state.project!.docs.find((x) => x.id === d.id)?.lastPage ?? d.lastPage }));
+  const shown = (id: string | null) => id !== null && docs.some((d) => d.id === id);
   set({
     [from]: stack.slice(0, -1),
     [to]: [...state[to], snapshot(state.project)],
-    project: { ...state.project, ...target, updatedAt: Date.now() },
+    project: { ...state.project, ...target, docs, updatedAt: Date.now() },
+    activeDocId: shown(state.activeDocId) ? state.activeDocId : (docs[0]?.id ?? null),
+    sideDocId: shown(state.sideDocId) ? state.sideDocId : null,
   });
 }
 export const undo = () => travel('past');
@@ -136,6 +142,8 @@ useStore.subscribe((s, prev) => {
   if (s.project && s.project !== prev.project && s.project.id === prev.project?.id) {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 300);
+    // A document taken out keeps its file while undo could bring it back; see emptyTrash.
+    if (s.project.docs !== prev.project.docs) for (const d of prev.project.docs) if (!s.project.docs.some((x) => x.id === d.id)) void trashFile(d.id, s.project.id);
   }
 });
 addEventListener('pagehide', save);
@@ -159,6 +167,7 @@ export async function openProject(id: string) {
   const project = old && migrate(old);
   // Saved before sync starts, which then shares the change as newer than its own state rather than undoing it.
   if (project && project !== old) await putProject(project);
+  if (project) await emptyTrash(project);
   set({
     project,
     activeDocId: project?.docs[0]?.id ?? null,
@@ -175,6 +184,8 @@ export async function openProject(id: string) {
 
 export function closeProject() {
   save();
+  const { project } = get();
+  if (project) void emptyTrash(project);
   closeDocs();
   set({ project: null, activeDocId: null, sideDocId: null, past: [], future: [] });
 }
@@ -266,6 +277,7 @@ export async function addDocs(files: Input[], options: ConvertOptions = {}) {
   return problems;
 }
 
+/** Takes a document out with everything on it; undo brings it back, as its file is kept until the history is gone. */
 export function removeDoc(docId: string) {
   const { project, activeDocId, sideDocId } = get();
   if (!project) return;
@@ -273,24 +285,18 @@ export function removeDoc(docId: string) {
   const cards = project.cards.filter((c) => !(c.data.kind === 'excerpt' && gone.has(c.data.highlightId)));
   const kept = new Set(cards.map((c) => c.id));
   const docs = project.docs.filter((d) => d.id !== docId);
-  // Undo history refers to the removed highlights, and the file itself is deleted, so it starts over.
-  set({ past: [], future: [] });
   const highlights = project.highlights.filter((h) => !gone.has(h.id));
-  edit(
-    () => ({
-      docs,
-      highlights,
-      cards,
-      links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
-      inks: project.inks.filter((i) => i.docId !== docId),
-      folds: project.folds.filter((f) => f.docId !== docId),
-      ...prune({ ...project, highlights, cards }),
-    }),
-    false,
-  );
+  edit(() => ({
+    docs,
+    highlights,
+    cards,
+    links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
+    inks: project.inks.filter((i) => i.docId !== docId),
+    folds: project.folds.filter((f) => f.docId !== docId),
+    ...prune({ ...project, highlights, cards }),
+  }));
   if (activeDocId === docId) set({ activeDocId: docs[0]?.id ?? null });
   if (sideDocId === docId) set({ sideDocId: null });
-  void deleteFile(docId);
 }
 
 export function addHighlight(docId: string, parts: Part[], text: string, color: Color, extra: Pick<Highlight, 'area'> = {}) {

@@ -250,6 +250,14 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await expect(b.page.getByRole('dialog')).toHaveCount(0);
   await shot(b.page, 'sync-new-features');
 
+  // A document removed on one device goes on the other, and undo brings it back to both, file and all.
+  a.page.once('dialog', (d) => d.accept());
+  await a.page.getByRole('button', { name: 'Remove Survey notes' }).click();
+  await expect(b.page.getByRole('tab', { name: 'Survey notes' })).toHaveCount(0);
+  await a.page.getByRole('button', { name: 'Undo' }).click();
+  await b.page.getByRole('tab', { name: 'Survey notes' }).click({ timeout: 15_000 });
+  await expect(b.page.locator('.textLayer span', { hasText: 'Field notes from the reef survey' }).first()).toBeVisible();
+
   for (const frame of [...a.wire.sent, ...a.wire.uploads]) {
     expect(frame.includes('Check the survey')).toBe(false);
     expect(frame.includes('coral')).toBe(false);

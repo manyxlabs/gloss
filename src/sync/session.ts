@@ -232,6 +232,8 @@ class Session {
           if (list === 'docs') {
             docGone = true;
             void deleteFile(e.id);
+            // Should the device that removed it undo that, the file is fetched again.
+            this.downloaded.delete(e.id);
           }
         }
       }
