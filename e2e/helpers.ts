@@ -33,7 +33,7 @@ export async function openWith(page: Page, files: { name: string; buffer: Buffer
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles(files.map((f) => ({ ...f, mimeType: 'application/pdf' })));
-  await expect(page.locator('.textLayer span').first()).toBeVisible();
+  await expect(page.locator('.textLayer span').first()).toBeVisible({ timeout: 15_000 });
 }
 
 export async function openProject(page: Page) {

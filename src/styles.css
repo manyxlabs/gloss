@@ -4214,3 +4214,15 @@ dialog.tags-dialog {
     display: none;
   }
 }
+
+/* The narrowest panes, such as half of two beside the canvas on a laptop, leave squeezing to the
+   palette and the search results, as the toolbar has no room left for it. */
+.doc-pane {
+  container: doc-pane / inline-size;
+}
+
+@container doc-pane (max-width: 339px) {
+  .collapse-wrap {
+    display: none;
+  }
+}
