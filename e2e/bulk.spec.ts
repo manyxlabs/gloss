@@ -207,7 +207,7 @@ test('a document squeezes down to search matches or highlights with lines of con
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Squeeze around highlights or words' }).click();
     await panel.getByRole('radio', { name: 'Highlights' }).click();
-    await panel.getByRole('radio', { name: 'pink' }).click();
+    await panel.getByRole('group', { name: 'Highlight colour' }).getByRole('button', { name: 'pink', exact: true }).click();
     await panel.getByRole('slider').fill('1');
     await panel.getByRole('button', { name: 'Squeeze' }).click();
     await expect.poll(() => inView(page, 'The ocean covers')).toBe(false);

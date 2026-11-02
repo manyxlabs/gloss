@@ -5,7 +5,9 @@ import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db'
 import { useStore } from '../store/project';
 import type { Card, DocMeta, Project } from '../types';
 import { decrypt, deriveKeys, encrypt, newRoom, type Binding, type Keys } from './crypto';
-import { asPresence, presence, useMe, useSync, type Presence, type Status } from './state';
+import { forget, introduce, publish, record } from './activity';
+import { privateIds } from './privacy';
+import { asPresence, presence, useActivity, useMe, useSync, type Presence, type Status } from './state';
 
 // The project as a Yjs document: a map per list, keyed by id, holding each entity as plain JSON,
 // so concurrent edits merge per entity and the last write to one entity wins.
@@ -14,7 +16,17 @@ type List = (typeof LISTS)[number];
 type Entity = { id: string };
 type Shared = { name?: string } & Record<List, Entity[]>;
 /** What only this device, or React Flow's view of a card, adds to an entity. */
-const LOCAL: Partial<Record<List, string[]>> = { docs: ['lastPage'], cards: ['selected', 'measured', 'dragging', 'resizing'], links: ['selected'] };
+const LOCAL: Partial<Record<List, string[]>> = { docs: ['lastPage', 'local'], canvases: ['local'], cards: ['selected', 'measured', 'dragging', 'resizing'], links: ['selected'] };
+
+/** The project without what is kept on this device only, which is never written into the shared document. */
+function shareable<T extends Shared>(p: T): T {
+  // The shared document holds the project's own entities as JSON.
+  const hidden = privateIds(p as unknown as Project);
+  if (!hidden.size) return p;
+  const out = { ...p };
+  for (const list of LISTS) out[list] = p[list].filter((e) => !hidden.has(e.id)) as T[List];
+  return out;
+}
 
 const sortKeys = (_: string, v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v);
 // Entities are never changed in place, so each one's JSON is worked out once.
@@ -76,7 +88,7 @@ class Session {
   private downloaded = new Set<string>();
   private me: Presence = { ...useMe.getState() };
   private retries = 0;
-  private timers: Partial<Record<'flush' | 'save' | 'presence' | 'retry', ReturnType<typeof setTimeout>>> = {};
+  private timers: Partial<Record<'flush' | 'save' | 'presence' | 'retry' | 'publish', ReturnType<typeof setTimeout>>> = {};
   private cleanup: (() => void)[] = [];
 
   constructor(
@@ -101,6 +113,7 @@ class Session {
     }
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
       this.save();
+      this.later('publish', 100, () => publish(this.doc));
       // Remote changes reach the project at once, so it and the shared state never disagree.
       if (origin !== REMOTE) return this.queue(update);
       this.pull();
@@ -112,7 +125,10 @@ class Session {
         if (prev.project?.id === this.projectId && s.project !== prev.project && !this.applying) this.push(prev.project, s.project);
         if (s.activeDocId !== prev.activeDocId || s.project.docs !== prev.project?.docs) this.where();
       }),
-      useMe.subscribe(({ name, color }) => this.present({ name, color })),
+      useMe.subscribe(({ name, color }) => {
+        this.present({ name, color });
+        if (this.ready) introduce(this.doc);
+      }),
     );
     const online = () => ((this.retries = 0), this.connect());
     // A socket can linger while the network is gone, and its close waits on a handshake that cannot happen.
@@ -136,6 +152,7 @@ class Session {
     });
     this.pull();
     this.where();
+    publish(this.doc);
     this.connect();
   }
 
@@ -147,6 +164,7 @@ class Session {
     this.ws?.close(1000);
     this.ws = null;
     useSync.setState({ status: 'offline', peers: {}, problem: null });
+    useActivity.setState({ people: [], activity: [] });
     await this.persist();
   }
 
@@ -185,8 +203,13 @@ class Session {
     return view;
   }
 
-  /** Writes what changed between two versions of the project into the shared document. */
-  private push(prev: Shared, next: Project) {
+  /**
+   * Writes what changed between two versions of the project into the shared document. What is kept
+   * on this device only is left out, so marking something so removes it from the room, and from the
+   * other devices, and marking it shared again adds it back.
+   */
+  private push(before: Shared, after: Project) {
+    const [prev, next] = [shareable(before), shareable(after)];
     let docs = false;
     this.doc.transact(() => {
       if (prev.name !== next.name) this.meta.set('name', next.name);
@@ -212,6 +235,7 @@ class Session {
           if (list === 'docs') this.unshareFile(remote(e));
         }
       }
+      record(this.doc, prev, next);
     });
     if (docs) this.syncFiles();
   }
@@ -226,6 +250,8 @@ class Session {
     if (name !== undefined && name !== project.name) next.name = name;
     let docGone = false;
     let versionChanged = false;
+    const hidden = privateIds(project);
+    const leaked: [List, string][] = [];
     for (const list of LISTS) {
       const map = this.doc.getMap<Entity>(list);
       const out: Entity[] = [];
@@ -233,7 +259,11 @@ class Session {
       // This device's order is kept, as it is the order of the tabs and of cards on the canvas.
       for (const e of project[list]) {
         const shared = map.get(e.id);
-        if (shared && canon(list, shared) === canon(list, e)) out.push(e);
+        // Kept on this device only. A device that had not heard of that yet may have written it back, and it is taken out again.
+        if (hidden.has(e.id)) {
+          if (shared) leaked.push([list, e.id]);
+          out.push(e);
+        } else if (shared && canon(list, shared) === canon(list, e)) out.push(e);
         // A new version of a document's file is shown once it is here; until then the old one stays.
         else if (shared && list === 'docs' && remote(shared) !== remote(e) && !this.downloaded.has(remote(shared))) out.push(e);
         else if (shared) {
@@ -266,6 +296,10 @@ class Session {
       const order = list === 'docs' ? [...map.keys()] : [];
       next[list] = list === 'cards' ? parentsFirst(out as Card[]) : list === 'docs' ? out.sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id)) : out;
     }
+    if (leaked.length)
+      setTimeout(() => {
+        if (!this.stopped) this.doc.transact(() => leaked.forEach(([list, id]) => this.doc.getMap(list).delete(id)));
+      });
     if (!Object.keys(next).length) return;
     const merged = { ...project, ...next, updatedAt: Date.now() } as Project;
     const shown = (id: string | null) => id !== null && merged.docs.some((d) => d.id === id);
@@ -290,8 +324,9 @@ class Session {
     if (!this.ready || project?.id !== this.projectId) return;
     const docs = this.doc.getMap<DocMeta>('docs');
     const here = new Set(project.docs.map(remote));
+    const hidden = privateIds(project);
     // Only the version the room's document names, so a device that has not caught up does not upload its old one.
-    for (const d of project.docs) {
+    for (const d of project.docs.filter((x) => !hidden.has(x.id))) {
       const name = remote(d);
       if (remote(docs.get(d.id) ?? d) === name && !this.files.has(name)) void this.transfer(name, `upload “${d.name}”`, () => this.upload(fileKey(d), name, d.name));
     }
@@ -394,6 +429,8 @@ class Session {
       useSync.setState({ problem: null });
       this.pull();
       this.syncFiles();
+      introduce(this.doc);
+      forget(this.doc);
       this.present({});
       this.logged(0);
     } else if (f.type === T.ack) {
@@ -452,7 +489,9 @@ class Session {
 
   private where() {
     const { project, activeDocId } = useStore.getState();
-    this.present({ docId: activeDocId ?? undefined, page: project?.docs.find((d) => d.id === activeDocId)?.lastPage ?? 1 });
+    const doc = project?.docs.find((d) => d.id === activeDocId);
+    // A document kept on this device is not named to the others, even by its id.
+    this.present(doc?.local ? { docId: undefined, page: undefined } : { docId: activeDocId ?? undefined, page: doc?.lastPage ?? 1 });
   }
 
   private status() {

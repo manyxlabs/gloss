@@ -1,6 +1,7 @@
 import '@xyflow/react/dist/style.css';
 import {
   Background,
+  BackgroundVariant,
   ConnectionMode,
   Controls,
   MiniMap,
@@ -12,7 +13,7 @@ import {
   type OnBeforeDelete,
   type XYPosition,
 } from '@xyflow/react';
-import { ImageDown, StickyNote } from 'lucide-react';
+import { ImageDown, SquarePen, SquareStack, StickyNote } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { canvasView } from '../canvasView';
 import { inkAlong } from '../erase';
@@ -34,7 +35,9 @@ import {
   placeCards,
   useStore,
 } from '../store/project';
+import { addNestedCanvas, addSketch, addStroke, erase as eraseOnCanvas, type Erased } from '../store/cards';
 import type { Card, Link, Point } from '../types';
+import { CanvasPath, CanvasStyleMenu } from './CanvasNav';
 import { CanvasExport, openCanvasExport } from './CanvasExport';
 import { CanvasTabs } from './CanvasTabs';
 import { CardNode } from './CardNode';
@@ -56,6 +59,7 @@ export function Canvas() {
   const canvasId = useStore((s) => s.canvasId);
   // Only the canvas on show is drawn; links go with the cards they join.
   const [cards, links] = useMemo(() => (project ? canvasView(project, canvasId) : [[], []]), [project, canvasId]);
+  const style = useStore((s) => s.project?.canvases.find((c) => c.id === s.canvasId));
   const focus = useStore((s) => s.focus);
   const tool = useStore((s) => s.canvasTool);
   const inkColor = useStore((s) => s.inkColor);
@@ -284,10 +288,24 @@ export function Canvas() {
   const erase = (x: number, y: number) => {
     const from = eraser.current ?? { x, y };
     eraser.current = { x, y };
-    const ids = inkAlong(from, { x, y }, (el) =>
-      el.tagName === 'path' && el.closest('[data-ink-card]') ? (el.closest<HTMLElement>('.react-flow__node')?.dataset.id ?? undefined) : undefined,
-    );
-    if (ids.size) onCardsChange([...ids].map((id) => ({ type: 'remove', id })));
+    // Each find is a kind and its ids, apart by spaces; see Erased.
+    const found = inkAlong(from, { x, y }, (el) => {
+      const card = el.closest<HTMLElement>('.react-flow__node')?.dataset.id;
+      const h = el as HTMLElement;
+      if (el.tagName === 'path' && card && el.closest('[data-ink-card]')) return `card ${card}`;
+      if (card && h.dataset?.stroke) return `stroke ${card} ${h.dataset.stroke}`;
+      const chip = el.closest<HTMLElement>('[data-card-link], [data-canvas-link]');
+      if (chip) return chip.dataset.cardLink ? `cardlink ${chip.dataset.cardLink}` : `canvaslink ${chip.dataset.canvasLink}`;
+      const edge = el.closest<HTMLElement>('.react-flow__edge')?.dataset.id;
+      return edge && links.some((l) => l.id === edge && l.deletable !== false) ? `edge ${edge}` : undefined;
+    });
+    const erased: Erased = { card: [], stroke: [], edge: [], cardlink: [], canvaslink: [] };
+    for (const f of found) {
+      const [kind, a, b] = f.split(' ') as [keyof Erased, string, string];
+      if (kind === 'stroke' || kind === 'canvaslink') erased[kind].push([a, b]);
+      else erased[kind].push(a);
+    }
+    eraseOnCanvas(erased);
   };
   const onPointerDownCapture = (e: ReactPointerEvent) => {
     if (e.pointerType === 'pen') notePen();
@@ -320,12 +338,27 @@ export function Canvas() {
     // A line drawn from one card to another links them, as a hand-drawn arrow would.
     const to = linkableAt(e.clientX, e.clientY);
     if (s.from && to && to !== s.from) return connect({ source: s.from, sourceHandle: facing(to, s.from), target: to, targetHandle: facing(s.from, to) });
+    // Written on a note or in an ink box, it is kept in the card, and moves with it.
+    const card = s.from ? rf.getInternalNode(s.from) : undefined;
+    const kind = (card?.data as Card['data'] | undefined)?.kind;
+    if (card && (kind === 'note' || kind === 'sketch')) return addStroke(card.id, s.points, card.internals.positionAbsolute, INK_SIZE, s.pen);
     addCanvasInk(s.points, INK_SIZE, s.pen);
   };
 
   return (
-    <section ref={section} className={`canvas tool-${tool}${over ? ' over' : ''}`} aria-label="Canvas">
+    <section
+      ref={section}
+      className={`canvas tool-${tool}${over ? ' over' : ''}${style?.cardColor ? ' tinted' : ''}`}
+      aria-label="Canvas"
+      style={
+        {
+          ...(style?.accent ? { '--accent': `var(--edge-${style.accent})`, '--accent-soft': `color-mix(in srgb, var(--edge-${style.accent}) 15%, transparent)` } : {}),
+          ...(style?.cardColor ? { '--card-tint': `var(--hl-${style.cardColor})` } : {}),
+        } as React.CSSProperties
+      }
+    >
       <CanvasTabs />
+      <CanvasPath />
       <div
         className="flow"
         ref={wrapper}
@@ -367,7 +400,7 @@ export function Canvas() {
           fitView={fit}
           fitViewOptions={{ maxZoom: 1 }}
         >
-          <Background gap={24} size={1.2} />
+          {style?.background !== 'plain' && <Background variant={style?.background === 'grid' ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={24} size={1.2} />}
           <Controls showInteractive={false} />
           {cards.length > 0 && <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />}
           <Cursors />
@@ -380,7 +413,14 @@ export function Canvas() {
           <button onClick={() => addNote()}>
             <StickyNote size={16} /> Note
           </button>
+          <button className="icon" aria-label="Ink box" title="Ink box: a box to write in by hand" onClick={() => addSketch()}>
+            <SquarePen size={16} />
+          </button>
+          <button className="icon" aria-label="Nested canvas" title="Nested canvas: a card that opens a canvas of its own" onClick={() => addNestedCanvas()}>
+            <SquareStack size={16} />
+          </button>
           <Tools side="canvasTool" />
+          <CanvasStyleMenu />
           {project?.tags.length ? <TagFilter /> : null}
           {/* Shown on a phone only, where the header is far from the canvas. */}
           <button

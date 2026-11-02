@@ -5,7 +5,10 @@ import { outline, pathOf, SCREEN } from '../ink';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
 import type { Card, CardData, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
+import { CanvasCard, CardInk, inkBottom, SketchCard } from './CanvasCards';
 import { CardLinks } from './CardLinks';
+import { LinkChips } from './LinkChips';
+import { MentionSuggest } from './Mentions';
 import { TagChips } from './Tags';
 import { useDimmed } from './useDimmed';
 
@@ -80,6 +83,7 @@ function Grow({
           onDone?.();
         }}
       />
+      <MentionSuggest field={ref} />
     </div>
   );
 }
@@ -192,6 +196,10 @@ export function CardNode(props: NodeProps<Card>) {
           <InkCard id={props.id} data={data} selected={selected} />
           <CardLinks cardId={props.id} />
         </>
+      ) : data.kind === 'sketch' ? (
+        <SketchCard id={props.id} data={data} selected={selected} />
+      ) : data.kind === 'canvas' ? (
+        <CanvasCard id={props.id} data={data} selected={selected} />
       ) : (
         <TextCard {...props} data={data} />
       )}
@@ -212,7 +220,10 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
   const dim = useDimmed(id);
 
   return (
-    <article className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}${dim ? ' dim' : ''}`}>
+    <article
+      className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}${dim ? ' dim' : ''}`}
+      style={data.kind === 'note' && data.strokes?.length ? { minHeight: inkBottom(data.strokes) } : undefined}
+    >
       <NodeResizeControl
         variant={ResizeControlVariant.Line}
         position={Position.Right}
@@ -258,6 +269,8 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
       ) : (
         <p className="missing">The text this came from is gone.</p>
       )}
+      {data.kind === 'note' && data.strokes?.length ? <CardInk strokes={data.strokes} /> : null}
+      <LinkChips text={data.kind === 'note' ? data.text : (data.comment ?? '')} />
       <TagChips ids={data.kind === 'excerpt' ? highlight?.tags : data.tags} />
       <CardLinks cardId={id} />
     </article>

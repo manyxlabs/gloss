@@ -1,5 +1,6 @@
-import { BorderStyle, Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
+import { BorderStyle, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
 import type { NoteItem, Outline } from './export';
+import { inkPng, type InkImage } from './inkImage';
 
 const MUTED = '6B6B78';
 const runs = (text: string, color?: string) => text.split('\n').map((t, i) => new TextRun({ text: t, break: i ? 1 : 0, color }));
@@ -13,10 +14,20 @@ const quoted = (text: string, color?: string) =>
     spacing: { after: color ? 160 : 40 },
   });
 
-function item(i: NoteItem) {
+/** Handwriting as a picture, at most the width of the page's text. */
+async function picture(ink: InkImage) {
+  const k = Math.min(1, 600 / ink.width);
+  const data = new Uint8Array(await (await inkPng(ink)).arrayBuffer());
+  return new Paragraph({
+    children: [new ImageRun({ type: 'png', data, transformation: { width: Math.round(ink.width * k), height: Math.round(ink.height * k) } })],
+    spacing: { after: 120 },
+  });
+}
+
+async function item(i: NoteItem) {
   const body =
-    i.kind === 'note'
-      ? [para(i.text)]
+    i.kind !== 'excerpt'
+      ? [...(i.kind === 'note' && i.text ? [para(i.text)] : []), ...(i.ink ? [await picture(i.ink)] : [])]
       : [quoted(i.text), quoted(`(${i.doc}, p. ${i.page})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
   return [
     ...body,
@@ -27,11 +38,11 @@ function item(i: NoteItem) {
 }
 
 /** The notes as a Word document, in the outline's order. */
-export function notesDocx(o: Outline) {
+export async function notesDocx(o: Outline) {
   const children = [heading(o.title, HeadingLevel.TITLE)];
   for (const s of o.sections) {
     if (s.title !== undefined) children.push(heading(s.title, HeadingLevel.HEADING_1), ...(s.tags?.length ? [para(`Tags: ${s.tags.join(' ')}`, MUTED)] : []));
-    for (const i of s.items) children.push(...item(i));
+    for (const i of s.items) children.push(...(await item(i)));
   }
   if (o.highlights.length) {
     children.push(heading('Highlights', HeadingLevel.HEADING_1));

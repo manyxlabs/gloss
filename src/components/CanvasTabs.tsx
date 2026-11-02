@@ -1,19 +1,28 @@
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, Lock, Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { nestedIn, pathTo } from '../canvases';
 import { addCanvas, canvasOf, removeCanvas, renameCanvas, setCanvas, useStore } from '../store/project';
+import { Menu } from './Menu';
 import { onTabKeys, revealTab } from './tabs';
 
-/** The project's canvases, one per line of thought; double-click a name to rename it. */
+/**
+ * The project's top-level canvases, one per line of thought; double-click a name to rename it. A
+ * nested canvas shows as the canvas it is in, whose menu lists the canvases nested in it.
+ */
 export function CanvasTabs() {
-  const canvases = useStore((s) => s.project?.canvases ?? []);
-  const current = useStore((s) => s.canvasId);
+  const all = useStore((s) => s.project?.canvases);
+  const canvases = (all ?? []).filter((c) => !c.parentId);
+  const open = useStore((s) => s.canvasId);
+  const current = all ? (pathTo({ canvases: all }, open)[0]?.id ?? open) : open;
   const [editing, setEditing] = useState<string | null>(null);
+  const [nested, setNested] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => revealTab(list.current), [current, canvases.length]);
 
   const remove = (id: string, name: string) => {
     const { project } = useStore.getState();
-    const cards = project ? project.cards.filter((c) => canvasOf(project, c) === id).length : 0;
+    const inside = new Set([id, ...(project ? nestedIn(project, id).map((n) => n.canvas.id) : [])]);
+    const cards = project ? project.cards.filter((c) => inside.has(canvasOf(project, c))).length : 0;
     if (!cards || confirm(`Remove “${name}” and its ${cards} card${cards === 1 ? '' : 's'}? Undo brings them back.`)) removeCanvas(id);
   };
 
@@ -41,7 +50,19 @@ export function CanvasTabs() {
                 onDoubleClick={() => setEditing(c.id)}
                 title="Double-click to rename"
               >
+                {c.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {c.name}
+              </button>
+            )}
+            {all?.some((x) => x.parentId === c.id) && (
+              <button
+                className="close nested"
+                aria-label={`Canvases in ${c.name}`}
+                aria-expanded={nested?.id === c.id}
+                tabIndex={c.id === current ? 0 : -1}
+                onClick={(e) => setNested(nested ? null : { id: c.id, anchor: e.currentTarget })}
+              >
+                <ChevronDown size={13} />
               </button>
             )}
             {canvases.length > 1 && (
@@ -52,6 +73,22 @@ export function CanvasTabs() {
           </div>
         ))}
       </div>
+      {nested && all && (
+        <Menu anchor={nested.anchor} label={`Canvases in ${all.find((c) => c.id === nested.id)?.name ?? ''}`} onClose={() => setNested(null)}>
+          {[{ canvas: all.find((c) => c.id === nested.id)!, depth: 0 }, ...nestedIn({ canvases: all }, nested.id)].map(({ canvas, depth }) => (
+            <button
+              key={canvas.id}
+              role="menuitemradio"
+              aria-checked={canvas.id === open}
+              style={{ paddingLeft: 12 + depth * 16 }}
+              onClick={() => (setNested(null), setCanvas(canvas.id))}
+            >
+              {canvas.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
+              {canvas.name}
+            </button>
+          ))}
+        </Menu>
+      )}
       <button className="add" aria-label="New canvas" title="New canvas" onClick={addCanvas}>
         <Plus size={15} />
       </button>

@@ -1,11 +1,15 @@
 import { Link2, Trash2, Unlink } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { CopyLink, LinkChips } from '../LinkChips';
+import { MentionSuggest } from '../Mentions';
 
 /**
  * Writes or edits the comment pinned beside a highlight. Kept as a draft until saved, so the whole edit is one undo step.
  * `shared` is how many passages the comment is on; `onAttach` saves the draft and picks another passage for it.
+ * Links to things in Gloss pasted in show as chips under it.
  */
 export function NoteEditor({
+  commentId,
   note,
   shared = 1,
   onSave,
@@ -13,6 +17,7 @@ export function NoteEditor({
   onAttach,
   onDetach,
 }: {
+  commentId?: string;
   note?: string;
   shared?: number;
   onSave: (note: string) => void;
@@ -21,6 +26,7 @@ export function NoteEditor({
   onDetach: () => void;
 }) {
   const [draft, setDraft] = useState(note ?? '');
+  const field = useRef<HTMLTextAreaElement>(null);
   return (
     <form
       className="note-editor"
@@ -30,6 +36,7 @@ export function NoteEditor({
       }}
     >
       <textarea
+        ref={field}
         aria-label="Comment"
         placeholder="Your comment"
         rows={3}
@@ -45,6 +52,8 @@ export function NoteEditor({
           } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSave(draft);
         }}
       />
+      <MentionSuggest field={field} />
+      <LinkChips text={draft} />
       {shared > 1 && <p className="shared">On {shared} passages. Editing it here edits it on all of them.</p>}
       <div className="row">
         {note !== undefined && (
@@ -63,6 +72,7 @@ export function NoteEditor({
             <Unlink size={16} />
           </button>
         )}
+        {commentId && <CopyLink target={{ kind: 'm', id: commentId }} />}
         <button type="button" className="icon" aria-label="Attach to another passage" title="Attach to another passage" disabled={!draft.trim()} onClick={() => onAttach(draft)}>
           <Link2 size={16} />
         </button>
