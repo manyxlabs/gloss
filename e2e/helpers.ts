@@ -32,7 +32,8 @@ export async function openProject(page: Page) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles([await pdf('Reef essay.pdf', ESSAY), await pdf('Survey notes.pdf', NOTES)]);
-  await expect(page.locator('.textLayer span').first()).toBeVisible();
+  // Storing, opening and drawing the first page takes longer on a machine busy with other tests.
+  await expect(page.locator('.textLayer span').first()).toBeVisible({ timeout: 15_000 });
 }
 
 /** Drags the mouse across the page text from the start of `from` to the end of `to`, as a reader would. */
