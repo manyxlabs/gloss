@@ -3,6 +3,8 @@ import { outline, PAGE_PIXELS, PAPER } from '../ink';
 import { cite, commentOf, endsOf } from '../links';
 import { fileKey, getFile } from '../store/db';
 import type { Project } from '../types';
+import { bookmarksOf } from '../store/bookmarks';
+import { appendOutline, bookmarkEntries } from './outline';
 import { loadDoc } from './pdfjs';
 
 export const HIGHLIGHT: Record<string, string> = {
@@ -172,6 +174,7 @@ export async function annotatedPdf(project: Project, docId: string) {
     );
   }
 
+  appendOutline(pdf, bookmarkEntries(pdf, bookmarksOf(project, docId)));
   pdf.setModificationDate(new Date());
   return new Blob([(await pdf.save()) as BlobPart], {
     type: 'application/pdf',

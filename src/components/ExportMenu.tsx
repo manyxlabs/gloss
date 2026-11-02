@@ -2,6 +2,7 @@ import { ChevronDown, NotebookText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { download, outline, toMarkdown } from '../export';
 import { useStore } from '../store/project';
+import { CombinedExport } from './CombinedExport';
 
 const FORMATS = [
   ['Markdown (.md)', 'md', async () => new Blob([toMarkdown(useStore.getState().project!)], { type: 'text/markdown' })],
@@ -13,6 +14,7 @@ const FORMATS = [
 export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProblems: (problems: string[]) => void }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [combining, setCombining] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,8 +61,13 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
               {label}
             </button>
           ))}
+          <hr />
+          <button role="menuitem" onClick={() => (setOpen(false), setCombining(true))}>
+            Documents as one PDF…
+          </button>
         </div>
       )}
+      {combining && <CombinedExport onClose={() => setCombining(false)} />}
     </div>
   );
 }
