@@ -1032,10 +1032,30 @@ button.big.primary {
 
 /* Canvas */
 .canvas {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   background: var(--bg);
+}
+
+.canvas .flow {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.canvas-tabs .add {
+  padding: 4px 8px;
+}
+
+.tab .rename {
+  width: 140px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--panel);
+  padding: 4px 8px;
+  font-size: 14px;
 }
 
 .canvas.over {

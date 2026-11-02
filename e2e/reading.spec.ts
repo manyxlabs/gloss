@@ -163,5 +163,5 @@ test('files that are not PDFs are refused with a reason', async ({ page }) => {
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
   await chooser.setFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not a pdf') });
   await expect(page.getByRole('alert')).toHaveText(/photo\.jpg is not a PDF\./);
-  await expect(page.getByRole('tab')).toHaveCount(2);
+  await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(2);
 });
