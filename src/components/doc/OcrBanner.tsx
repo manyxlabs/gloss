@@ -31,6 +31,7 @@ export function OcrBanner({ doc, onProblems }: { doc: DocMeta; onProblems: (prob
     <DocBanner
       label="Scanned pages"
       icon={<ScanText size={18} />}
+      wide
       onDismiss={() => setDismissed(version)}
       actions={
         <>

@@ -1,8 +1,9 @@
-/* Notices over the top of a document's pages, such as a scan whose text cannot be selected yet. */
+/* Notices about a document, such as a scan whose text cannot be selected yet, above its toolbar,
+   where they leave the top of the page in view. */
 .doc-banners {
   position: absolute;
   z-index: 15;
-  top: 10px;
+  bottom: 64px;
   left: 50%;
   translate: -50% 0;
   width: max-content;
@@ -115,20 +116,20 @@
   background: var(--accent);
 }
 
-/* A narrow pane puts the actions under the message, so neither is squeezed. */
+/* A narrow pane puts several actions under the message, so neither is squeezed. */
 .narrow .doc-banners {
   width: calc(100% - 16px);
 }
 
-.narrow .doc-banner {
+.narrow .doc-banner.wide {
   flex-wrap: wrap;
 }
 
-.narrow .doc-banner-text {
+.narrow .doc-banner.wide .doc-banner-text {
   flex-basis: calc(100% - 40px);
 }
 
-.narrow .doc-banner-actions {
+.narrow .doc-banner.wide .doc-banner-actions {
   width: 100%;
   justify-content: flex-end;
 }
