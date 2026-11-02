@@ -34,6 +34,7 @@ import { commentSelection, detachComment, pick, pickSelection, setComment, start
 import { COLORS, type Color, type Point, type Rect } from '../types';
 import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
+import { OcrBanner } from './doc/OcrBanner';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
 import { EXCERPT_MIME } from './dnd';
@@ -822,6 +823,11 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           )}
         </div>
 
+        {ready && (
+          <div className="doc-banners">
+            <OcrBanner doc={active} onProblems={onProblems} />
+          </div>
+        )}
         <div className="snip-live" ref={snipLive} style={{ display: 'none' }} />
         <svg className="ink-live" aria-hidden="true">
           <path ref={live} fill={PAPER[inkColor]} />
