@@ -18,7 +18,11 @@ function item(i: NoteItem) {
     i.kind === 'note'
       ? [para(i.text)]
       : [quoted(i.text), quoted(`(${i.doc}, p. ${i.page})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
-  return i.links.length ? [...body, para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, MUTED)] : body;
+  return [
+    ...body,
+    ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, MUTED)] : []),
+    ...i.passages.map((l) => para(`Linked passage: ${l}`, MUTED)),
+  ];
 }
 
 /** The notes as a Word document, in the outline's order. */
@@ -32,7 +36,11 @@ export function notesDocx(o: Outline) {
     children.push(heading('Highlights', HeadingLevel.HEADING_1));
     for (const d of o.highlights) {
       children.push(heading(d.doc, HeadingLevel.HEADING_2));
-      for (const h of d.items) children.push(new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}${h.note ? ` (comment: ${h.note})` : ''}`) }));
+      for (const h of d.items)
+        children.push(
+          new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}${h.note ? ` (comment: ${h.note})` : ''}`) }),
+          ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(`Linked passage: ${l}`, MUTED) })),
+        );
     }
   }
   return Packer.toBlob(new Document({ creator: 'Gloss', title: o.title, sections: [{ children }] }));

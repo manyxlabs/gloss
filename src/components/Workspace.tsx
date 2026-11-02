@@ -6,6 +6,7 @@ import { closeProject, openProject, redo, rename, setView, undo, useStore } from
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
 import { ExportMenu } from './ExportMenu';
+import { LinkBanner } from './LinkBanner';
 import { Search } from './Search';
 import { Share } from './Share';
 import { ThemeToggle } from './ThemeToggle';
@@ -125,6 +126,7 @@ export function Workspace({ id }: { id: string }) {
         <div className={`docs${side ? ' split' : ''}`}>
           <DocPane pane={0} onProblems={setProblems} />
           {side && <DocPane pane={1} onProblems={setProblems} />}
+          <LinkBanner />
         </div>
         <div className="divider" role="separator" aria-orientation="vertical" aria-label="Resize" onPointerDown={drag} />
         <ReactFlowProvider>
