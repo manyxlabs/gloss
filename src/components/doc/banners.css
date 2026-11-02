@@ -133,3 +133,24 @@
   width: 100%;
   justify-content: flex-end;
 }
+
+.annots-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.annots-action p {
+  margin: 0;
+}
+
+.annots-action button {
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+}

@@ -1,15 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
-import { ARTIFACTS, card, readPdf, shot } from './helpers';
-
-type Box = { x: number; y: number; width: number; height: number };
-/** How much of box `a` lies inside box `b`. */
-const inside = (a: Box, b: Box) => {
-  const w = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const h = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  return (w * h) / (a.width * a.height);
-};
+import { ARTIFACTS, card, inside, readPdf, shot, textBox, type Box } from './helpers';
 
 const LINES = [
   'Lighthouse keepers recorded every passing ship',
@@ -64,25 +56,6 @@ const sheet = (page: Page) => page.locator('.pdfViewer > .page[data-page-number=
 async function drawnAt(page: Page, word: Box): Promise<Box> {
   const p = (await sheet(page).boundingBox())!;
   return { x: p.x + word.x * p.width, y: p.y + word.y * p.height, width: word.width * p.width, height: word.height * p.height };
-}
-
-/** Where a word of the text layer is on screen, as selecting it would mark it. */
-async function textBox(page: Page, word: string): Promise<Box> {
-  const layer = page.locator('.page:not([data-copy]) .textLayer');
-  await expect(layer).toContainText(word);
-  return layer.evaluate((el, word) => {
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const at = new RegExp(`(^|\\s)${word.replace('.', '\\.')}(\\s|$)`).exec(node.textContent!);
-      if (!at) continue;
-      const range = document.createRange();
-      const start = at.index + at[1]!.length;
-      range.setStart(node, start);
-      range.setEnd(node, start + word.length);
-      return range.getBoundingClientRect().toJSON() as Box;
-    }
-    throw new Error(`${word} is not in the text layer`);
-  }, word);
 }
 
 /** Drags across one word of the text layer, as a reader would select it. */

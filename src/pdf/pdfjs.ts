@@ -89,20 +89,43 @@ export function pageTexts(docId: string, password?: string) {
   return pages;
 }
 
-/** The text whose middle lies inside a box on a page, in reading order. */
-export async function textIn(docId: string, password: string | undefined, pageNo: number, [x, y, w, h]: Rect) {
+let measure: OffscreenCanvasRenderingContext2D | null = null;
+
+/**
+ * Each word on a page with its middle as fractions of the page, in reading order, and whether a
+ * line ends after it. pdf.js gives runs of text with their width; where each word of a run lies is
+ * estimated from the widths of its letters in a similar font.
+ */
+async function wordsOn(docId: string, password: string | undefined, pageNo: number) {
   const page = await (await loadDoc(docId, password)).getPage(pageNo);
   const viewport = page.getViewport({ scale: 1 });
-  let text = '';
-  for (const item of (await page.getTextContent()).items) {
-    if (!('str' in item)) continue;
-    // The run's middle in PDF space: half along its baseline, half up its height, whatever the rotation.
+  const { items, styles } = await page.getTextContent();
+  measure ??= new OffscreenCanvas(1, 1).getContext('2d')!;
+  const words: { text: string; x: number; y: number; eol: boolean }[] = [];
+  for (const item of items) {
+    if (!('str' in item) || !item.str.trim()) continue;
+    measure.font = `100px ${styles[item.fontName]?.fontFamily ?? 'sans-serif'}`;
+    const scale = item.width / (measure.measureText(item.str).width || 1);
     const [a, b, c, d, e, f] = item.transform as number[];
     const along = Math.hypot(a!, b!) || 1;
-    const [vx, vy] = viewport.convertToViewportPoint(e! + ((a! / along) * item.width + c!) / 2, f! + ((b! / along) * item.width + d!) / 2) as [number, number];
-    const [fx, fy] = [vx / viewport.width, vy / viewport.height];
-    if (fx >= x && fx <= x + w && fy >= y && fy <= y + h) text += item.str + (item.hasEOL ? '\n' : ' ');
+    const found = [...item.str.matchAll(/\S+/g)];
+    for (const [i, m] of found.entries()) {
+      // Halfway along the word on its baseline, then half up its height, whatever the rotation.
+      const mid = ((measure.measureText(item.str.slice(0, m.index)).width + measure.measureText(item.str.slice(0, m.index + m[0].length)).width) / 2) * scale;
+      const [vx, vy] = viewport.convertToViewportPoint(e! + (a! / along) * mid + c! / 2, f! + (b! / along) * mid + d! / 2) as [number, number];
+      words.push({ text: m[0], x: vx / viewport.width, y: vy / viewport.height, eol: i === found.length - 1 && item.hasEOL });
+    }
   }
+  return words;
+}
+
+/** The words whose middles lie inside any of the boxes on a page, in reading order. */
+export async function textIn(docId: string, password: string | undefined, pageNo: number, rects: Rect[]) {
+  const inside = (w: { x: number; y: number }) => rects.some(([x, y, rw, rh]) => w.x >= x && w.x <= x + rw && w.y >= y && w.y <= y + rh);
+  const text = (await wordsOn(docId, password, pageNo))
+    .filter(inside)
+    .map((w) => w.text + (w.eol ? '\n' : ' '))
+    .join('');
   return cleanText(text);
 }
 

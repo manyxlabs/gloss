@@ -53,3 +53,30 @@ export const card = (page: Page, text: string) => page.locator('.react-flow__nod
 
 /** Opens an exported PDF in Node with pdf.js, as a reader would read it. */
 export const readPdf = (file: string) => getDocument({ data: new Uint8Array(readFileSync(file)), standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/' });
+
+export type Box = { x: number; y: number; width: number; height: number };
+/** How much of box `a` lies inside box `b`. */
+export const inside = (a: Box, b: Box) => {
+  const w = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+  const h = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+  return (w * h) / (a.width * a.height);
+};
+
+/** Where a word or phrase of the text layer is on screen, as selecting it would mark it. */
+export async function textBox(page: Page, word: string): Promise<Box> {
+  const layer = page.locator('.page:not([data-copy]) .textLayer');
+  await expect(layer).toContainText(word);
+  return layer.evaluate((el, word) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = new RegExp(`(^|\\s)${word.replace('.', '\\.')}(\\s|$)`).exec(node.textContent!);
+      if (!at) continue;
+      const range = document.createRange();
+      const start = at.index + at[1]!.length;
+      range.setStart(node, start);
+      range.setEnd(node, start + word.length);
+      return range.getBoundingClientRect().toJSON() as Box;
+    }
+    throw new Error(`${word} is not in the text layer`);
+  }, word);
+}

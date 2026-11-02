@@ -33,6 +33,7 @@ import {
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
 import { COLORS, type Color, type Point, type Rect } from '../types';
 import { LinkPopover } from './doc/LinkPopover';
+import { AnnotsBanner } from './doc/AnnotsBanner';
 import { NoteEditor } from './doc/NoteEditor';
 import { OcrBanner } from './doc/OcrBanner';
 import { paint, type PageView } from './doc/paint';
@@ -504,7 +505,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const rect = snipRect(s, x, y);
     if (rect[2] * s.box.width < MIN_SNIP || rect[3] * s.box.height < MIN_SNIP) return setPopup(null);
     const docId = activeDocId;
-    const text = await textIn(docId, active?.password, s.page, rect).catch(() => '');
+    const text = await textIn(docId, active?.password, s.page, [rect]).catch(() => '');
     const h = addHighlight(docId, [{ page: s.page, rects: [rect] }], text, color, { area: true });
     const c = scroller.current!;
     const top = Math.min(s.y, y);
@@ -825,6 +826,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
         {ready && (
           <div className="doc-banners">
+            <AnnotsBanner doc={active} onProblems={onProblems} />
             <OcrBanner doc={active} onProblems={onProblems} />
           </div>
         )}
