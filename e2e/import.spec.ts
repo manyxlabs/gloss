@@ -258,7 +258,7 @@ test('notes export as Markdown, PDF and Word with the same sections and sources'
     return readFileSync(`${ARTIFACTS}/${file}`);
   };
   await page.getByRole('button', { name: 'Export notes' }).click();
-  await expect(page.getByRole('menuitem')).toHaveCount(3);
+  await expect(page.getByRole('menuitem')).toHaveCount(4);
   await shot(page, 'export-menu');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
