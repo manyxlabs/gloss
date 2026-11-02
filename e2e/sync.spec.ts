@@ -192,7 +192,7 @@ test('a second canvas, a margin comment and a password protected PDF all reach t
   const b = await device(browser);
   await openProject(a.page);
 
-  const [chooser] = await Promise.all([a.page.waitForEvent('filechooser'), a.page.getByRole('button', { name: 'Add PDF' }).click()]);
+  const [chooser] = await Promise.all([a.page.waitForEvent('filechooser'), a.page.getByRole('button', { name: 'Add file' }).click()]);
   await chooser.setFiles({ name: 'Locked survey.pdf', mimeType: 'application/pdf', buffer: await encryptedPdf('coral') });
   const ask = a.page.getByRole('dialog', { name: 'Password needed' });
   await ask.getByLabel('Password').fill('coral');

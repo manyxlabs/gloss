@@ -9,7 +9,7 @@ const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile:
 /** Starts a project from these PDFs, as a reader opening them from the start page would. */
 async function openWith(page: Page, files: { name: string; buffer: Buffer }[]) {
   await page.goto('/');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open PDFs' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles(files.map((f) => ({ ...f, mimeType: 'application/pdf' })));
   await expect(page.locator('.textLayer span').first()).toBeVisible();
 }
@@ -145,7 +145,7 @@ test('on a phone the sidebar covers the page and closes after a jump', async ({ 
 
 test('a password protected PDF asks for its password, refuses a wrong one and opens with the right one', async ({ page }) => {
   await openProject(page);
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add file' }).click()]);
   await chooser.setFiles({ name: 'Locked survey.pdf', mimeType: 'application/pdf', buffer: await encryptedPdf('coral') });
 
   const dialog = page.getByRole('dialog', { name: 'Password needed' });
@@ -176,7 +176,7 @@ test('a password protected PDF asks for its password, refuses a wrong one and op
   await expect(page.getByRole('alert')).toContainText('password protected');
 
   // Cancelling leaves the project as it was.
-  const [again] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
+  const [again] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add file' }).click()]);
   await again.setFiles({ name: 'Other.pdf', mimeType: 'application/pdf', buffer: await encryptedPdf('reef') });
   await page.getByRole('dialog', { name: 'Password needed' }).getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(3);

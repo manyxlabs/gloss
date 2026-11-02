@@ -146,7 +146,7 @@ export function Library() {
             <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
             <div className="actions">
               <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
-                {busy ? 'Opening…' : 'Open PDFs'}
+                {busy ? 'Opening…' : 'Open files'}
               </button>
               <WebPicker big add={(url) => start([{ url }])} />
               <button className="big" disabled={busy} onClick={() => void start([])}>

@@ -161,7 +161,7 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
 
 test('files that cannot be opened are refused with a reason', async ({ page }) => {
   await openProject(page);
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add file' }).click()]);
   await chooser.setFiles([
     { name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not a picture') },
     { name: 'backup.zip', mimeType: 'application/zip', buffer: Buffer.from('PK') },

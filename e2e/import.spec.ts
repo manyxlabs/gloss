@@ -28,7 +28,7 @@ async function picture(page: Page, width: number, height: number, color: string,
 /** Opens the files from the start page as a new project. */
 async function open(page: Page, files: File[]) {
   await page.goto('/');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open PDFs' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles(files);
   await expect(page.locator('.doc-status')).toBeVisible();
 }

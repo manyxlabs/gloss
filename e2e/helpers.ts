@@ -13,7 +13,7 @@ export const pdf = async (name: string, pages: string[][]) => ({ name, mimeType:
 
 export async function openProject(page: Page) {
   await page.goto('/');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open PDFs' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles([await pdf('Reef essay.pdf', ESSAY), await pdf('Survey notes.pdf', NOTES)]);
   await expect(page.locator('.textLayer span').first()).toBeVisible();
 }

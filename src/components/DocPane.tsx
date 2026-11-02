@@ -645,7 +645,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           </button>
         ) : (
           <>
-            <FilePicker label="Add PDF" onProblems={onProblems} />
+            <FilePicker label="Add file" onProblems={onProblems} />
             <WebPicker add={async (url) => onProblems(await addDocs([{ url }]))} />
             {!split && docs.length > 0 && (
               <button
@@ -777,7 +777,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         {!docs.length && !pane && (
           <div className="empty">
             <p>Drop PDFs, Word or PowerPoint files, images or text here to start reading.</p>
-            <FilePicker label="Choose PDFs" primary onProblems={onProblems} />
+            <FilePicker label="Choose files" primary onProblems={onProblems} />
           </div>
         )}
         {error && active && (
