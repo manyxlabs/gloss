@@ -1,7 +1,8 @@
 import { addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, type NodeChange, type XYPosition } from '@xyflow/react';
 import { create } from 'zustand';
 import { before } from '../pdf/folds';
-import { closeDocs, isPdf, openPdf, PdfPasswordError } from '../pdf/pdfjs';
+import type { Input } from '../convert';
+import { closeDocs, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { passwordAsker } from '../password';
 import { addFiles, deleteFile, getProject, putProject } from './db';
@@ -177,46 +178,35 @@ export const rememberPage = (docId: string, lastPage: number) =>
   );
 
 /** Opens a PDF, asking for its password until it opens; null when the reader gives up. */
-async function openProtected(file: File) {
+async function openProtected(data: Blob, name: string) {
   let password: string | undefined;
   for (;;) {
     try {
-      return { ...(await openPdf(file, password)), password };
+      return { ...(await openPdf(data, password)), password };
     } catch (err) {
       if (!(err instanceof PdfPasswordError)) throw err;
-      const answer = await passwordAsker.ask(file.name, err.wrong);
+      const answer = await passwordAsker.ask(name, err.wrong);
       if (answer === null) return null;
       password = answer;
     }
   }
 }
 
-/** Reads and stores PDFs. Returns a message for each file that could not be added. */
-export async function importFiles(project: Project, files: File[]): Promise<{ project: Project; problems: string[] }> {
-  const problems: string[] = [];
-  const added: [DocMeta, File][] = [];
-  for (const file of files) {
-    if (!(await isPdf(file))) {
-      problems.push(`${file.name} is not a PDF.`);
-      continue;
-    }
+/** Converts what was added to PDFs and stores them. Returns a message for each file that could not be added, or added only in part. */
+export async function importFiles(project: Project, inputs: Input[]): Promise<{ project: Project; problems: string[] }> {
+  const { convert } = await import('../convert');
+  const { converted, problems } = await convert(inputs);
+  const added: [DocMeta, Blob][] = [];
+  for (const { name, data, source } of converted) {
     try {
-      const opened = await openProtected(file);
+      // A PDF added as it is keeps its file name in the password prompt.
+      const opened = await openProtected(data, data instanceof File ? data.name : name);
       if (!opened) continue;
       const { doc, close, password } = opened;
-      added.push([
-        {
-          id: uid(),
-          name: file.name.replace(/\.pdf$/i, ''),
-          pages: doc.numPages,
-          size: file.size,
-          ...(password === undefined ? {} : { password }),
-        },
-        file,
-      ]);
+      added.push([{ id: uid(), name, pages: doc.numPages, size: data.size, ...(source ? { source } : {}), ...(password === undefined ? {} : { password }) }, data]);
       await close();
     } catch {
-      problems.push(`${file.name} could not be read as a PDF.`);
+      problems.push(`${name} could not be read as a PDF.`);
     }
   }
   if (added.length) await addFiles(added.map(([meta, file]) => [meta.id, file]));
@@ -228,7 +218,7 @@ export async function importFiles(project: Project, files: File[]): Promise<{ pr
   return { project: next, problems };
 }
 
-export async function addDocs(files: File[]) {
+export async function addDocs(files: Input[]) {
   const { project } = get();
   if (!project) return [];
   const { project: next, problems } = await importFiles(project, files);

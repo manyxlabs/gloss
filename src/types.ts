@@ -24,7 +24,11 @@ export type DocMeta = {
    * with the rest, end-to-end encrypted, since everyone with the link can read the PDF anyway.
    */
   password?: string;
+  /** What a document was converted from, when it was not added as a PDF. */
+  source?: DocSource;
 };
+
+export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web'; name?: string; url?: string };
 
 export const INKS = ['ink', 'red', 'blue', 'green'] as const;
 export type InkColor = (typeof INKS)[number];

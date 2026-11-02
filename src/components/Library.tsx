@@ -2,10 +2,14 @@ import { ArchiveRestore, Download, FileDown, FoldVertical, Link2, Lock, PenLine,
 import { useEffect, useRef, useState } from 'react';
 import { backupOf, BackupError, isBackup, restore } from '../backup';
 import { download } from '../download';
+import type { Input } from '../convert';
+import { ACCEPT } from '../convert/formats';
+import { leave } from '../notices';
 import { deleteProject, listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
 import { Logo } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
+import { WebPicker } from './WebPicker';
 
 const ago = (t: number) => {
   const s = (Date.now() - t) / 1000;
@@ -23,7 +27,7 @@ const FEATURES = [
   [FoldVertical, 'Squeeze the pages between', 'Pinch two distant passages together, or select what is in between and squeeze it, to read them side by side.'],
   [PenLine, 'Write by hand', 'Draw on the page or the canvas with a finger, a mouse or a stylus, which writes even without picking the pen.'],
   [Search, 'Search everything', 'One box searches every page of every PDF and every note you wrote.'],
-  [FileDown, 'Take it with you', 'Export the PDF with your highlights and handwriting as real annotations, or your notes as Markdown.'],
+  [FileDown, 'Take it with you', 'Export the PDF with your highlights and handwriting as real annotations, or your notes as Markdown, PDF or Word.'],
   [Lock, 'Private by design', 'Your PDFs and notes stay in this browser unless you share a project, and then only encrypted. There is no account.'],
 ] as const;
 
@@ -72,12 +76,12 @@ export function Library() {
     void listProjects().then(setProjects);
   }, []);
 
-  const start = async (all: File[]) => {
+  const start = async (all: Input[]) => {
     setBusy(true);
     try {
       // Backups come back as the projects they hold; anything else starts a new project.
-      const backups = all.filter(isBackup);
-      const files = all.filter((f) => !isBackup(f));
+      const backups = all.filter((i): i is File => i instanceof File && isBackup(i));
+      const inputs = all.filter((i) => !(i instanceof File && isBackup(i)));
       const restored: string[] = [];
       const failed: string[] = [];
       for (const b of backups) {
@@ -88,18 +92,18 @@ export function Library() {
         }
       }
       setProblems(failed);
-      if (backups.length && !files.length) {
+      if (backups.length && !inputs.length) {
         if (restored.length === 1) location.hash = `#/p/${restored[0]}`;
         else setProjects(await listProjects());
         return;
       }
-      const name = files[0]?.name.replace(/\.pdf$/i, '') ?? 'Untitled project';
       // Loaded here rather than imported above, so pdf.js is not part of the start page.
       const { importFiles, newProject } = await import('../store/project');
-      const { project, problems } = await importFiles(newProject(name), files);
+      const { project, problems } = await importFiles(newProject('Untitled project'), inputs);
       setProblems([...failed, ...problems]);
-      if (files.length && !project.docs.length) return;
-      await putProject(project);
+      if (inputs.length && !project.docs.length) return;
+      await putProject({ ...project, name: project.docs[0]?.name ?? project.name });
+      leave([...failed, ...problems]);
       location.hash = `#/p/${project.id}`;
     } finally {
       setBusy(false);
@@ -144,6 +148,7 @@ export function Library() {
               <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
                 {busy ? 'Opening…' : 'Open PDFs'}
               </button>
+              <WebPicker big add={(url) => start([{ url }])} />
               <button className="big" disabled={busy} onClick={() => void start([])}>
                 New empty project
               </button>
@@ -151,7 +156,7 @@ export function Library() {
                 <ArchiveRestore size={17} /> Restore a backup
               </button>
             </div>
-            <p className="hint">or drop PDFs or a .gloss backup anywhere on this page</p>
+            <p className="hint">or drop PDFs, Word and PowerPoint files, images, text or a .gloss backup anywhere on this page</p>
             <input
               ref={restoreInput}
               type="file"
@@ -166,7 +171,7 @@ export function Library() {
             <input
               ref={input}
               type="file"
-              accept="application/pdf,.pdf"
+              accept={ACCEPT}
               multiple
               hidden
               onChange={(e) => {
