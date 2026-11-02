@@ -19,7 +19,11 @@ export type DocMeta = {
   pages: number;
   size: number;
   lastPage?: number;
+  /** What a document was converted from, when it was not added as a PDF. */
+  source?: DocSource;
 };
+
+export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web'; name?: string; url?: string };
 
 export const INKS = ['ink', 'red', 'blue', 'green'] as const;
 export type InkColor = (typeof INKS)[number];
