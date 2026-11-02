@@ -4,7 +4,8 @@ import { actOnMatches, collapseAround, findAll, type Act } from '../store/bulk';
 import { canvasOf, useStore } from '../store/project';
 import { setTag } from '../store/tags';
 import { cardText } from '../search';
-import { COLORS, type Color } from '../types';
+import type { Color } from '../types';
+import { ColorPicker } from './ColorPicker';
 import { TagPicker } from './Tags';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -68,9 +69,7 @@ export function SearchActions({ query, docId, onDone }: { query: string; docId?:
         <span className="label">
           <Highlighter size={15} /> Highlight all
         </span>
-        {COLORS.map((c) => (
-          <button key={c} className={`swatch hl-${c}`} aria-label={`Highlight all ${c}`} title={`Highlight all ${c}`} disabled={busy} onClick={() => highlight(c)} />
-        ))}
+        <ColorPicker label={(name) => `Highlight all ${name}`} onPick={(c) => !busy && highlight(c)} />
       </div>
       <div className="row">
         <button aria-expanded={open === 'tag'} disabled={busy} onClick={() => setOpen(open === 'tag' ? null : 'tag')}>

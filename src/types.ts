@@ -1,7 +1,9 @@
 import type { Edge, Node } from '@xyflow/react';
 
-export const COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
-export type Color = (typeof COLORS)[number];
+export const HUES = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'purple', 'fuchsia', 'pink', 'rose', 'gray'] as const;
+/** 32 highlight colours: each hue light and deep. The five there were at first, yellow, green, blue, pink and purple, keep their ids and shades. */
+export type Color = (typeof HUES)[number] | `deep-${(typeof HUES)[number]}`;
+export const COLORS: Color[] = [...HUES, ...HUES.map((h) => `deep-${h}` as const)];
 
 /** x, y, width, height as fractions of the page, so a highlight stays put at any zoom. */
 export type Rect = [number, number, number, number];
@@ -42,6 +44,8 @@ export type DocMeta = {
    * Absent, the file is the one the document was added with.
    */
   file?: string;
+  /** Kept on this device only, with everything on it: never sent to the others in a shared project. */
+  local?: true;
 };
 
 /** `link` is a file fetched from a share link as it was, without converting. */
@@ -72,7 +76,8 @@ export type ExcerptData = {
   highlightId: string;
   comment?: string;
 };
-export type NoteData = { kind: 'note'; text: string };
+/** `strokes` are handwriting over the note. */
+export type NoteData = { kind: 'note'; text: string; strokes?: Stroke[] };
 /** Handwriting on the canvas, in canvas units from the card's corner. */
 export type InkData = {
   kind: 'ink';
@@ -83,12 +88,25 @@ export type InkData = {
 };
 /** A collapsed group shows only its name and how many cards it holds; `openHeight` is its height when open. */
 export type GroupData = { kind: 'group'; title: string; collapsed?: boolean; openHeight?: number };
+/** A stroke written inside a card, in canvas units from the card's corner. */
+export type Stroke = { id: string; points: Point[]; color: InkColor; size: number; pen: boolean };
+/** A box to write in by hand, sized by the reader. */
+export type SketchData = { kind: 'sketch'; strokes: Stroke[] };
+/** Opens canvas `target`, which is nested in the canvas this card is on and goes with the card. */
+export type CanvasCardData = { kind: 'canvas'; target: string };
 /**
- * Every card sits on one of the project's canvases; cards from before there were several have none and sit on the first.
- * `tags` are a note's, a group's or handwriting's own; an excerpt shows its passage's tags instead.
+ * Every card sits on one of the project's canvases; cards from before there were several have none
+ * and sit on the first. `canvasLinks` are canvases the card leads to, each shown as a chip on it.
+ * `tags` are the card's own; an excerpt shows its passage's tags instead.
  */
-export type CardData = (ExcerptData | NoteData | InkData | GroupData) & { canvasId?: string; tags?: string[] };
-export type CanvasMeta = { id: string; name: string };
+export type CardData = (ExcerptData | NoteData | InkData | GroupData | SketchData | CanvasCardData) & { canvasId?: string; canvasLinks?: string[]; tags?: string[] };
+export type Background = 'dots' | 'grid' | 'plain';
+/**
+ * A canvas, at the top level or nested in `parentId` through a canvas card. Its look: the pattern
+ * behind the cards, the colour notes take, and an accent for what is chosen and for links. `local`
+ * keeps it, with everything on it and nested in it, on this device only, out of sync.
+ */
+export type CanvasMeta = { id: string; name: string; parentId?: string; background?: Background; cardColor?: Color; accent?: Color; local?: true };
 export type Card = Node<CardData, 'card'>;
 export type Link = Edge;
 

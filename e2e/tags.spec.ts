@@ -146,7 +146,7 @@ test('passages and cards are tagged, filtered and searched by tag, and tags are 
     await dialog.getByRole('textbox', { name: 'Name of Climate' }).fill('Climate change');
     await dialog.getByRole('textbox', { name: 'Name of Climate' }).press('Enter');
     await expect(chips(card(page, 'Coral reefs occupy'))).toHaveText(['Reefs', 'Climate change']);
-    await dialog.getByRole('radiogroup', { name: 'Colour of Reefs' }).getByRole('radio', { name: 'blue' }).click();
+    await dialog.getByRole('group', { name: 'Colour of Reefs' }).getByRole('button', { name: 'blue', exact: true }).click();
     await expect(chips(card(page, 'Coral reefs occupy')).first()).toHaveAttribute('style', /--tag: var\(--hl-blue\)/);
     await dialog.getByRole('combobox', { name: 'Category of Reefs' }).fill('Topics');
     await dialog.getByRole('combobox', { name: 'Category of Reefs' }).press('Enter');

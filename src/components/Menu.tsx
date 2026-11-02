@@ -7,9 +7,22 @@ const EDGE = 8;
 /**
  * A menu opened from a button, over everything else: below the button, or above it where there is
  * no room, following it as the page scrolls. It is drawn in the page's body, as a scrolling list or
- * a lifted card would clip or move it. A click elsewhere or Escape closes it.
+ * a lifted card would clip or move it. A click elsewhere or Escape closes it. As a `dialog`, it
+ * holds controls other than menu items.
  */
-export function Menu({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose: () => void; children: ReactNode }) {
+export function Menu({
+  anchor,
+  label,
+  onClose,
+  children,
+  role = 'menu',
+}: {
+  anchor: HTMLElement;
+  label: string;
+  onClose: () => void;
+  children: ReactNode;
+  role?: 'menu' | 'dialog';
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const close = useRef(onClose);
@@ -62,7 +75,14 @@ export function Menu({ anchor, label, onClose, children }: { anchor: HTMLElement
   };
 
   return createPortal(
-    <div ref={ref} className="menu glass floating" role="menu" aria-label={label} onKeyDown={step} style={at ?? { top: 0, left: 0, visibility: 'hidden' }}>
+    <div
+      ref={ref}
+      className={`menu glass floating${role === 'dialog' ? ' panel' : ''}`}
+      role={role}
+      aria-label={label}
+      onKeyDown={step}
+      style={at ?? { top: 0, left: 0, visibility: 'hidden' }}
+    >
       {children}
     </div>,
     document.body,

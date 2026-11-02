@@ -110,6 +110,12 @@ export function Palette() {
     const page = Math.min(Math.max(1, Number(number)), doc.pages);
     items.push({ id: 'page', kind: doc.name, label: `Go to page ${page} of ${doc.pages}`, icon: FileText, run: () => showPage(doc.id, page, { pane }) });
   }
+  /** A nested canvas is named with the canvases it is inside, as it is reached through them. */
+  const trail = (id: string, seen = new Set<string>()): string => {
+    const c = project.canvases.find((x) => x.id === id);
+    if (!c) return '';
+    return c.parentId && !seen.has(c.parentId) ? `${trail(c.parentId, seen.add(id))} › ${c.name}` : c.name;
+  };
   const filter = useTagView.getState().filter;
   const tagFilter = project.tags.map((t) => ({
     id: `tag-${t.id}`,
@@ -127,7 +133,7 @@ export function Palette() {
       icon: ListTree,
       run: () => void loadDoc(docId!, password).then((d) => showEntry(d, docId!, e.dest, pane)),
     })),
-    ...project.canvases.map((c) => ({ id: `canvas-${c.id}`, kind: 'Canvas', label: c.name, icon: LayoutDashboard, run: () => (setCanvas(c.id), setView('canvas')) })),
+    ...project.canvases.map((c) => ({ id: `canvas-${c.id}`, kind: 'Canvas', label: trail(c.id), icon: LayoutDashboard, run: () => (setCanvas(c.id), setView('canvas')) })),
     ...tagFilter,
     { id: 'undo', kind: 'Action', label: 'Undo', icon: Undo2, run: undo },
     { id: 'redo', kind: 'Action', label: 'Redo', icon: Redo2, run: redo },
@@ -166,21 +172,21 @@ export function Palette() {
   };
 
   return (
-    <div className="palette-backdrop" onPointerDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="palette glass" role="dialog" aria-modal="true" aria-label="Go to">
+    <div className="command-backdrop" onPointerDown={(e) => e.target === e.currentTarget && close()}>
+      <div className="command-palette glass" role="dialog" aria-modal="true" aria-label="Go to">
         <input
           ref={input}
           aria-label="Go to a page, document, contents entry, canvas, tag or action"
           placeholder={doc ? `Page number in ${doc.name}, or a name or action` : 'A name or action'}
           role="combobox"
           aria-expanded="true"
-          aria-controls="palette-list"
+          aria-controls="command-list"
           aria-activedescendant={current ? `palette-${current.id}` : undefined}
           value={query}
           onChange={(e) => (setQuery(e.target.value), setActive(0))}
           onKeyDown={onKeyDown}
         />
-        <div className="palette-list" id="palette-list" role="listbox" aria-label="Places and actions" ref={list}>
+        <div className="command-list" id="command-list" role="listbox" aria-label="Places and actions" ref={list}>
           {!items.length && <p className="none">Nothing matches “{q}”.</p>}
           {items.map((item) => (
             <button

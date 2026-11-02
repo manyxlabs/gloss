@@ -89,11 +89,12 @@ export async function search(project: Project, raw: string) {
   return { docs, cards, comments, highlights: [] as HighlightHit[] };
 }
 
-/** The words on a card: a note, a group's name, or an excerpt with the comment on it. Handwriting has none. */
+/** The words on a card: a note, a group's name, a nested canvas's name, or an excerpt with the comment on it. Handwriting has none. */
 export function cardText(p: Project, c: Card) {
   const d = c.data;
   if (d.kind === 'note') return d.text.trim();
   if (d.kind === 'group') return d.title.trim();
-  if (d.kind === 'ink') return '';
+  if (d.kind === 'ink' || d.kind === 'sketch') return '';
+  if (d.kind === 'canvas') return p.canvases.find((x) => x.id === d.target)?.name ?? '';
   return `${p.highlights.find((h) => h.id === d.highlightId)?.text ?? ''} ${d.comment ?? ''}`.trim();
 }

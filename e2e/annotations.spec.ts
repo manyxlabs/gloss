@@ -109,10 +109,10 @@ test('annotations from another app are brought in as highlights, comments, a can
   await expect(asked(page)).toBeHidden();
   await expect(page.getByRole('alert')).toContainText('1 note (p. 1) had no text near it, so it is a note on the canvas.');
 
-  // The highlight covers the words the other app marked, in the nearest Gloss colour, with its note as the comment.
+  // The highlight covers the words the other app marked, in the nearest of the 32 Gloss colours, with its note as the comment.
   const marks = page.locator('.pdfViewer > .page[data-page-number="1"] .hl');
   await expect(marks).toHaveCount(4);
-  const coral = page.locator('.pdfViewer > .page[data-page-number="1"] .hl.hl-yellow').first();
+  const coral = page.locator('.pdfViewer > .page[data-page-number="1"] .hl.hl-deep-yellow').first();
   // The page is redrawn as the cleaned file opens, so the mark is measured once it has settled.
   const overlap = async () => {
     const [words, box] = [await textBox(page, 'Coral reefs occupy'), await coral.boundingBox()];
@@ -126,9 +126,9 @@ test('annotations from another app are brought in as highlights, comments, a can
   await expect(list).toHaveCount(4);
   await expect(list.nth(0)).toContainText('Coral reefs occupy');
   await expect(list.nth(0)).toContainText('Check the source of this figure.');
-  await expect(list.nth(0).locator('button').first()).toHaveClass(/hl-yellow/);
+  await expect(list.nth(0).locator('button').first()).toHaveClass(/hl-deep-yellow/);
   await expect(list.nth(1)).toContainText('sea temperatures');
-  await expect(list.nth(1).locator('button').first()).toHaveClass(/hl-blue/);
+  await expect(list.nth(1).locator('button').first()).toHaveClass(/hl-deep-sky/);
   // A sticky note in the margin and a text box beside a line become comments on those lines.
   await expect(list.nth(2)).toContainText('Mangrove forests protect coastlines from storms.');
   await expect(list.nth(2)).toContainText('Is this still true?');

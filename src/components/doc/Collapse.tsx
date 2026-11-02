@@ -3,7 +3,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { collapseAround, expandAll, useLastSearch } from '../../store/bulk';
 import { useStore } from '../../store/project';
 import { TermsToggle } from './Terms';
-import { COLORS, type Color, type Tag } from '../../types';
+import type { Color, Tag } from '../../types';
+import { ColorPicker } from '../ColorPicker';
 
 const NONE: Tag[] = [];
 
@@ -84,11 +85,16 @@ export function Collapse({ docId }: { docId: string }) {
             <input aria-label="Words to squeeze around" placeholder={last || 'Words to find'} value={words} autoFocus onChange={(e) => setWords(e.target.value)} />
           ) : (
             <>
-              <div className="colors" role="radiogroup" aria-label="Highlight colour">
-                <button type="button" role="radio" aria-checked={!color} className="swatch none" aria-label="Any colour" title="Any colour" onClick={() => setColor('')} />
-                {COLORS.map((c) => (
-                  <button key={c} type="button" role="radio" aria-checked={color === c} className={`swatch hl-${c}`} aria-label={c} title={c} onClick={() => setColor(c)} />
-                ))}
+              <div className="colors" role="group" aria-label="Highlight colour">
+                <button
+                  type="button"
+                  aria-pressed={!color}
+                  className={`swatch none${color ? '' : ' current'}`}
+                  aria-label="Any colour"
+                  title="Any colour"
+                  onClick={() => setColor('')}
+                />
+                <ColorPicker current={color || undefined} label={(name) => name} onPick={setColor} />
               </div>
               {tags.length > 0 && (
                 <select aria-label="With the tag" value={tag} onChange={(e) => setTag(e.target.value)}>

@@ -20,16 +20,7 @@
   --shadow: 0 1px 2px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.4)), 0 12px 32px -12px var(--shadow-tint);
   --danger: light-dark(#c2410c, #fb923c);
 
-  --hl-yellow: #fde047;
-  --hl-green: #86efac;
-  --hl-blue: #93c5fd;
-  --hl-pink: #f9a8d4;
-  --hl-purple: #c4b5fd;
-  --edge-yellow: #ca8a04;
-  --edge-green: #16a34a;
-  --edge-blue: #2563eb;
-  --edge-pink: #db2777;
-  --edge-purple: #7c3aed;
+  /* The highlight colours, --hl-<colour> and --edge-<colour>, are set from src/palette.ts. */
 }
 
 :root[data-theme='light'] {
@@ -1286,27 +1277,6 @@ a.button.primary {
   mix-blend-mode: multiply;
   border-radius: 2px;
   background: var(--hl);
-}
-
-.hl-yellow {
-  --hl: var(--hl-yellow);
-  --edge: var(--edge-yellow);
-}
-.hl-green {
-  --hl: var(--hl-green);
-  --edge: var(--edge-green);
-}
-.hl-blue {
-  --hl: var(--hl-blue);
-  --edge: var(--edge-blue);
-}
-.hl-pink {
-  --hl: var(--hl-pink);
-  --edge: var(--edge-pink);
-}
-.hl-purple {
-  --hl: var(--hl-purple);
-  --edge: var(--edge-purple);
 }
 
 /* An excerpt on the canvas is underlined in the document, so it is clear the passage was used. */
@@ -3637,8 +3607,9 @@ dialog.tags-dialog {
   grid-area: merge;
 }
 
-.tag-colors .swatch[aria-checked='true'] {
-  border-color: var(--text);
+.tag-colors,
+.collapse-panel .colors {
+  position: relative;
 }
 
 .swatch.none {
@@ -3646,7 +3617,7 @@ dialog.tags-dialog {
   border: 1px dashed var(--muted);
 }
 
-.swatch.none[aria-checked='true'] {
+.swatch.none.current {
   border-style: solid;
   border-width: 2px;
   border-color: var(--text);
@@ -3756,7 +3727,7 @@ dialog.tags-dialog {
   font-weight: 550;
 }
 
-.results .search-actions button:not(.swatch) {
+.results .search-actions button:not(.swatch, .more-colors) {
   width: auto;
   align-items: center;
   padding: 5px 10px;
@@ -3766,7 +3737,7 @@ dialog.tags-dialog {
   font-weight: 500;
 }
 
-.results .search-actions button:not(.swatch):hover:not(:disabled) {
+.results .search-actions button:not(.swatch, .more-colors):hover:not(:disabled) {
   background: var(--panel-2);
 }
 
@@ -3798,7 +3769,7 @@ dialog.tags-dialog {
 }
 
 @media (pointer: coarse) {
-  .results .search-actions button:not(.swatch),
+  .results .search-actions button:not(.swatch, .more-colors),
   .results .search-tags .tag-chip {
     min-height: 34px;
   }
@@ -3866,10 +3837,6 @@ dialog.tags-dialog {
 .collapse-panel .colors {
   display: flex;
   gap: 8px;
-}
-
-.collapse-panel .colors [aria-checked='true'] {
-  border-color: var(--text);
 }
 
 .collapse-panel .context {
@@ -4008,7 +3975,7 @@ dialog.tags-dialog {
 }
 
 /* The command palette: jump to a page, a document, a contents entry, a canvas, a tag or an action. */
-.palette-backdrop {
+.command-backdrop {
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -4019,7 +3986,7 @@ dialog.tags-dialog {
   background: rgb(0 0 0 / 0.18);
 }
 
-.palette {
+.command-palette {
   width: min(560px, 100%);
   display: grid;
   border-radius: 16px;
@@ -4027,7 +3994,7 @@ dialog.tags-dialog {
   overflow: hidden;
 }
 
-.palette input {
+.command-palette input {
   border: 0;
   border-bottom: 1px solid var(--border);
   background: transparent;
@@ -4037,13 +4004,13 @@ dialog.tags-dialog {
   min-width: 0;
 }
 
-.palette-list {
+.command-list {
   max-height: min(56vh, 440px);
   overflow: auto;
   padding: 6px;
 }
 
-.palette-list button {
+.command-list button {
   width: 100%;
   justify-content: flex-start;
   gap: 10px;
@@ -4054,16 +4021,16 @@ dialog.tags-dialog {
   text-align: left;
 }
 
-.palette-list button svg {
+.command-list button svg {
   flex: none;
   color: var(--muted);
 }
 
-.palette-list [aria-selected='true'] {
+.command-list [aria-selected='true'] {
   background: var(--accent-soft);
 }
 
-.palette-list .label {
+.command-list .label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -4071,13 +4038,13 @@ dialog.tags-dialog {
   white-space: pre;
 }
 
-.palette-list .kind {
+.command-list .kind {
   flex: none;
   font-size: 12px;
   color: var(--muted);
 }
 
-.palette-list .none {
+.command-list .none {
   margin: 12px;
   color: var(--muted);
 }
@@ -4147,7 +4114,7 @@ dialog.tags-dialog {
 }
 
 @media (pointer: coarse) {
-  .palette-list button {
+  .command-list button {
     min-height: 40px;
   }
 
@@ -4206,13 +4173,6 @@ dialog.tags-dialog {
 
 .terms-toggle[aria-checked='true'] .track::after {
   translate: 12px 0;
-}
-
-/* A touch screen's own menu over a selection copies it, which leaves the toolbar room for tagging. */
-@media (pointer: coarse) {
-  .popup .copy {
-    display: none;
-  }
 }
 
 /* The narrowest panes, such as half of two beside the canvas on a laptop, leave squeezing to the

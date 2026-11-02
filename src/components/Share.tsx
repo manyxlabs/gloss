@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/project';
 import { shareLink } from '../sync/crypto';
 import { useSync, type Status } from '../sync/state';
+import { Notifications } from './Notifications';
 import { keepName, NameField, Peers } from './Presence';
 
 // The sync engine and Yjs load only once a project is shared.
@@ -43,6 +44,7 @@ export function Share() {
     <>
       {sync && (
         <>
+          <Notifications />
           <Peers />
           <span className={`sync-status ${status}`} role="status" title={problem ?? undefined}>
             <i aria-hidden="true" />
@@ -66,6 +68,10 @@ export function Share() {
               </button>
             </div>
             <p className="fine">The link is the key. Treat it like the PDFs themselves: give it only to people who may see them.</p>
+            <p className="fine">
+              To keep a document or a canvas to yourself, mark it <b>Only on this device</b>, from the lock in the document’s toolbar or in Canvas style. It and everything on it
+              are then never sent, encrypted or not, and the copies on the other devices are removed.
+            </p>
             {problem && <p className="share-problem">{problem}</p>}
             <footer>
               <button

@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/project';
 import { deleteTag, manageTags, mergeTags, recolorTag, removeCategory, renameCategory, renameTag, setCategory, tagNamed, useTagView } from '../store/tags';
 import { byCategory, cardTags } from '../tags';
-import { COLORS, type Tag } from '../types';
+import type { Tag } from '../types';
+import { ColorPicker } from './ColorPicker';
 
 /** Makes, renames, recolours, files, merges and deletes the project's tags, and renames or removes their categories. */
 export function TagsDialog() {
@@ -119,11 +120,16 @@ export function TagsDialog() {
                   >
                     <Trash2 size={16} />
                   </button>
-                  <div className="tag-colors" role="radiogroup" aria-label={`Colour of ${t.name}`}>
-                    <button role="radio" aria-checked={!t.color} aria-label="No colour" title="No colour" className="swatch none" onClick={() => recolorTag(t.id, undefined)} />
-                    {COLORS.map((c) => (
-                      <button key={c} role="radio" aria-checked={t.color === c} aria-label={c} title={c} className={`swatch hl-${c}`} onClick={() => recolorTag(t.id, c)} />
-                    ))}
+                  <div className="tag-colors" role="group" aria-label={`Colour of ${t.name}`}>
+                    <button
+                      type="button"
+                      aria-pressed={!t.color}
+                      aria-label="No colour"
+                      title="No colour"
+                      className={`swatch none${t.color ? '' : ' current'}`}
+                      onClick={() => recolorTag(t.id, undefined)}
+                    />
+                    <ColorPicker current={t.color} label={(name) => name} onPick={(c) => recolorTag(t.id, c)} />
                   </div>
                   <input
                     key={`${t.id}:${t.category ?? ''}`}

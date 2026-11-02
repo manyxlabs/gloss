@@ -10,6 +10,7 @@ import { ExportMenu } from './ExportMenu';
 import { InkLink } from './InkLink';
 import { LinkBanner } from './LinkBanner';
 import { Lost } from './Lost';
+import { useLinkTarget } from './OpenLink';
 import { Search } from './Search';
 import { Palette } from './Palette';
 import { Share } from './Share';
@@ -37,6 +38,7 @@ export function Workspace({ id }: { id: string }) {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const body = useRef<HTMLDivElement>(null);
+  useLinkTarget((problem) => setProblems((p) => [...p, problem]));
 
   useEffect(() => {
     void openProject(id).then((p) => {

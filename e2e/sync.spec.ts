@@ -211,7 +211,7 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   // A link from the first passage to the one above it.
   const coral = (await a.page.locator('.textLayer span', { hasText: 'Coral reefs occupy' }).first().boundingBox())!;
   await a.page.mouse.click(coral.x + 30, coral.y + coral.height / 2);
-  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link' }).click();
+  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link', exact: true }).click();
   await select(a.page, 'The ocean covers');
   await expect(a.page.locator('.page:not([data-copy]) .link-mark')).toHaveCount(2);
 
@@ -362,7 +362,7 @@ test('tags reach the other device: put on, renamed, recoloured and taken off, an
   const dialog = b.page.getByRole('dialog', { name: 'Tags' });
   await dialog.getByRole('textbox', { name: 'Name of Seagrass meadows' }).fill('Kelp beds');
   await dialog.getByRole('textbox', { name: 'Name of Seagrass meadows' }).press('Enter');
-  await dialog.getByRole('radiogroup', { name: 'Colour of Kelp beds' }).getByRole('radio', { name: 'green' }).click();
+  await dialog.getByRole('group', { name: 'Colour of Kelp beds' }).getByRole('button', { name: 'green', exact: true }).click();
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(chips(a.page)).toHaveText(['Kelp beds']);
   await expect(chips(a.page).first()).toHaveAttribute('style', /--hl-green/);
