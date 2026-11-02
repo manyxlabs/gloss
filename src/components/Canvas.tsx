@@ -15,6 +15,7 @@ import {
   connect,
   excerpt,
   group,
+  notePen,
   onCardsChange,
   onLinksChange,
   regroup,
@@ -196,7 +197,11 @@ export function Canvas() {
     if (ids.size) onCardsChange([...ids].map((id) => ({ type: 'remove', id })));
   };
   const onPointerDownCapture = (e: ReactPointerEvent) => {
-    const writing = tool === 'pen' || e.pointerType === 'pen';
+    if (e.pointerType === 'pen') notePen();
+    // Palm rejection: once a stylus has been seen, fingers pan the canvas and only the pen writes.
+    const palm = e.pointerType === 'touch' && useStore.getState().penSeen;
+    const writing = e.pointerType === 'pen' || (tool === 'pen' && !palm);
+    if (palm && tool === 'eraser') return;
     if ((!writing && tool !== 'eraser') || !(e.target as HTMLElement).closest('.react-flow__pane, .react-flow__node')) return;
     // Taken before React Flow sees it, which would otherwise pan or drag.
     e.stopPropagation();
