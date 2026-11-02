@@ -7,19 +7,21 @@ interface Schema extends DBSchema {
   projects: { key: string; value: Project };
   files: { key: string; value: Blob };
   folders: { key: string; value: Folder };
+  /** Files a project no longer shows, by file key, with the project's id: kept while undo may bring them back. */
+  trash: { key: string; value: string };
 }
 
-const db = openDB<Schema>('gloss', 2, {
+// Two version 2s were released, one with folders and one with the trash, so each store is
+// created when it is missing rather than by the version it came with.
+const db = openDB<Schema>('gloss', 3, {
   async upgrade(d, from, _to, tx) {
-    if (from < 1) {
-      d.createObjectStore('projects', { keyPath: 'id' });
-      d.createObjectStore('files');
-    }
-    if (from < 2) {
-      d.createObjectStore('folders', { keyPath: 'id' });
-      // The library sorts by when a project was last opened; until then, its last edit stands in.
+    if (!d.objectStoreNames.contains('projects')) d.createObjectStore('projects', { keyPath: 'id' });
+    if (!d.objectStoreNames.contains('files')) d.createObjectStore('files');
+    if (!d.objectStoreNames.contains('folders')) d.createObjectStore('folders', { keyPath: 'id' });
+    if (!d.objectStoreNames.contains('trash')) d.createObjectStore('trash');
+    // The library sorts by when a project was last opened; until then, its last edit stands in.
+    if (from > 0)
       for (let c = await tx.objectStore('projects').openCursor(); c; c = await c.continue()) if (!c.value.openedAt) await c.update({ ...c.value, openedAt: c.value.updatedAt });
-    }
   },
 });
 
@@ -39,9 +41,16 @@ export async function addFiles(files: [key: string, blob: Blob][]) {
 }
 
 export async function deleteProject(p: Project) {
-  const tx = (await db).transaction(['projects', 'files'], 'readwrite');
-  const files = tx.objectStore('files');
-  await Promise.all([tx.objectStore('projects').delete(p.id), ...p.docs.flatMap((d) => [files.delete(d.id), files.delete(versionsOf(d.id))]), tx.done]);
+  const tx = (await db).transaction(['projects', 'files', 'trash'], 'readwrite');
+  const [files, trash] = [tx.objectStore('files'), tx.objectStore('trash')];
+  const trashed: string[] = [];
+  for (let c = await trash.openCursor(); c; c = await c.continue()) if (c.value === p.id) trashed.push(c.key);
+  await Promise.all([
+    tx.objectStore('projects').delete(p.id),
+    ...p.docs.flatMap((d) => [files.delete(d.id), files.delete(versionsOf(d.id))]),
+    ...trashed.flatMap((key) => [files.delete(key), trash.delete(key)]),
+    tx.done,
+  ]);
 }
 
 /** Deletes a document's file with every version of it. */
@@ -50,14 +59,34 @@ export async function deleteFile(docId: string) {
   await Promise.all([tx.store.delete(docId), tx.store.delete(versionsOf(docId)), tx.done]);
 }
 
-/** Deletes one version of a document's file. */
-export const deleteVersion = async (key: string) => (await db).delete('files', key);
+/** Deletes one file: a version of a document's file, or a removed document's. */
+export async function deleteVersion(key: string) {
+  const tx = (await db).transaction(['files', 'trash'], 'readwrite');
+  await Promise.all([tx.objectStore('files').delete(key), tx.objectStore('trash').delete(key), tx.done]);
+}
 
 /** Deletes the versions of a document's file other than its current one: those left when the page closed before undo let go of them. */
 export async function dropOldVersions(doc: DocMeta) {
   const tx = (await db).transaction('files', 'readwrite');
   const keys = [...(await tx.store.getAllKeys(versionsOf(doc.id))), ...(doc.file ? [doc.id] : [])].filter((k) => k !== fileKey(doc));
   await Promise.all([...keys.map((k) => tx.store.delete(k)), tx.done]);
+}
+
+/** Notes a file the project stopped showing, so it is deleted later even if the page closes before undo lets go of it. */
+export const trashFile = async (key: string, projectId: string) => void (await db).put('trash', projectId, key);
+
+/** Deletes the files a project put aside and does not show; called while it has no undo history that could bring them back. */
+export async function emptyTrash(p: Project) {
+  const tx = (await db).transaction(['files', 'trash'], 'readwrite');
+  const trash = tx.objectStore('trash');
+  const shown = new Set(p.docs.map(fileKey));
+  const ops: Promise<unknown>[] = [];
+  for (let c = await trash.openCursor(); c; c = await c.continue()) {
+    if (c.value !== p.id) continue;
+    if (!shown.has(c.key)) ops.push(tx.objectStore('files').delete(c.key));
+    ops.push(c.delete());
+  }
+  await Promise.all([...ops, tx.done]);
 }
 
 export const listFolders = async () => (await (await db).getAll('folders')).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));

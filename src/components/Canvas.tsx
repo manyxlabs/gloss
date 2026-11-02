@@ -1,6 +1,18 @@
 import '@xyflow/react/dist/style.css';
-import { Background, ConnectionMode, Controls, MiniMap, Position, ReactFlow, useReactFlow, type FinalConnectionState, type Node as FlowNode, type XYPosition } from '@xyflow/react';
-import { Group, StickyNote } from 'lucide-react';
+import {
+  Background,
+  ConnectionMode,
+  Controls,
+  MiniMap,
+  Position,
+  ReactFlow,
+  useReactFlow,
+  type FinalConnectionState,
+  type Node as FlowNode,
+  type OnBeforeDelete,
+  type XYPosition,
+} from '@xyflow/react';
+import { StickyNote } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { outline, pathOf, SCREEN } from '../ink';
@@ -19,14 +31,15 @@ import {
   notePen,
   onCardsChange,
   onLinksChange,
-  regroup,
+  placeCards,
   useStore,
 } from '../store/project';
-import type { Card, Point } from '../types';
+import type { Card, Link, Point } from '../types';
 import { CanvasTabs } from './CanvasTabs';
 import { CardNode } from './CardNode';
 import { EXCERPT_MIME, type ExcerptDrag } from './dnd';
 import { Cursors } from './Presence';
+import { SelectionBar } from './SelectionBar';
 import { Tools } from './Tools';
 
 const nodeTypes = { card: CardNode };
@@ -46,7 +59,8 @@ export function Canvas() {
     const ids = new Set(onCanvas.map((c) => c.id));
     // Cards in a collapsed group are hidden, and their links end on the group instead.
     const folded = new Set(onCanvas.filter((c) => c.data.kind === 'group' && c.data.collapsed).map((c) => c.id));
-    const shown = onCanvas.map((c) => (c.parentId && folded.has(c.parentId) ? { ...c, hidden: true } : c));
+    // Older projects asked React Flow to grow a group under a dragged card, which kept it from ever leaving; groups are fitted after a drag instead.
+    const shown = onCanvas.map((c) => (c.parentId && folded.has(c.parentId) ? { ...c, hidden: true } : c.expandParent ? { ...c, expandParent: false } : c));
     const parentOf = new Map(shown.filter((c) => c.hidden).map((c) => [c.id, c.parentId!]));
     const seen = new Set<string>();
     const links = project.links.flatMap((l) => {
@@ -200,27 +214,55 @@ export function Canvas() {
     connect({ source: state.fromNode.id, sourceHandle: state.fromHandle?.id ?? null, target: to, targetHandle: facing(state.fromNode.id, to) });
   };
 
-  /** A card dropped with its middle inside a group joins it; one dragged out of its group leaves it. */
-  const onNodeDragStop = (_: unknown, node: FlowNode) => {
-    const moved = rf.getInternalNode(node.id);
-    if (!moved || (node.data as Card['data']).kind === 'group') return;
-    const { x, y } = moved.internals.positionAbsolute;
-    const cx = x + (moved.measured.width ?? 0) / 2;
-    const cy = y + (moved.measured.height ?? 0) / 2;
-    const target = useStore
-      .getState()
-      .project?.cards.filter((c) => c.data.kind === 'group')
-      .map((c) => rf.getInternalNode(c.id)!)
-      .find(
-        (g) =>
-          g &&
-          cx >= g.internals.positionAbsolute.x &&
-          cx <= g.internals.positionAbsolute.x + (g.measured.width ?? 0) &&
-          cy >= g.internals.positionAbsolute.y &&
-          cy <= g.internals.positionAbsolute.y + (g.measured.height ?? 0),
-      );
-    regroup(node.id, target?.id ?? null);
+  /**
+   * Cards dropped with their middle inside an open group join it; one dragged out of its group
+   * leaves it. Groups never grow during a drag, so their bounds are still those at its start.
+   */
+  const onNodeDragStop = (_: unknown, _node: FlowNode, dragged: FlowNode[]) => {
+    const groups = rf.getNodes().filter((n) => (n.data as Card['data']).kind === 'group' && !(n.data as { collapsed?: boolean }).collapsed && !n.hidden);
+    const moves = dragged.flatMap((node): [string, string | null][] => {
+      const moved = rf.getInternalNode(node.id);
+      // A card dragged along with its own group stays in it.
+      if (!moved || (node.data as Card['data']).kind === 'group' || dragged.some((d) => d.id === node.parentId)) return [];
+      const { x, y } = moved.internals.positionAbsolute;
+      const cx = x + (moved.measured.width ?? 0) / 2;
+      const cy = y + (moved.measured.height ?? 0) / 2;
+      const target = groups.find((n) => {
+        const g = rf.getInternalNode(n.id)!;
+        const { x: gx, y: gy } = g.internals.positionAbsolute;
+        return cx >= gx && cx <= gx + (g.measured.width ?? 0) && cy >= gy && cy <= gy + (g.measured.height ?? 0);
+      });
+      return [[node.id, target?.id ?? null]];
+    });
+    if (moves.length) placeCards(moves);
   };
+
+  // Deleting a group on its own keeps its cards, and the links to them; only what was chosen goes.
+  const onBeforeDelete: OnBeforeDelete<Card, Link> = async ({ nodes, edges }) => {
+    const ids = new Set(nodes.map((n) => n.id));
+    const kept = nodes.filter((n) => !(n.parentId && ids.has(n.parentId) && !n.selected));
+    const going = new Set(kept.map((n) => n.id));
+    return { nodes: kept, edges: edges.filter((e) => e.selected || going.has(e.source) || going.has(e.target)) };
+  };
+
+  // Ctrl+A on the canvas chooses its cards, rather than all the text in the app.
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    let inside = false;
+    const onDown = (e: PointerEvent) => (inside = !!section.current?.contains(e.target as Node));
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (!inside || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'a' || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      e.preventDefault();
+      onCardsChange(rf.getNodes().map((n) => ({ type: 'select', id: n.id, selected: !n.hidden })));
+    };
+    addEventListener('pointerdown', onDown, true);
+    addEventListener('keydown', onKey);
+    return () => {
+      removeEventListener('pointerdown', onDown, true);
+      removeEventListener('keydown', onKey);
+    };
+  }, [rf]);
 
   const onDrop = (e: DragEvent) => {
     setOver(false);
@@ -299,10 +341,8 @@ export function Canvas() {
     addCanvasInk(s.points, INK_SIZE, s.pen);
   };
 
-  const chosen = cards.filter((c) => c.selected && !c.parentId && c.data.kind !== 'group');
-
   return (
-    <section className={`canvas tool-${tool}${over ? ' over' : ''}`} aria-label="Canvas">
+    <section ref={section} className={`canvas tool-${tool}${over ? ' over' : ''}`} aria-label="Canvas">
       <CanvasTabs />
       <div
         className="flow"
@@ -335,6 +375,7 @@ export function Canvas() {
           onConnectEnd={onConnectEnd}
           onNodeDragStart={checkpoint}
           onNodeDragStop={onNodeDragStop}
+          onBeforeDelete={onBeforeDelete}
           onSelectionDragStart={checkpoint}
           connectionMode={ConnectionMode.Loose}
           zoomOnDoubleClick={false}
@@ -346,8 +387,9 @@ export function Canvas() {
         >
           <Background gap={24} size={1.2} />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />
+          {cards.length > 0 && <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />}
           <Cursors />
+          <SelectionBar cards={cards} links={links} />
         </ReactFlow>
         <svg className="ink-live" aria-hidden="true">
           <path ref={live} fill={SCREEN[inkColor]} />
@@ -357,17 +399,19 @@ export function Canvas() {
             <StickyNote size={16} /> Note
           </button>
           <Tools side="canvasTool" />
-          {chosen.length > 1 && (
-            <button onClick={() => group(chosen.map((c) => c.id))}>
-              <Group size={16} /> Group
-            </button>
-          )}
         </div>
         {!cards.length && (
           <p className="canvas-hint">
-            Select text in a document and press <b>Excerpt</b>, or drag it here.
-            <br />
-            Double-click anywhere to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them.
+            <span className="mouse-only">
+              Select text in a document and press <b>Excerpt</b>, or drag it here.
+              <br />
+              Double-click anywhere to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them.
+            </span>
+            <span className="touch-only">
+              Select text in a document and tap <b>Excerpt</b>.
+              <br />
+              Tap <b>Note</b> to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them, or pinch two cards together to group them.
+            </span>
           </p>
         )}
       </div>

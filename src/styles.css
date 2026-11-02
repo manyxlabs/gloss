@@ -431,7 +431,7 @@ button.link:hover:not(:disabled) {
   font-size: 14px;
 }
 
-.library h2 {
+.library main > section > h2 {
   font-size: 13px;
   font-weight: 650;
   text-transform: uppercase;
@@ -530,8 +530,16 @@ button.link:hover:not(:disabled) {
   color: inherit;
 }
 
+/* Over the workspace rather than pushing it down, until dismissed. */
 .workspace > .problems {
-  margin: 8px 12px 0;
+  position: fixed;
+  z-index: 60;
+  top: 60px;
+  right: 12px;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 24px));
+  margin: 0;
+  box-shadow: var(--shadow);
 }
 
 /* Glass needs something to frost, so the dialog is a solid panel over a dimmed page. */
@@ -578,6 +586,7 @@ button.link:hover:not(:disabled) {
 
 .password-dialog input[aria-invalid='true'] {
   border-color: var(--danger);
+  --ring: color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
 .password-dialog .wrong {
@@ -593,8 +602,52 @@ button.link:hover:not(:disabled) {
 }
 
 .lost {
-  padding: 64px 16px;
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.lost > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 440px;
+  padding: 32px 28px;
+  border-radius: 20px;
   text-align: center;
+}
+
+.lost .logo {
+  width: 40px;
+  height: 40px;
+}
+
+.lost h1 {
+  margin: 4px 0 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.lost p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+a.button {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 @media (max-width: 860px) {
@@ -647,7 +700,7 @@ button.link:hover:not(:disabled) {
   margin-left: auto;
 }
 
-.search svg {
+.search > svg {
   position: absolute;
   left: 10px;
   top: 50%;
@@ -663,6 +716,10 @@ button.link:hover:not(:disabled) {
   border-radius: 9px;
   padding: 6px 54px 6px 32px;
   font-size: 14px;
+}
+
+.search .opener {
+  display: none;
 }
 
 .search kbd {
@@ -681,6 +738,8 @@ button.link:hover:not(:disabled) {
 }
 
 .results {
+  /* Opaque: the page and the canvas behind would show through glass and muddle the results. */
+  background: var(--panel);
   position: absolute;
   z-index: 50;
   top: calc(100% + 6px);
@@ -730,6 +789,10 @@ button.link:hover:not(:disabled) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.results [aria-selected='true'] {
+  background: var(--panel-2);
 }
 
 .results mark {
@@ -806,15 +869,32 @@ button.link:hover:not(:disabled) {
   outline-offset: -6px;
 }
 
+/* The same height for documents and canvases, so their borders meet in one line. Only the tabs
+   themselves scroll; the buttons beside them stay in reach. */
 .tabs {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 8px;
+  height: 44px;
+  flex: none;
+  padding: 0 8px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
+}
+
+.tab-list {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.narrow .tabs .add .label {
+  display: none;
 }
 
 .tab {
@@ -858,6 +938,7 @@ button.link:hover:not(:disabled) {
   background: transparent;
   color: var(--accent);
   flex: none;
+  min-height: 32px;
 }
 
 .doc-body {
@@ -1338,6 +1419,20 @@ button.link:hover:not(:disabled) {
   font-size: 14px;
 }
 
+/* Fields in popups and dialogs show focus on their own border, inside the room the popup has. */
+.note-editor textarea:focus-visible,
+.password-dialog input:focus-visible,
+.web-dialog input:focus-visible,
+.sheet input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring, var(--accent-soft));
+}
+
+.password-dialog input[aria-invalid='true']:focus-visible {
+  border-color: var(--danger);
+}
+
 .note-editor .row {
   display: flex;
   align-items: center;
@@ -1571,14 +1666,24 @@ button.link:hover:not(:disabled) {
 }
 
 .card.selected {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 1px var(--accent),
-    0 10px 24px -12px var(--shadow-tint);
+  /* One ring, clear of the card, so an excerpt's coloured edge does not read as a second. */
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 10px 24px -12px var(--shadow-tint);
 }
 
-.card.excerpt.selected {
-  border-left-color: var(--edge);
+.card blockquote.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card .more {
+  margin-top: 4px;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--accent);
 }
 
 .card blockquote {
@@ -1807,8 +1912,8 @@ button.link:hover:not(:disabled) {
   border-color: var(--accent) !important;
 }
 
-/* Phones: one side at a time. */
-@media (max-width: 760px) {
+/* Phones and tablets held upright: one side at a time. */
+@media (max-width: 900px) {
   .switch {
     display: flex;
     gap: 4px;
@@ -1852,12 +1957,64 @@ button.link:hover:not(:disabled) {
     pointer-events: none;
   }
 
+  .tabs .side {
+    display: none;
+  }
+
+  /* Too narrow for two pages; the second pane waits until there is room. */
+  .docs.split {
+    grid-template-columns: 1fr;
+  }
+
+  .docs.split > .doc-pane + .doc-pane {
+    display: none;
+  }
+}
+
+/* Phones: a compact header, with search folded into a button that opens over it. */
+@media (max-width: 760px) {
+  .workspace .bar {
+    gap: 2px;
+    padding: 8px 8px;
+  }
+
   .bar .name {
     flex: 1 1 0;
   }
 
   .search {
-    flex: 0 1 150px;
+    flex: none;
+    margin-left: auto;
+    position: static;
+  }
+
+  .search:not(.open) > :not(.opener) {
+    display: none;
+  }
+
+  .search:not(.open) .opener {
+    display: inline-flex;
+  }
+
+  .search.open {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    max-width: none;
+    padding: 0 12px;
+    background: var(--panel);
+  }
+
+  .search.open > svg {
+    left: 22px;
+  }
+
+  .search.open .results {
+    left: 8px;
+    right: 8px;
+    width: auto;
   }
 
   .search kbd {
@@ -1868,21 +2025,12 @@ button.link:hover:not(:disabled) {
     padding-right: 8px;
   }
 
-  .workspace .bar > .export {
+  /* Export notes keeps only its icon. */
+  .workspace .bar > .export > button > :not(:first-child) {
     display: none;
   }
 
-  .react-flow__minimap,
-  .tabs .side {
-    display: none;
-  }
-
-  /* A phone is too narrow for two pages; the second pane waits until there is room. */
-  .docs.split {
-    grid-template-columns: 1fr;
-  }
-
-  .docs.split > .doc-pane + .doc-pane {
+  .react-flow__minimap {
     display: none;
   }
 }
@@ -2082,10 +2230,17 @@ dialog.sheet::backdrop {
     gap: 0;
   }
 
-  .workspace .bar > .share {
-    padding: 6px 8px;
+  /* Icons alone, like the others in the header. */
+  .workspace .bar > .share,
+  .workspace .bar > .export > button {
+    width: 34px;
+    height: 34px;
+    padding: 0;
     font-size: 0;
     gap: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
   }
 
   .peers .avatar:nth-child(n + 4):not(:last-child) {
@@ -2161,9 +2316,8 @@ dialog.sheet::backdrop {
 .toast {
   position: fixed;
   z-index: 100;
-  left: 50%;
+  right: 12px;
   top: 60px;
-  translate: -50% 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2486,7 +2640,7 @@ dialog.sheet::backdrop {
   margin: 0;
 }
 
-.projects-head button {
+.projects-head > button {
   padding: 6px 8px;
   color: var(--accent);
 }
@@ -2630,6 +2784,250 @@ dialog.sheet::backdrop {
 .marks .end .text {
   flex: 1;
   font-size: 13px;
+}
+
+/* Undo and redo, beside the project's name. */
+.bar .history {
+  display: flex;
+  flex: none;
+}
+
+/* What can be done to the cards and links chosen on the canvas, above them. */
+.selection-bar {
+  position: absolute;
+  z-index: 6;
+  translate: -50% 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    var(--shadow);
+}
+
+.selection-bar button {
+  border-color: transparent;
+  background: transparent;
+  padding: 5px 10px;
+}
+
+.selection-bar button:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+/* Others' pointers stay above the cards they move over; they never take a click. */
+.canvas .react-flow__viewport-portal {
+  z-index: 2000;
+  pointer-events: none;
+}
+
+/* Kept, as the library asks, but quietly. */
+.canvas .react-flow__attribution {
+  opacity: 0.5;
+  font-size: 9px;
+}
+
+.canvas .react-flow__attribution a {
+  color: var(--muted);
+}
+
+/* Words for touch screens and for a mouse, where they differ. */
+.touch-only {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .mouse-only {
+    display: none;
+  }
+
+  .touch-only {
+    display: inline;
+  }
+}
+
+/* Ctrl+A and stray drags select the documents' text, not the app around them. */
+.bar,
+.switch,
+.tabs,
+.doc-status,
+.canvas,
+.popup,
+.selection-bar,
+.side-tabs {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.bar input,
+.canvas textarea,
+.canvas input,
+.popup textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Someone with projects sees them first, under a row with the ways to start another. */
+.projects-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px 0 16px;
+}
+
+.projects-head > h2 {
+  margin: 0 auto 0 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.returning .projects {
+  margin-bottom: 20px;
+}
+
+.projects-head .actions {
+  margin: 0;
+}
+
+.returning .more,
+.returning .hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.returning .hint {
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 40px;
+}
+
+.returning .problems {
+  margin: 0 0 16px;
+}
+
+/* A sidebar over a narrow page: the page dims behind it, and a tap there or its own button closes it. */
+.side-backdrop {
+  position: absolute;
+  z-index: 21;
+  inset: 0;
+  background: rgb(0 0 0 / 0.25);
+}
+
+.sidebar-over .doc-status {
+  display: none;
+}
+
+.sidebar-over .side-tabs {
+  padding-right: 44px;
+}
+
+.side-close {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 6px;
+}
+
+.empty .actions {
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.name-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Touch screens: everything that can be tapped is at least 32 pixels each way, or reaches that far. */
+@media (pointer: coarse) {
+  /* Swatches keep their look and spacing; their reach grows past their edges, into the gaps. */
+  .ink-swatch,
+  .swatch {
+    position: relative;
+  }
+
+  .ink-swatch::after,
+  .swatch::after,
+  .canvas .react-flow__handle::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+
+  .canvas .react-flow__handle {
+    width: 14px;
+    height: 14px;
+  }
+
+  .canvas .react-flow__controls-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .divider::after {
+    content: '';
+    position: absolute;
+    inset: 0 -10px;
+  }
+
+  .divider {
+    position: relative;
+    z-index: 3;
+  }
+
+  .tab button.close {
+    min-width: 32px;
+    min-height: 32px;
+    opacity: 0.7;
+  }
+
+  .tab button {
+    min-height: 32px;
+  }
+
+  .canvas-tabs .add,
+  .zoom .scale,
+  .doc-status button.icon,
+  .narrow .doc-status button.icon {
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .card .source,
+  .card .ghost,
+  .card-links button {
+    min-height: 32px;
+  }
+
+  button.link,
+  .foot a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+  }
+
+  .group .fold {
+    width: 32px;
+    height: 32px;
+  }
+
+  .group button {
+    min-height: 32px;
+    opacity: 1;
+  }
 }
 
 .folder-toggle .count {

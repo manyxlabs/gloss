@@ -13,7 +13,8 @@ async function open(page: Page, files: File[]) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles(files);
-  await expect(page.locator('.doc-status')).toBeVisible();
+  // Typesetting takes seconds, and longer on a machine busy with other tests.
+  await expect(page.locator('.doc-status')).toBeVisible({ timeout: 20_000 });
 }
 
 const span = (page: Page, text: string) => page.locator('.textLayer span', { hasText: text }).first();

@@ -8,12 +8,18 @@ export function FilePicker({ label, primary, onProblems }: { label: string; prim
   const [busy, setBusy] = useState(false);
   return (
     <>
-      <button className={primary ? 'primary' : 'add'} disabled={busy} title="Add PDFs, Word or PowerPoint files, images, text or Markdown" onClick={() => input.current!.click()}>
+      <button
+        className={primary ? 'primary' : 'add'}
+        disabled={busy}
+        aria-label={busy ? 'Adding…' : label}
+        title="Add PDFs, Word or PowerPoint files, images, text or Markdown"
+        onClick={() => input.current!.click()}
+      >
         {busy ? (
           'Adding…'
         ) : (
           <>
-            <Plus size={15} /> {label}
+            <Plus size={15} /> <span className="label">{label}</span>
           </>
         )}
       </button>

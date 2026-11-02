@@ -151,3 +151,115 @@ test('projects saved before folders existed are listed, sorted by their last edi
   await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
   await listed(folder(page, 'New folder'), ['Older project']);
 });
+
+/** What a browser kept from an older Gloss: the database at `version` with these stores and records. */
+type Old = { version: number; stores: string[]; projects: object[]; folders?: object[]; files?: Record<string, string>; trash?: Record<string, string> };
+
+/** Sets up an older database before the app first opens it, from a page of the same site that does not run the app. */
+async function olderDatabase(page: Page, old: Old) {
+  await page.goto('/manifest.webmanifest');
+  await page.evaluate(
+    (old) =>
+      new Promise<void>((done, fail) => {
+        const open = indexedDB.open('gloss', old.version);
+        open.onupgradeneeded = () => {
+          const d = open.result;
+          for (const name of old.stores) d.createObjectStore(name, name === 'projects' || name === 'folders' ? { keyPath: 'id' } : undefined);
+        };
+        open.onsuccess = () => {
+          const d = open.result;
+          const tx = d.transaction(old.stores, 'readwrite');
+          for (const p of old.projects) tx.objectStore('projects').put(p);
+          for (const f of old.folders ?? []) tx.objectStore('folders').put(f);
+          for (const [k, v] of Object.entries(old.files ?? {})) tx.objectStore('files').put(new Blob([v]), k);
+          for (const [k, v] of Object.entries(old.trash ?? {})) tx.objectStore('trash').put(v, k);
+          tx.oncomplete = () => (d.close(), done());
+          tx.onerror = () => fail(tx.error);
+        };
+        open.onerror = () => fail(open.error);
+      }),
+    old,
+  );
+}
+
+const stores = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<{ version: number; names: string[]; openedAt: unknown[]; files: string[] }>((done) => {
+        const open = indexedDB.open('gloss');
+        open.onsuccess = () => {
+          const d = open.result;
+          const names = [...d.objectStoreNames];
+          const tx = d.transaction(['projects', 'files']);
+          const projects = tx.objectStore('projects').getAll();
+          const files = tx.objectStore('files').getAllKeys();
+          tx.oncomplete = () => (done({ version: d.version, names, openedAt: projects.result.map((p) => p.openedAt), files: files.result as string[] }), d.close());
+        };
+      }),
+  );
+
+const record = (id: string, name: string, extra: object = {}) => ({
+  id,
+  name,
+  createdAt: 1,
+  updatedAt: 1000,
+  docs: [],
+  highlights: [],
+  cards: [],
+  links: [],
+  inks: [],
+  folds: [],
+  canvases: [{ id: 'main', name: 'Canvas' }],
+  comments: [],
+  passageLinks: [],
+  cardLinks: [],
+  ...extra,
+});
+
+test('a database from either earlier version 2, or from version 1, is brought up to date with its projects, folders and trash', async ({ browser }) => {
+  const all = ['files', 'folders', 'projects', 'trash'];
+  const cases: [string, Old][] = [
+    ['version 1', { version: 1, stores: ['projects', 'files'], projects: [record('p1', 'From version 1')] }],
+    [
+      'version 2 with folders',
+      {
+        version: 2,
+        stores: ['projects', 'files', 'folders'],
+        projects: [record('p2', 'Filed away', { folder: 'f1', openedAt: 5000 })],
+        folders: [{ id: 'f1', name: 'Old folder', createdAt: 1 }],
+      },
+    ],
+    [
+      'version 2 with the trash',
+      {
+        version: 2,
+        stores: ['projects', 'files', 'trash'],
+        projects: [record('p3', 'With a removed document')],
+        files: { gone: 'a removed document' },
+        trash: { gone: 'p3' },
+      },
+    ],
+  ];
+  for (const [label, old] of cases) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await olderDatabase(page, old);
+    await page.goto('/');
+    const name = (old.projects[0] as { name: string }).name;
+    await expect(page.getByRole('link', { name: new RegExp(name) }), label).toBeVisible();
+    const now = await stores(page);
+    expect(now.version, label).toBe(3);
+    expect(now.names.sort(), label).toEqual(all);
+    // Projects from before the library kept when they were opened are sorted by their last edit.
+    expect(now.openedAt, label).toEqual([(old.projects[0] as { openedAt?: number }).openedAt ?? 1000]);
+    if (old.folders) await expect(projects(page).getByRole('region', { name: 'Old folder', exact: true }), label).toContainText(name);
+    if (old.trash) {
+      // The file put aside is still there until the project opens with no history to bring it back.
+      expect(now.files, label).toEqual(['gone']);
+      await page.getByRole('link', { name: new RegExp(name) }).click();
+      await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue(name);
+      await expect.poll(async () => (await stores(page)).files, label).toEqual([]);
+    }
+    await context.close();
+  }
+});

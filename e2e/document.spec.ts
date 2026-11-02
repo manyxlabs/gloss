@@ -1,4 +1,5 @@
 import { copyFileSync, readFileSync } from 'node:fs';
+import { strFromU8, unzipSync } from 'fflate';
 import { expect, test, type Page } from '@playwright/test';
 import { PDFDocument, PDFHexString, PDFName, PDFNull, rgb, StandardFonts, type PDFRef } from 'pdf-lib';
 import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
@@ -275,7 +276,7 @@ test('a box snipped around a figure becomes a card showing that region, kept, se
   await shot(page, 'snip-on-page');
 
   // Found by the text inside it.
-  await page.getByRole('searchbox').fill('coral cover');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('coral cover');
   await expect(page.getByRole('listbox').getByRole('option', { name: 'Figure 1: coral cover by depth', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
@@ -358,7 +359,7 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   await page.waitForTimeout(300);
   await shot(page, 'comment-sidebar');
 
-  await page.getByRole('searchbox').fill('eastern slope');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('eastern slope');
   const hit = page.getByRole('listbox').getByRole('option', { name: /Reef essay: Compare with the eastern slope survey\./ });
   await expect(hit).toBeVisible();
   await page
@@ -375,6 +376,25 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   expect(md).toContain('> (Reef essay, p. 1)\n\nComment: Compare with the eastern slope survey.\n\nTiny area, huge share.');
   expect(md).toMatch(/- p\. 1: Rising sea temperatures[^\n]*\n {2}Comment: Bleaching threshold\?/);
 
+  // The PDF and Word notes write comments the same way.
+  for (const [label, ext] of [
+    ['PDF (.pdf)', 'pdf'],
+    ['Word (.docx)', 'docx'],
+  ]) {
+    await page.getByRole('button', { name: 'Export notes' }).click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+    const out = `${ARTIFACTS}/comment-notes.${ext}`;
+    copyFileSync(await download.path(), out);
+    let text = '';
+    if (ext === 'pdf') {
+      const doc = await readPdf(out).promise;
+      for (let i = 1; i <= doc.numPages; i++) text += (await (await doc.getPage(i)).getTextContent()).items.map((t) => ('str' in t ? t.str : '')).join(' ');
+    } else text = strFromU8(unzipSync(readFileSync(out))['word/document.xml']!);
+    expect(text, ext).toContain('Comment: Compare with the eastern slope survey.');
+    expect(text, ext).toContain('Comment: Bleaching threshold?');
+    expect(text, ext).not.toContain('(comment:');
+  }
+
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export PDF with highlights' }).click()]);
   const file = `${ARTIFACTS}/Reef essay with comments (annotated).pdf`;
   copyFileSync(await download.path(), file);
@@ -388,4 +408,23 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   await page.locator('.page:not([data-copy]) .note-mark').last().click();
   await editor.getByRole('button', { name: 'Remove comment' }).click();
   await expect(marker).toHaveCount(1);
+});
+
+test('a snip keeps only the words inside its box, not the whole lines it crosses', async ({ page }) => {
+  await openProject(page);
+  await page.getByRole('toolbar', { name: 'Document tools' }).getByRole('button', { name: 'Snip' }).click();
+  const box = (await page.locator('.page[data-page-number="1"]').boundingBox())!;
+  // Around the start of the first line only, in PDF points from the bottom left.
+  const at = (x: number, y: number) => [box.x + (x / 612) * box.width, box.y + (1 - y / 792) * box.height] as const;
+  const [x0, y0] = at(56, 738);
+  const [x1, y1] = at(200, 712);
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps: 5 });
+  await page.mouse.up();
+  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Excerpt' }).click();
+  const alt = await page.locator('.react-flow__node img.snip').getAttribute('alt');
+  expect(alt).toMatch(/^The ocean covers/);
+  expect(alt).not.toContain('Earth');
+  expect(alt).not.toContain('water');
 });

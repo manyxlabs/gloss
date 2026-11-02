@@ -9,7 +9,7 @@ test('a project keeps several canvases, and showing a card opens the canvas it i
   await page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();
   await expect(card(page, 'Coral reefs')).toBeVisible();
 
-  await canvasTabs(page).getByRole('button', { name: 'New canvas' }).click();
+  await page.getByRole('button', { name: 'New canvas' }).click();
   await expect(canvasTabs(page).getByRole('tab', { name: 'Canvas 2' })).toHaveAttribute('aria-selected', 'true');
   await expect(card(page, 'Coral reefs')).toHaveCount(0);
   await canvasTabs(page).getByRole('tab', { name: 'Canvas 2' }).dblclick();
@@ -20,13 +20,13 @@ test('a project keeps several canvases, and showing a card opens the canvas it i
   await expect(card(page, 'Rising sea')).toBeVisible();
 
   // The first excerpt's highlight leads back to its own canvas.
-  await canvasTabs(page).getByRole('tab', { name: 'Canvas', exact: true }).click();
+  await canvasTabs(page).getByRole('tab', { name: 'Canvas 1' }).click();
   await expect(card(page, 'Rising sea')).toHaveCount(0);
   await canvasTabs(page).getByRole('tab', { name: 'Threats' }).click();
   const mark = (await page.locator('.hl[data-id]').first().boundingBox())!;
   await page.mouse.click(mark.x + 20, mark.y + mark.height / 2);
   await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Show on canvas' }).click();
-  await expect(canvasTabs(page).getByRole('tab', { name: 'Canvas', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(canvasTabs(page).getByRole('tab', { name: 'Canvas 1' })).toHaveAttribute('aria-selected', 'true');
   await expect(card(page, 'Coral reefs')).toBeVisible();
 
   // Kept, and removing a canvas takes its cards with it, which undo restores.

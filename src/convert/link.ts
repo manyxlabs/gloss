@@ -15,8 +15,8 @@ export function isFileLink(url: string) {
  * Downloads the file a link leads to, through Gloss's server, as a browser may not read other
  * sites. A cloud storage picker, given the app keys it needs, would hand over a File the same way.
  */
-export async function fetchLinked(url: string): Promise<File> {
-  const res = await fetch(`/api/file?url=${encodeURIComponent(url)}`);
+export async function fetchLinked(url: string, signal?: AbortSignal): Promise<File> {
+  const res = await fetch(`/api/file?url=${encodeURIComponent(url)}`, { signal });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? 'Files can be added from links only where Gloss runs with its server.');

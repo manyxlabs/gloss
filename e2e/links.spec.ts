@@ -225,7 +225,7 @@ test('one comment on several passages: edited from any, detached by removing a p
     'Reefs, mangroves and reserves shelter the same fish.',
   ]);
   await page.locator('.doc-pane').getByRole('button', { name: 'Contents, pages and highlights' }).click();
-  await page.getByRole('searchbox').fill('reserves shelter');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('reserves shelter');
   await expect(page.getByRole('listbox').getByRole('option', { name: /Reef essay: Reefs, mangroves and reserves/ })).toHaveCount(1);
   await page.keyboard.press('Escape');
   const md = await exportMarkdown(page, 'links-shared-comment.md');
@@ -258,7 +258,7 @@ test('one comment on several passages: edited from any, detached by removing a p
   await expect(page.locator('.page[data-page-number="2"] .note-mark').first()).toHaveAttribute('title', 'Reefs, mangroves and reserves shelter the same fish.');
   await remove('Marine protected areas');
   await expect(noteMarks(page)).toHaveCount(1);
-  await page.getByRole('searchbox').fill('reserves shelter');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('reserves shelter');
   await expect(page.getByRole('listbox')).toContainText('Nothing matches');
 });
 
@@ -435,6 +435,8 @@ test('links and shared comments survive a backup, and comments saved before shar
   const file = `${ARTIFACTS}/Reef essay with links.gloss`;
   copyFileSync(await download.path(), file);
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Restore a backup' }).click()]);
+  // Restored beside the project it came from, which Gloss checks is meant.
+  page.once('dialog', (d) => d.accept());
   await chooser.setFiles({ name: 'Reef essay.gloss', mimeType: 'application/octet-stream', buffer: readFileSync(file) });
   await expect(page.getByRole('tab', { name: 'Survey notes' })).toBeVisible();
   await expect(linkMarks(page)).toHaveCount(2);
