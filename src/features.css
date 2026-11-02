@@ -1,0 +1,54 @@
+/* Styles for the palette, nested canvases and their style, handwriting in cards, copied links, mentions, notifications and privacy. */
+
+/* All 32 colours, under the toolbar that opened them. */
+.palette {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 0;
+  z-index: 30;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  white-space: normal;
+  /* Nearly opaque, like the toolbar it comes from, as it floats over the page's text. */
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  gap: 8px;
+}
+
+.palette-favourites {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-hint {
+  margin: 0;
+  max-width: 232px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.palette footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.palette footer button {
+  padding: 4px 8px !important;
+  font-size: 13px;
+}
+
+/* A ring clear of the swatch, which shows on a dark screen too, where a colour's edge is its fill. */
+.swatch.current {
+  outline: 2px solid var(--edge);
+  outline-offset: 1px;
+}

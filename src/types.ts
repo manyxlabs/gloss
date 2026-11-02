@@ -1,7 +1,9 @@
 import type { Edge, Node } from '@xyflow/react';
 
-export const COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
-export type Color = (typeof COLORS)[number];
+export const HUES = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'purple', 'fuchsia', 'pink', 'rose', 'gray'] as const;
+/** 32 highlight colours: each hue light and deep. The five there were at first, yellow, green, blue, pink and purple, keep their ids and shades. */
+export type Color = (typeof HUES)[number] | `deep-${(typeof HUES)[number]}`;
+export const COLORS: Color[] = [...HUES, ...HUES.map((h) => `deep-${h}` as const)];
 
 /** x, y, width, height as fractions of the page, so a highlight stays put at any zoom. */
 export type Rect = [number, number, number, number];
