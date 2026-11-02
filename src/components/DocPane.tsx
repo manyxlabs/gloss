@@ -10,6 +10,7 @@ import { highlightAt, locate, pageAt, pointOnPage, selectionAnchor, textBoxes, t
 import { annotatedPdf } from '../pdf/annotate';
 import { layoutFolds, refreshTails } from '../pdf/folds';
 import { loadDoc, textIn } from '../pdf/pdfjs';
+import { shownLook, useReading } from '../reading';
 import {
   addDocs,
   addFold,
@@ -33,6 +34,7 @@ import {
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
 import { COLORS, type Color, type Point, type Rect } from '../types';
 import { LinkPopover } from './doc/LinkPopover';
+import { PageLookMenu } from './doc/PageLookMenu';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
@@ -117,6 +119,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
   const inkColor = useStore((s) => s.inkColor);
+  // Pictures are put back over dark pages as they are, which a repaint does.
+  const pictures = useReading((s) => shownLook(s) === 'dark' && s.keepImages);
 
   const scroller = useRef<HTMLDivElement>(null);
   const viewerDiv = useRef<HTMLDivElement>(null);
@@ -350,7 +354,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (pdf.current) relayout(pdf.current.viewer, activeDocId);
   }, [folds, loaded, activeDocId]);
 
-  useEffect(() => paintPages(pdf.current?.viewer, flash.current, activeDocId), [highlights, cards, inks, comments, passageLinks, cardLinks, linking, loaded, activeDocId]);
+  useEffect(
+    () => paintPages(pdf.current?.viewer, flash.current, activeDocId),
+    [highlights, cards, inks, comments, passageLinks, cardLinks, linking, loaded, activeDocId, pictures],
+  );
 
   useEffect(() => {
     const p = pdf.current;
@@ -864,6 +871,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <Plus size={16} />
             </button>
           </span>
+          <PageLookMenu />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>
