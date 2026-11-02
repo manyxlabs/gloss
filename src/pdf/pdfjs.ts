@@ -68,21 +68,24 @@ function opened(key: string, password?: string) {
   return doc;
 }
 
+/** Each page's text of an open PDF, joined the way it reads. */
+export async function readTexts(doc: PDFDocumentProxy) {
+  const out: string[] = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const page = await doc.getPage(n);
+    const { items } = await page.getTextContent();
+    out.push(items.map((i) => ('str' in i ? i.str + (i.hasEOL ? '\n' : '') : '')).join(''));
+    page.cleanup();
+  }
+  return out;
+}
+
 /** Each page's text, joined the way it reads, for search. */
 export function pageTexts(docId: string, password?: string) {
   const key = files.key(docId);
   let pages = texts.get(key);
   if (!pages) {
-    pages = loadDoc(docId, password).then(async (doc) => {
-      const out: string[] = [];
-      for (let n = 1; n <= doc.numPages; n++) {
-        const page = await doc.getPage(n);
-        const { items } = await page.getTextContent();
-        out.push(items.map((i) => ('str' in i ? i.str + (i.hasEOL ? '\n' : '') : '')).join(''));
-        page.cleanup();
-      }
-      return out;
-    });
+    pages = loadDoc(docId, password).then(readTexts);
     pages.catch(() => texts.delete(key));
     texts.set(key, pages);
   }
