@@ -90,7 +90,8 @@ test('a turned page keeps its highlight on the same words and its handwriting wi
   await openPages(page);
   await pageAction(page, 1, 'Rotate right');
   await settled(page);
-  await expect.poll(async () => ((b) => b.width / b.height)((await first.boundingBox())!)).toBeGreaterThan(1.2);
+  // The mark is redrawn as the page turns; between draws it has no box.
+  await expect.poll(async () => ((b) => (b ? b.width / b.height : 0))(await first.boundingBox())).toBeGreaterThan(1.2);
   await highlightCovers(mark, 'Coral reefs occupy');
   // Drawn across the page, it now runs down the turned page, as long and with the same pen.
   const turned = (await stroke.boundingBox())!;
@@ -103,7 +104,8 @@ test('a turned page keeps its highlight on the same words and its handwriting wi
 
   await page.reload();
   await expect(span(page, 'Coral reefs occupy')).toBeVisible();
-  await expect.poll(async () => ((b) => b.width / b.height)((await first.boundingBox())!)).toBeGreaterThan(1.2);
+  // The mark is redrawn as the page turns; between draws it has no box.
+  await expect.poll(async () => ((b) => (b ? b.width / b.height : 0))(await first.boundingBox())).toBeGreaterThan(1.2);
   await highlightCovers(mark, 'Coral reefs occupy');
 
   // The exported page is turned, and its highlight's quad covers the words where they sit in the PDF.
