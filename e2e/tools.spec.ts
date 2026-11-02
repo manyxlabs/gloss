@@ -248,7 +248,8 @@ test('the exported PDF carries highlights, comments and handwriting as annotatio
   const file = `${ARTIFACTS}/Reef essay (annotated).pdf`;
   copyFileSync(await download.path(), file);
 
-  const task = getDocument({ data: new Uint8Array(readFileSync(file)) });
+  // Without the standard fonts pdf.js warns while reading the export.
+  const task = getDocument({ data: new Uint8Array(readFileSync(file)), standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/' });
   const doc = await task.promise;
   const first = await doc.getPage(1);
   const annots = await first.getAnnotations();
