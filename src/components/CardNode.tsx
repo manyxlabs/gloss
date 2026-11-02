@@ -1,8 +1,9 @@
 import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { outline, pathOf, SCREEN } from '../ink';
+import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, showSource, ungroup, updateCard, useStore } from '../store/project';
-import type { Card, ExcerptData, GroupData, InkData, NoteData } from '../types';
+import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
 
 /**
  * A textarea that grows with its text. A hidden copy of the text sizes the box in CSS, so the
@@ -27,6 +28,27 @@ function Grow({ value, onChange, placeholder, autoFocus, label }: { value: strin
       <textarea ref={ref} className="nodrag nowheel" rows={1} value={value} placeholder={placeholder} aria-label={label} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
+}
+
+/**
+ * A figure boxed in a document, drawn from the PDF at twice the screen's resolution so it stays
+ * sharp in a widened card. Images are drawn on demand rather than kept in the project.
+ */
+function Figure({ highlight, password }: { highlight: Highlight; password?: string }) {
+  const part = highlight.parts[0];
+  const [image, setImage] = useState<{ url: string } | { failed: true } | null>(null);
+  useEffect(() => {
+    const rect = part?.rects[0];
+    if (!part || !rect) return;
+    let stale = false;
+    regionImage(highlight.docId, password, part.page, rect, 2 * devicePixelRatio).then(
+      (url) => !stale && setImage({ url }),
+      () => !stale && setImage({ failed: true }),
+    );
+    return () => void (stale = true);
+  }, [highlight.docId, password, part]);
+  if (image && 'url' in image) return <img className="snip" src={image.url} alt={highlight.text || 'Figure'} draggable={false} />;
+  return <div className="snip">{image ? 'The figure could not be drawn from the PDF.' : null}</div>;
 }
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
@@ -91,7 +113,7 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
         <Grow value={data.text} onChange={(text) => updateCard(id, { text })} placeholder="Write a note" autoFocus={fresh} label="Note" />
       ) : highlight ? (
         <>
-          <blockquote>{highlight.text}</blockquote>
+          {highlight.area ? <Figure highlight={highlight} password={doc?.password} /> : <blockquote>{highlight.text}</blockquote>}
           <footer>
             <button className="source nodrag" onClick={() => showSource(highlight.id)} title="Show it in the document">
               {doc?.name ?? 'Document'} · p. {highlight.parts[0]?.page}

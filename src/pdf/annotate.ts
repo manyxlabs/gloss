@@ -11,21 +11,32 @@ const HIGHLIGHT: Record<string, string> = {
   pink: '#f9a8d4',
   purple: '#c4b5fd',
 };
+/** The darker shade each colour is outlined in, as on screen. */
+const EDGE: Record<string, string> = {
+  yellow: '#ca8a04',
+  green: '#16a34a',
+  blue: '#2563eb',
+  pink: '#db2777',
+  purple: '#7c3aed',
+};
+const BORDER = 1.5;
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 const n = (v: number) => +v.toFixed(3);
 
 /**
  * The document with its highlights and handwriting added as standard PDF annotations, so any
  * reader shows them and can edit them. Each carries its own appearance, as some readers do not
- * draw an annotation without one. An excerpt's comment becomes the highlight's note.
+ * draw an annotation without one. A boxed figure becomes a Square. The highlight's own comment and
+ * its excerpt's comment become the annotation's note.
  */
 export async function annotatedPdf(project: Project, docId: string) {
   const bytes = await getFile(docId);
   if (!bytes) throw new Error('This PDF is missing from this browser’s storage.');
-  const pdf = await PDFDocument.load(await bytes.arrayBuffer(), {
-    updateMetadata: false,
-  });
-  const source = await loadDoc(docId);
+  const pdf = await PDFDocument.load(await bytes.arrayBuffer(), { updateMetadata: false, ignoreEncryption: true });
+  // pdf-lib cannot decrypt, and what it wrote into the still encrypted file would be unreadable.
+  if (pdf.isEncrypted)
+    throw new Error('it is password protected, and annotations cannot be written into a protected PDF. Save a copy without the password, add that, and export it.');
+  const source = await loadDoc(docId, project.docs.find((d) => d.id === docId)?.password);
   const ctx = pdf.context;
   const multiply = ctx.obj({ Type: 'ExtGState', BM: 'Multiply' });
 
@@ -73,11 +84,27 @@ export async function annotatedPdf(project: Project, docId: string) {
   const comments = new Map(project.cards.flatMap((c) => (c.data.kind === 'excerpt' && c.data.comment?.trim() ? [[c.data.highlightId, c.data.comment.trim()]] : [])));
   for (const h of project.highlights.filter((x) => x.docId === docId)) {
     const color = rgb(HIGHLIGHT[h.color]!);
+    // The comment in the margin and the one on the excerpt's card, when there are both.
+    const note = [h.note, comments.get(h.id)].filter(Boolean).join('\n\n');
+    const contents = note ? { Contents: PDFHexString.fromText(note) } : {};
     for (const part of h.parts) {
       const at = await pointOf(part.page);
       // Corners in the order readers expect: top left, top right, bottom left, bottom right.
       const quads = part.rects.map(([x, y, w, hgt]) => [at(x, y), at(x + w, y), at(x, y + hgt), at(x + w, y + hgt)]);
       const rect = bounds(quads.flat());
+      if (h.area) {
+        const edge = rgb(EDGE[h.color]!);
+        // A page turned by a multiple of 90 degrees keeps the box square to the PDF's axes, so its bounds are the box.
+        // The stroke is drawn inside them, so it is not cut off at the edges.
+        const inset = BORDER / 2;
+        add(
+          pdf.getPage(part.page - 1),
+          rect,
+          { Subtype: 'Square', C: edge, BS: { W: BORDER }, ...contents },
+          `${edge.join(' ')} RG ${BORDER} w\n${n(rect[0]! + inset)} ${n(rect[1]! + inset)} ${n(rect[2]! - rect[0]! - BORDER)} ${n(rect[3]! - rect[1]! - BORDER)} re S`,
+        );
+        continue;
+      }
       const fill = quads.map(([a, b, c, d]) => `${n(a![0])} ${n(a![1])} m ${n(b![0])} ${n(b![1])} l ${n(d![0])} ${n(d![1])} l ${n(c![0])} ${n(c![1])} l h f`).join('\n');
       add(
         pdf.getPage(part.page - 1),
@@ -86,7 +113,7 @@ export async function annotatedPdf(project: Project, docId: string) {
           Subtype: 'Highlight',
           QuadPoints: quads.flat(2).map(n),
           C: color,
-          ...(comments.has(h.id) ? { Contents: PDFHexString.fromText(comments.get(h.id)!) } : {}),
+          ...contents,
         },
         `/M gs ${color.join(' ')} rg\n${fill}`,
       );

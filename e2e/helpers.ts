@@ -1,5 +1,6 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { expect, type Page } from '@playwright/test';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { ESSAY, makePdf, NOTES } from './pdfs';
 
 export const ARTIFACTS = 'test-results/artifacts';
@@ -30,3 +31,6 @@ export async function select(page: Page, from: string, to = from) {
 }
 
 export const card = (page: Page, text: string) => page.locator('.react-flow__node').filter({ hasText: text });
+
+/** Opens an exported PDF in Node with pdf.js, as a reader would read it. */
+export const readPdf = (file: string) => getDocument({ data: new Uint8Array(readFileSync(file)), standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/' });

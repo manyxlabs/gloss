@@ -31,7 +31,7 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
           .flatMap((p) =>
             p.rects.map(([x, y, w, hgt]) => {
               const mark = document.createElement('div');
-              mark.className = `hl hl-${h.color}${excerpted.has(h.id) ? ' linked' : ''}${flashId === h.id ? ' flash' : ''}`;
+              mark.className = `hl hl-${h.color}${h.area ? ' area' : ''}${excerpted.has(h.id) ? ' linked' : ''}${flashId === h.id ? ' flash' : ''}`;
               mark.dataset.id = h.id;
               Object.assign(mark.style, {
                 left: `${x * 100}%`,
@@ -43,6 +43,23 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
             }),
           ),
       ),
+  );
+
+  // Above the text layer, unlike the highlights, so the markers take clicks; only the highlight's first line gets one.
+  const notes = layer(view.div, () => document.createElement('div'), 'note-layer', '.annotationLayer');
+  notes.replaceChildren(
+    ...project.highlights
+      .filter((h) => h.docId === docId && h.note && h.parts[0]?.page === view.id)
+      .map((h) => {
+        const [, y, , hgt] = h.parts[0]!.rects[0] ?? [0, 0, 0, 0];
+        const mark = document.createElement('button');
+        mark.className = `note-mark hl-${h.color}`;
+        mark.dataset.noteId = h.id;
+        mark.title = h.note!;
+        mark.setAttribute('aria-label', `Comment: ${h.note}`);
+        mark.style.top = `${(y + hgt / 2) * 100}%`;
+        return mark;
+      }),
   );
 
   // Drawn in a fixed number of units across the page, so strokes keep their shape at any zoom,
