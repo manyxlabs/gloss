@@ -5,7 +5,7 @@ import { fileKey, getFile } from '../store/db';
 import type { Project } from '../types';
 import { loadDoc } from './pdfjs';
 
-const HIGHLIGHT: Record<string, string> = {
+export const HIGHLIGHT: Record<string, string> = {
   yellow: '#fde047',
   green: '#86efac',
   blue: '#93c5fd',
