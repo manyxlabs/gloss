@@ -1,5 +1,7 @@
-/* Each token holds both themes; color-scheme picks one, so the theme toggle only sets that. */
-:root {
+/* Each token holds both themes; color-scheme picks one, so the theme toggle only sets that.
+   A picture of the canvas in the light theme declares them again, as they resolve where declared. */
+:root,
+.export-stage.light {
   color-scheme: light dark;
   --bg: light-dark(#f4f5f8, #08080b);
   --panel: light-dark(#ffffff, #16161b);
@@ -1482,12 +1484,18 @@ a.button.primary {
 
 .narrow .zoom .scale,
 .sidebar-beside .zoom .scale {
-  min-width: 40px;
+  min-width: 36px;
 }
 
+/* Sized so the whole toolbar fits half of two panes beside the canvas on a laptop. */
 .narrow .doc-status button.icon,
 .sidebar-beside .doc-status button.icon {
-  width: 28px;
+  width: 26px;
+}
+
+.narrow .page-no,
+.sidebar-beside .page-no {
+  padding: 0 3px;
 }
 
 .page-no {
@@ -3074,4 +3082,192 @@ button.icon.danger:hover:not(:disabled) {
 
 .projects li > button:last-child {
   margin-right: 8px;
+}
+
+/* Exporting the canvas as a picture (CanvasExport.tsx). */
+.picture-dialog h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.picture-dialog h2 svg {
+  color: var(--accent);
+}
+
+.picture-dialog fieldset {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.picture-dialog legend {
+  padding: 0;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.segmented label {
+  position: relative;
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 7px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segmented label:has(:checked) {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 2px var(--shadow-tint);
+}
+
+.segmented label:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.segmented label.disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.picture-dialog .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.picture-dialog .check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.picture-dialog [role='status'] {
+  margin-top: 0;
+  color: var(--text);
+}
+
+/* The copy of the canvas a picture is taken of: laid out and drawn, but out of sight. */
+.export-stage {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  width: 400px;
+  height: 300px;
+  pointer-events: none;
+  /* The page's text colour is resolved on the body, in the app's theme, so it is set again here. */
+  color: var(--text);
+}
+
+.export-stage.light {
+  color-scheme: light;
+}
+
+/* On a phone the canvas tools offer the picture too, beside the canvas it shows. */
+.canvas-tools .picture-export {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .canvas-tools .picture-export {
+    display: inline-flex;
+  }
+}
+
+/* Page colours (reading.ts), set on the root element so every pane, squeeze copy and thumbnail follows.
+   Dark pages are the page turned negative, with hues turned back, so colours keep their hue; a
+   little short of full so the page is not black and the text not white. Handwriting turns with
+   the page, so ink stays readable. Pictures can be put back over it as they are (doc/photos.ts). */
+:root {
+  --page-dark: invert(0.88) hue-rotate(180deg);
+  --page-sepia: #f4ecd8;
+}
+
+:root[data-pages='dark'] .pdfViewer {
+  /* White under the filter. */
+  --page-bg-color: #1f1f1f;
+}
+
+:root[data-pages='dark'] .pdfViewer .canvasWrapper > canvas,
+:root[data-pages='dark'] .pdfViewer .ink-layer,
+:root[data-pages='dark'] .doc-body > .ink-live,
+:root[data-pages='dark'] .thumb img:not(.thumb-photo) {
+  filter: var(--page-dark);
+}
+
+:root[data-pages='dark'] .thumb {
+  background: #1f1f1f;
+}
+
+.thumb {
+  position: relative;
+}
+
+.thumb .thumb-photo {
+  position: absolute;
+  inset: 0;
+}
+
+/* Multiplied with a dark page a highlight is black; laid over it, thinly, it keeps its hue. */
+:root[data-pages='dark'] .hl:not(.area) {
+  mix-blend-mode: normal;
+  opacity: 0.42;
+}
+
+.photo-layer {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+:root[data-pages='dark'] .photo-layer {
+  display: block;
+}
+
+.photo-layer canvas {
+  position: absolute;
+}
+
+:root[data-pages='sepia'] .pdfViewer {
+  --page-bg-color: var(--page-sepia);
+}
+
+/* Paper tinted by multiplying, which leaves the text dark and the highlights as they are. */
+:root[data-pages='sepia'] .pdfViewer .canvasWrapper::after,
+:root[data-pages='sepia'] .thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--page-sepia);
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
