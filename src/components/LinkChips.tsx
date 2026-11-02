@@ -8,12 +8,13 @@ import type { Project } from '../types';
 const ICONS: Record<Kind, typeof Link> = { h: Highlighter, c: StickyNote, m: MessageSquare, v: SquareStack, d: FileText };
 
 /** Copies a link to something in the open project, which opens the project there wherever it is pasted. */
-export function CopyLink({ target, className = 'icon', text }: { target: Target; className?: string; text?: string }) {
+export function CopyLink({ target, className = 'icon', text, role }: { target: Target; className?: string; text?: string; role?: 'menuitem' }) {
   const [copied, setCopied] = useState(false);
   const label = `Copy link to this ${KINDS[target.kind]}`;
   return (
     <button
       type="button"
+      role={role}
       className={className}
       aria-label={copied ? 'Link copied' : label}
       title={copied ? 'Link copied' : label}

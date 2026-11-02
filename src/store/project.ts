@@ -7,6 +7,7 @@ import { migrate, prune } from '../links';
 import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { passwordAsker } from '../password';
+import { askAbout } from '../annots/ask';
 import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
 
 /** Which version of each document's file a document has, as page edits are undone with the rest. */
@@ -314,6 +315,8 @@ export async function importFiles(project: Project, inputs: Input[], options: Co
     }
   }
   if (added.length) await addFiles(added.map(([meta, file]) => [meta.id, file]));
+  // Only PDFs added as they were can hold annotations from other apps.
+  askAbout(added.flatMap(([meta]) => (meta.source && meta.source.kind !== 'link' ? [] : [meta.id])));
   const next = {
     ...project,
     docs: [...project.docs, ...added.map(([meta]) => meta)],

@@ -1,7 +1,11 @@
 import { addHighlight, addInk, excerpt } from '../store/project';
 import type { Color, Point, Rect } from '../types';
-import { mergeLines } from './anchor';
-import { joined, wordsOn, type Word } from './pdfjs';
+import { cleanText, mergeLines } from './anchor';
+import { textIn } from './pdfjs';
+
+/** A word on a page: its middle, and its box, in page fractions; `eol` when its line ends after it. */
+type Word = { text: string; mid: [number, number]; box: Rect; eol: boolean };
+const joined = (words: Word[]) => cleanText(words.map((w) => w.text + (w.eol ? '\n' : ' ')).join(''));
 
 /** A stroke shorter than this, in screen pixels, or a loop narrower, is writing rather than a lasso. */
 const MIN_LENGTH = 60;
@@ -40,8 +44,7 @@ export function loopOf(points: Point[], box: { width: number; height: number }):
 
 /**
  * The words of a page as its text layer places them, which is where the reader sees them and where
- * a selection of them would be: the PDF only says where each run of text starts and ends. Null
- * while the page's text layer is not drawn.
+ * a selection of them would be. Null while the page's text layer is not drawn.
  */
 function layerWords(root: HTMLElement, page: number): Word[] | null {
   const div = root.querySelector<HTMLElement>(`.page[data-page-number="${page}"]:not([data-copy])`);
@@ -81,11 +84,14 @@ export async function keepStroke(
 ) {
   const loop = loopOf(s.points, s.box);
   if (!loop) return addInk(docId, s.page, s.points, size, s.pen);
-  const words = (layerWords(root, s.page) ?? (await wordsOn(docId, password, s.page).catch(() => []))).filter((w) => inside(loop, w.mid));
-  const covered = words.reduce((sum, w) => sum + w.box[2] * w.box[3] * s.box.width * s.box.height, 0);
   const fx = loop.map((p) => Math.min(1, Math.max(0, p[0])));
   const fy = loop.map((p) => Math.min(1, Math.max(0, p[1])));
   const bounds: Rect = [Math.min(...fx), Math.min(...fy), Math.max(...fx) - Math.min(...fx), Math.max(...fy) - Math.min(...fy)];
+  const all = layerWords(root, s.page);
+  // Without its text layer, the page's words cannot be placed closely enough to pick them out, so the loop is taken as a figure.
+  if (!all) return excerpt(addHighlight(docId, [{ page: s.page, rects: [bounds] }], await textIn(docId, password, s.page, [bounds]).catch(() => ''), color, { area: true }).id);
+  const words = all.filter((w) => inside(loop, w.mid));
+  const covered = words.reduce((sum, w) => sum + w.box[2] * w.box[3] * s.box.width * s.box.height, 0);
   const figure = covered < WORDY * area(loop.map(([x, y]) => [x * s.box.width, y * s.box.height]));
   const h = figure
     ? addHighlight(docId, [{ page: s.page, rects: [bounds] }], joined(words), color, { area: true })

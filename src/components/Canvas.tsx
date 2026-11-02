@@ -13,15 +13,15 @@ import {
   type OnBeforeDelete,
   type XYPosition,
 } from '@xyflow/react';
-import { SquarePen, SquareStack, StickyNote } from 'lucide-react';
+import { ImageDown, SquarePen, SquareStack, StickyNote } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { canvasView } from '../canvasView';
 import { inkAlong } from '../erase';
 import { outline, pathOf, SCREEN } from '../ink';
 import {
   addCanvasInk,
   addHighlight,
   addNote,
-  canvasOf,
   CARD_WIDTH,
   canvasSpot,
   checkpoint,
@@ -38,6 +38,7 @@ import {
 import { addNestedCanvas, addSketch, addStroke, erase as eraseOnCanvas, type Erased } from '../store/cards';
 import type { Card, Link, Point } from '../types';
 import { CanvasPath, CanvasStyleMenu } from './CanvasNav';
+import { CanvasExport, openCanvasExport } from './CanvasExport';
 import { CanvasTabs } from './CanvasTabs';
 import { CardNode } from './CardNode';
 import { EXCERPT_MIME, type ExcerptDrag } from './dnd';
@@ -56,27 +57,7 @@ export function Canvas() {
   const project = useStore((s) => s.project);
   const canvasId = useStore((s) => s.canvasId);
   // Only the canvas on show is drawn; links go with the cards they join.
-  const [cards, links] = useMemo(() => {
-    if (!project) return [[], []];
-    const onCanvas = project.cards.filter((c) => canvasOf(project, c) === canvasId);
-    const ids = new Set(onCanvas.map((c) => c.id));
-    // Cards in a collapsed group are hidden, and their links end on the group instead.
-    const folded = new Set(onCanvas.filter((c) => c.data.kind === 'group' && c.data.collapsed).map((c) => c.id));
-    // Older projects asked React Flow to grow a group under a dragged card, which kept it from ever leaving; groups are fitted after a drag instead.
-    const shown = onCanvas.map((c) => (c.parentId && folded.has(c.parentId) ? { ...c, hidden: true } : c.expandParent ? { ...c, expandParent: false } : c));
-    const parentOf = new Map(shown.filter((c) => c.hidden).map((c) => [c.id, c.parentId!]));
-    const seen = new Set<string>();
-    const links = project.links.flatMap((l) => {
-      if (!ids.has(l.source) || !ids.has(l.target)) return [];
-      const source = parentOf.get(l.source) ?? l.source;
-      const target = parentOf.get(l.target) ?? l.target;
-      const key = [source, target].sort().join(' ');
-      if (source === target || seen.has(key)) return [];
-      seen.add(key);
-      return [source === l.source && target === l.target ? l : { ...l, source, target, deletable: false, selectable: false }];
-    });
-    return [shown, links];
-  }, [project, canvasId]);
+  const [cards, links] = useMemo(() => (project ? canvasView(project, canvasId) : [[], []]), [project, canvasId]);
   const style = useStore((s) => s.project?.canvases.find((c) => c.id === s.canvasId));
   const focus = useStore((s) => s.focus);
   const tool = useStore((s) => s.canvasTool);
@@ -439,6 +420,16 @@ export function Canvas() {
           </button>
           <Tools side="canvasTool" />
           <CanvasStyleMenu />
+          {/* Shown on a phone only, where the header is far from the canvas. */}
+          <button
+            className="icon picture-export"
+            aria-label="Export the canvas as a picture"
+            title="Export the canvas as a picture"
+            disabled={!cards.length}
+            onClick={openCanvasExport}
+          >
+            <ImageDown size={17} />
+          </button>
         </div>
         {!cards.length && (
           <p className="canvas-hint">
@@ -455,6 +446,7 @@ export function Canvas() {
           </p>
         )}
       </div>
+      <CanvasExport />
     </section>
   );
 }

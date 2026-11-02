@@ -89,48 +89,44 @@ export function pageTexts(docId: string, password?: string) {
   return pages;
 }
 
-/** A word on a page: its middle, and its box from below the line to the top of its letters, in page fractions. */
-export type Word = { text: string; mid: [number, number]; box: Rect; eol: boolean };
+let measure: OffscreenCanvasRenderingContext2D | null = null;
 
-/** The words of a page in reading order. A run is often a whole line; words are placed along it by their share of its characters. */
-export async function wordsOn(docId: string, password: string | undefined, pageNo: number): Promise<Word[]> {
+/**
+ * Each word on a page with its middle as fractions of the page, in reading order, and whether a
+ * line ends after it. pdf.js gives runs of text with their width; where each word of a run lies is
+ * estimated from the widths of its letters in a similar font.
+ */
+async function wordsOn(docId: string, password: string | undefined, pageNo: number) {
   const page = await (await loadDoc(docId, password)).getPage(pageNo);
   const viewport = page.getViewport({ scale: 1 });
-  const at = (px: number, py: number) => {
-    const [vx, vy] = viewport.convertToViewportPoint(px, py) as [number, number];
-    return [vx / viewport.width, vy / viewport.height] as [number, number];
-  };
-  const out: Word[] = [];
-  for (const item of (await page.getTextContent()).items) {
-    if (!('str' in item)) continue;
+  const { items, styles } = await page.getTextContent();
+  measure ??= new OffscreenCanvas(1, 1).getContext('2d')!;
+  const words: { text: string; x: number; y: number; eol: boolean }[] = [];
+  for (const item of items) {
+    if (!('str' in item) || !item.str.trim()) continue;
+    measure.font = `100px ${styles[item.fontName]?.fontFamily ?? 'sans-serif'}`;
+    const scale = item.width / (measure.measureText(item.str).width || 1);
     const [a, b, c, d, e, f] = item.transform as number[];
     const along = Math.hypot(a!, b!) || 1;
-    const [ux, uy] = [((a! / along) * item.width) / (item.str.length || 1), ((b! / along) * item.width) / (item.str.length || 1)];
-    const words = [...item.str.matchAll(/\S+/g)];
-    words.forEach((m, i) => {
-      const [from, to, mid] = [m.index, m.index + m[0].length, m.index + m[0].length / 2];
-      // A quarter of the type size below the line holds descenders, as the text layer's own boxes do.
-      const corners = [from, to].flatMap((k) => [at(e! + ux * k - c! / 4, f! + uy * k - d! / 4), at(e! + ux * k + c!, f! + uy * k + d!)]);
-      const xs = corners.map((p) => p[0]);
-      const ys = corners.map((p) => p[1]);
-      const [left, top] = [Math.min(...xs), Math.min(...ys)];
-      out.push({
-        text: m[0],
-        mid: at(e! + ux * mid + c! / 2, f! + uy * mid + d! / 2),
-        box: [left, top, Math.max(...xs) - left, Math.max(...ys) - top],
-        eol: !!item.hasEOL && i === words.length - 1,
-      });
-    });
+    const found = [...item.str.matchAll(/\S+/g)];
+    for (const [i, m] of found.entries()) {
+      // Halfway along the word on its baseline, then half up its height, whatever the rotation.
+      const mid = ((measure.measureText(item.str.slice(0, m.index)).width + measure.measureText(item.str.slice(0, m.index + m[0].length)).width) / 2) * scale;
+      const [vx, vy] = viewport.convertToViewportPoint(e! + (a! / along) * mid + c! / 2, f! + (b! / along) * mid + d! / 2) as [number, number];
+      words.push({ text: m[0], x: vx / viewport.width, y: vy / viewport.height, eol: i === found.length - 1 && item.hasEOL });
+    }
   }
-  return out;
+  return words;
 }
 
-/** Words as text, joined as they read. */
-export const joined = (words: Word[]) => cleanText(words.map((w) => w.text + (w.eol ? '\n' : ' ')).join(''));
-
-/** The text whose middle lies inside a box on a page, in reading order. */
-export async function textIn(docId: string, password: string | undefined, pageNo: number, [x, y, w, h]: Rect) {
-  return joined((await wordsOn(docId, password, pageNo)).filter(({ mid: [fx, fy] }) => fx >= x && fx <= x + w && fy >= y && fy <= y + h));
+/** The words whose middles lie inside any of the boxes on a page, in reading order. */
+export async function textIn(docId: string, password: string | undefined, pageNo: number, rects: Rect[]) {
+  const inside = (w: { x: number; y: number }) => rects.some(([x, y, rw, rh]) => w.x >= x && w.x <= x + rw && w.y >= y && w.y <= y + rh);
+  const text = (await wordsOn(docId, password, pageNo))
+    .filter(inside)
+    .map((w) => w.text + (w.eol ? '\n' : ' '))
+    .join('');
+  return cleanText(text);
 }
 
 /**

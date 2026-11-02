@@ -7,6 +7,7 @@ import { cardText } from '../../search';
 import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
 import type { Highlight } from '../../types';
+import { AnnotsAction } from './AnnotsAction';
 import { Pages } from './Pages';
 
 type OutlineItem = Awaited<ReturnType<PDFDocumentProxy['getOutline']>>[number];
@@ -52,7 +53,10 @@ export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: stri
         ) : tab === 'pages' ? (
           <Pages key={docId} doc={doc} docId={docId} password={password} pane={pane} current={page} onJump={onJump} />
         ) : (
-          <Highlights docId={docId} pane={pane} onJump={onJump} />
+          <>
+            <AnnotsAction docId={docId} />
+            <Highlights docId={docId} pane={pane} onJump={onJump} />
+          </>
         )}
       </div>
     </>
