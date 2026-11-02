@@ -1,5 +1,5 @@
 import { strFromU8, strToU8, unzip, zip, type Unzipped } from 'fflate';
-import { addFiles, getFile, putProject } from './store/db';
+import { addFiles, getFile, listProjects, putProject } from './store/db';
 import type { Project } from './types';
 
 const FORMAT = 'gloss-backup';
@@ -29,8 +29,10 @@ export class BackupError extends Error {}
 /**
  * Adds the project in a backup as a new project. Its ids are all new, so restoring the same
  * backup twice, or next to the project it came from, never makes two projects share a file.
+ * Before doing either, `again` is asked, with the project already here and whether it is the
+ * original; null when it says no.
  */
-export async function restore(file: File): Promise<Project> {
+export async function restore(file: File, again: (name: string, original: boolean) => boolean): Promise<Project | null> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const entries = await new Promise<Unzipped>((ok, fail) => unzip(bytes, (err, out) => (err ? fail(new BackupError(`${file.name} is not a Gloss backup.`)) : ok(out))));
   const manifest = entries['gloss.json'];
@@ -43,6 +45,11 @@ export async function restore(file: File): Promise<Project> {
   const old = parsed.project;
   if (parsed.format !== FORMAT || !old || !Array.isArray(old.docs)) throw new BackupError(`${file.name} is not a Gloss backup.`);
   if ((parsed.version ?? 0) > VERSION) throw new BackupError(`${file.name} was made by a newer version of Gloss. Reload the page to update, then try again.`);
+  const from = `${old.id}@${old.updatedAt}`;
+  const here = await listProjects();
+  const copy = here.find((p) => p.restoredFrom === from);
+  const original = here.find((p) => p.id === old.id);
+  if (copy ? !again(copy.name, false) : original && !again(original.name, true)) return null;
 
   const ids = new Map(old.docs.map((d) => [d.id, crypto.randomUUID()]));
   const blobs: [string, Blob][] = old.docs.map((d) => {
@@ -56,6 +63,7 @@ export async function restore(file: File): Promise<Project> {
   const project: Project = {
     ...rest,
     id: crypto.randomUUID(),
+    restoredFrom: from,
     updatedAt: Date.now(),
     docs: old.docs.map((d) => ({ ...d, id: doc(d.id) })),
     highlights: (old.highlights ?? []).map((h) => ({ ...h, docId: doc(h.docId) })),

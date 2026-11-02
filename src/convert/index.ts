@@ -1,7 +1,7 @@
 import { isPdf } from '../pdf/pdfjs';
 import type { DocSource } from '../types';
 import { kindOf } from './formats';
-import type { Block } from './typeset';
+import type { Block, Watch } from './typeset';
 
 // The typesetter brings fonts and pdf-lib, so it loads only once something needs converting.
 const typesetter = () => import('./typeset');
@@ -10,6 +10,8 @@ const html = () => import('./html');
 /** A file to add, or a web page to fetch and add. */
 export type Input = File | { url: string };
 export type Converted = { name: string; data: Blob; source?: DocSource };
+/** Lets a slow conversion, such as a long web page, be followed and stopped. */
+export type ConvertOptions = { signal?: AbortSignal; onProgress?: (stage: string) => void };
 
 const base = (name: string) => name.replace(/\.[^.]+$/, '') || name;
 const asPdf = (bytes: Uint8Array) => new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
@@ -20,8 +22,8 @@ async function decode(file: Blob) {
   return new TextDecoder(encoding).decode(b);
 }
 
-async function fromBlocks(name: string, blocks: Block[], source: DocSource, problems: string[]): Promise<Converted> {
-  const { bytes, warnings } = await (await typesetter()).typeset(name, blocks);
+async function fromBlocks(name: string, blocks: Block[], source: DocSource, problems: string[], watch?: Watch): Promise<Converted> {
+  const { bytes, warnings } = await (await typesetter()).typeset(name, blocks, watch);
   problems.push(...warnings.map((w) => `${name}: ${w}`));
   return { name, data: asPdf(bytes), source };
 }
@@ -59,9 +61,17 @@ async function fromImages(files: File[], problems: string[]): Promise<Converted 
   return { name, data: asPdf(await ts.pdf.save()), source: { kind: 'image', name: files.map((f) => f.name).join(', ') } };
 }
 
-async function fromWeb(url: string, problems: string[]): Promise<Converted> {
-  const res = await fetch(`/api/page?url=${encodeURIComponent(url)}`);
-  const page = (await res.json().catch(() => null)) as { url: string; title: string; byline?: string; site?: string; html: string; error?: string } | null;
+async function fromWeb(url: string, problems: string[], { signal, onProgress }: ConvertOptions): Promise<Converted> {
+  onProgress?.('Fetching the page…');
+  const res = await fetch(`/api/page?url=${encodeURIComponent(url)}`, { signal });
+  const page = (await res.json().catch((err: unknown) => (signal?.aborted ? Promise.reject(err) : null))) as {
+    url: string;
+    title: string;
+    byline?: string;
+    site?: string;
+    html: string;
+    error?: string;
+  } | null;
   if (!res.ok || !page?.html) throw new Error(page?.error ?? 'Web pages can be added only where Gloss runs with its server.');
   const by = [page.byline, page.site].filter(Boolean).join(' · ');
   const blocks: Block[] = [
@@ -71,7 +81,7 @@ async function fromWeb(url: string, problems: string[]): Promise<Converted> {
     { kind: 'rule' },
     ...(await html()).htmlToBlocks(page.html),
   ];
-  return fromBlocks(page.title, blocks, { kind: 'web', url: page.url }, problems);
+  return fromBlocks(page.title, blocks, { kind: 'web', url: page.url }, problems, { signal, onPage: (n) => onProgress?.(`Converting page ${n}…`) });
 }
 
 const refusal = (file: File) =>
@@ -83,7 +93,7 @@ const refusal = (file: File) =>
  * Turns what was added into PDFs, since everything in Gloss is anchored to PDF pages: PDFs pass through,
  * images added together become one PDF in their order, and every other format is typeset with a real text layer.
  */
-export async function convert(inputs: Input[]) {
+export async function convert(inputs: Input[], options: ConvertOptions = {}) {
   const converted: Converted[] = [];
   const problems: string[] = [];
   const kinds = await Promise.all(inputs.map(async (i) => ('url' in i ? 'web' : (await isPdf(i)) ? 'pdf' : kindOf(i))));
@@ -91,7 +101,7 @@ export async function convert(inputs: Input[]) {
   for (const [i, input] of inputs.entries()) {
     const kind = kinds[i];
     try {
-      if ('url' in input) converted.push(await fromWeb(input.url, problems));
+      if ('url' in input) converted.push(await fromWeb(input.url, problems, options));
       else if (kind === 'pdf') converted.push({ name: input.name.replace(/\.pdf$/i, ''), data: input });
       else if (kind === 'image') {
         const done = input === images[0] && (await fromImages(images, problems));
@@ -105,6 +115,7 @@ export async function convert(inputs: Input[]) {
         converted.push(await fromBlocks(base(input.name), blocks, { kind: 'text', name: input.name }, problems));
       } else problems.push(refusal(input));
     } catch (err) {
+      if (options.signal?.aborted) throw err;
       // Library errors are not written for readers; only our own sentences are shown.
       const message =
         err instanceof Error && /^[A-Z].*\.$/.test(err.message)
