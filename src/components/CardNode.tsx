@@ -7,6 +7,7 @@ import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup
 import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
 import { CanvasCard, CardInk, inkBottom, SketchCard } from './CanvasCards';
 import { CardLinks } from './CardLinks';
+import { LinkChips } from './LinkChips';
 
 /** Focuses a field once its new card shows: React Flow keeps a card hidden until it has measured it, and a hidden field cannot take focus. */
 function useAutoFocus(ref: RefObject<HTMLElement | null>, on: boolean | undefined) {
@@ -261,6 +262,7 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
         <p className="missing">The text this came from is gone.</p>
       )}
       {data.kind === 'note' && data.strokes?.length ? <CardInk strokes={data.strokes} /> : null}
+      <LinkChips text={data.kind === 'note' ? data.text : (data.comment ?? '')} />
       <CardLinks cardId={id} />
     </article>
   );

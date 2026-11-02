@@ -41,6 +41,8 @@ export type DocMeta = {
    * Absent, the file is the one the document was added with.
    */
   file?: string;
+  /** Kept on this device only, with everything on it: never sent to the others in a shared project. */
+  local?: true;
 };
 
 /** `link` is a file fetched from a share link as it was, without converting. */

@@ -595,7 +595,10 @@ export function removeCanvas(id: string) {
   const { project, canvasId } = get();
   if (!project || project.canvases.filter((c) => !c.parentId).length < 2) return;
   const onIt = new Set(project.cards.filter((c) => canvasOf(project, c) === id).map((c) => c.id));
-  edit((p) => without({ ...p, canvases: p.canvases.filter((c) => c.id !== id) }, onIt));
+  edit((p) => {
+    const canvases = p.canvases.filter((c) => c.id !== id);
+    return { canvases, ...without({ ...p, canvases }, onIt) };
+  });
   if (!get().project!.canvases.some((c) => c.id === canvasId)) set({ canvasId: get().project!.canvases[0]!.id });
 }
 export const setView = (view: State['view']) => set({ view });
