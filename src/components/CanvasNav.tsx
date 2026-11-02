@@ -27,8 +27,8 @@ export function CanvasPath() {
           <li key={c.id}>
             {i < path.length - 1 ? (
               <>
-                <button className="ghost" onClick={() => setCanvas(c.id)}>
-                  {c.name}
+                <button className="ghost" onClick={() => setCanvas(c.id)} title={c.name}>
+                  <span>{c.name}</span>
                 </button>
                 <ChevronRight size={14} aria-hidden="true" />
               </>

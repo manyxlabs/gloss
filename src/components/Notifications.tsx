@@ -6,19 +6,23 @@ import { PERSON, useActivity, useMe, type Activity } from '../sync/state';
 import { Menu } from './Menu';
 
 const SEEN = (projectId: string) => `gloss:seen:${projectId}`;
-const readSeen = (projectId: string) => {
-  try {
-    return Number(localStorage.getItem(SEEN(projectId))) || 0;
-  } catch {
-    return 0;
-  }
-};
 const keepSeen = (projectId: string, at: number) => {
   try {
     localStorage.setItem(SEEN(projectId), String(at));
   } catch {
     // Not kept: the same things count as new on the next visit.
   }
+};
+/** When this device last looked; on its first visit, now, as what was done before it came is not news. */
+const readSeen = (projectId: string) => {
+  try {
+    const seen = Number(localStorage.getItem(SEEN(projectId)));
+    if (seen) return seen;
+  } catch {
+    return Date.now();
+  }
+  keepSeen(projectId, Date.now());
+  return Date.now();
 };
 
 const THING: Record<string, string> = {

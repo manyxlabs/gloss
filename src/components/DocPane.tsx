@@ -723,6 +723,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 {d.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {d.name}
               </button>
+              {d.id === activeDocId && <DocMenu doc={d} />}
               <button
                 className="close"
                 aria-label={`Remove ${d.name}`}
@@ -958,7 +959,6 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <Plus size={16} />
             </button>
           </span>
-          <DocMenu doc={active} />
           <PageLookMenu />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />

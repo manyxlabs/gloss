@@ -79,14 +79,14 @@
   padding: 0 8px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
+/* The canvases above give way, cut short, so the one on show is always whole. */
 .canvas-path ol {
   display: flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -97,16 +97,36 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
   color: var(--muted);
 }
 
+.canvas-path li:last-child {
+  flex: none;
+  max-width: 60%;
+}
+
 .canvas-path li button {
+  min-width: 2.5em;
+  max-width: 12em;
   padding: 4px 8px;
   font-size: 13.5px;
 }
 
+.canvas-path li button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-path li svg {
+  flex: none;
+}
+
 .canvas-path [aria-current='page'] {
   padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text);
   font-weight: 600;
 }

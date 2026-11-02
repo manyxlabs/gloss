@@ -18,6 +18,12 @@ async function device(browser: Browser) {
   return { context, page, wire };
 }
 
+/** Turns Only on this device on or off for the document on show, from its menu. */
+async function keepHere(page: Page) {
+  await page.getByRole('button', { name: 'More for this document' }).click();
+  await page.getByRole('menu', { name: 'More for this document' }).getByRole('menuitemcheckbox', { name: 'Only on this device' }).click();
+}
+
 const synced = (page: Page) => expect(page.getByRole('status').filter({ hasNotText: 'Gloss' })).toHaveText('Synced', { timeout: 15_000 });
 
 async function share(a: Device, name: string) {
@@ -72,8 +78,11 @@ test('a document and a canvas kept on this device are never sent, and leave the 
   await a.page.getByRole('tab', { name: 'Survey notes' }).click();
   await select(a.page, 'Field notes from the reef survey');
   await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();
-  await a.page.getByRole('button', { name: 'Only on this device' }).click();
-  await expect(a.page.getByRole('button', { name: 'Only on this device' })).toHaveAttribute('aria-pressed', 'true');
+  await keepHere(a.page);
+  await a.page.getByRole('button', { name: 'More for this document' }).click();
+  await expect(a.page.getByRole('menuitemcheckbox', { name: 'Only on this device' })).toHaveAttribute('aria-checked', 'true');
+  await shot(a.page, 'privacy-document-menu');
+  await a.page.keyboard.press('Escape');
   await expect(a.page.getByRole('tab', { name: 'Survey notes' }).getByLabel('Only on this device')).toBeVisible();
   await a.page.getByRole('button', { name: 'New canvas' }).click();
   await writeNote(a.page, 'Secret plan', 200, 200);
@@ -102,14 +111,14 @@ test('a document and a canvas kept on this device are never sent, and leave the 
   // Made private while shared: asked first, then gone from the other device, file and all, and still here.
   a.page.once('dialog', (d) => (expect(d.message()).toContain('removed from everyone else’s copy'), d.accept()));
   await a.page.getByRole('tab', { name: 'Reef essay' }).click();
-  await a.page.getByRole('button', { name: 'Only on this device' }).click();
+  await keepHere(a.page);
   await expect(b.page.getByRole('tab', { name: 'Reef essay' })).toHaveCount(0, { timeout: 15_000 });
   await expect.poll(() => a.wire.deletes.length).toBe(1);
   await expect(a.page.getByRole('tab', { name: 'Reef essay' })).toBeVisible();
   await synced(a.page);
 
   // Shared again, it comes back, and so does the canvas.
-  await a.page.getByRole('button', { name: 'Only on this device' }).click();
+  await keepHere(a.page);
   await expect(b.page.locator('.textLayer span', { hasText: 'The ocean covers' })).toBeVisible({ timeout: 15_000 });
   await a.page.getByRole('tablist', { name: 'Canvases' }).getByRole('tab', { name: 'Canvas 2' }).click();
   await a.page.getByRole('button', { name: 'Canvas style' }).click();
