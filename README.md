@@ -1,4 +1,4 @@
-# Margin
+# Gloss
 
 Read PDFs next to an infinite canvas.
 Pull passages out of your documents, arrange and connect them, add your own notes, and jump back to the exact line any excerpt came from.
@@ -41,7 +41,7 @@ Set `CHROMIUM` to a system Chromium where Playwright's own browser download is u
 
 ## Contributing
 
-Issues and pull requests are welcome at [manyxlabs/margin](https://github.com/manyxlabs/margin).
+Issues and pull requests are welcome at [manyxlabs/gloss](https://github.com/manyxlabs/gloss).
 
 ## License
 

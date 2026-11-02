@@ -65,7 +65,7 @@ export function Library() {
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    document.title = 'Margin · Read, excerpt and connect PDFs';
+    document.title = 'Gloss · Read, excerpt and connect PDFs';
     void listProjects().then(setProjects);
   }, []);
 
@@ -104,7 +104,7 @@ export function Library() {
       <header className="bar">
         <span className="brand">
           <Logo />
-          Margin <small>by Manyx Labs</small>
+          Gloss <small>by Manyx Labs</small>
         </span>
         <ThemeToggle />
       </header>
@@ -199,10 +199,10 @@ export function Library() {
         <a href="https://manyxlabs.com" target="_blank" rel="noopener">
           Manyx Labs
         </a>
-        <a href="https://github.com/manyxlabs/margin" target="_blank" rel="noopener">
+        <a href="https://github.com/manyxlabs/gloss" target="_blank" rel="noopener">
           Source on GitHub
         </a>
-        <a href="https://github.com/manyxlabs/margin/issues" target="_blank" rel="noopener">
+        <a href="https://github.com/manyxlabs/gloss/issues" target="_blank" rel="noopener">
           Report a problem
         </a>
       </footer>

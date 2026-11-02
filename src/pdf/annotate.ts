@@ -55,7 +55,7 @@ export async function annotatedPdf(project: Project, docId: string) {
         Type: 'Annot',
         Rect: rect,
         F: 4,
-        T: PDFString.of('Margin'),
+        T: PDFString.of('Gloss'),
         M: PDFString.fromDate(new Date()),
         P: page.ref,
         AP: { N: appearance },

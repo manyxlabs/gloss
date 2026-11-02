@@ -8,7 +8,7 @@ interface Schema extends DBSchema {
   files: { key: string; value: Blob };
 }
 
-const db = openDB<Schema>('margin', 1, {
+const db = openDB<Schema>('gloss', 1, {
   upgrade(d) {
     d.createObjectStore('projects', { keyPath: 'id' });
     d.createObjectStore('files');
