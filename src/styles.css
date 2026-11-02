@@ -1514,12 +1514,18 @@ a.button.primary {
 
 .narrow .zoom .scale,
 .sidebar-beside .zoom .scale {
-  min-width: 40px;
+  min-width: 36px;
 }
 
+/* Sized so the whole toolbar fits half of two panes beside the canvas on a laptop. */
 .narrow .doc-status button.icon,
 .sidebar-beside .doc-status button.icon {
-  width: 28px;
+  width: 26px;
+}
+
+.narrow .page-no,
+.sidebar-beside .page-no {
+  padding: 0 3px;
 }
 
 .page-no {
