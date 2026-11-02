@@ -12,17 +12,25 @@ const HTML = /^(text\/html|application\/xhtml\+xml)$/;
 const IMAGE = /^image\/(png|jpeg|gif|webp|avif|bmp)$/;
 const UA = 'Mozilla/5.0 (compatible; Gloss/1.0; +https://gloss.manyxlabs.com)';
 
-/** A reason to show the reader. */
-class Refusal extends Error {
+/** A reason to show the reader; `upstream` is the status the site answered with, when it was an error. */
+export class Refusal extends Error {
   constructor(
     message: string,
     readonly status = 400,
+    readonly upstream?: number,
   ) {
     super(message);
   }
 }
 
-type Guard = { allowPrivate: boolean; signal: AbortSignal };
+/**
+ * `follow` sees each address a redirect leads to, before it is checked, and may refuse it. `via`
+ * changes where a checked address is fetched from; only the local tests set it.
+ */
+export type Guard = { allowPrivate: boolean; signal: AbortSignal; follow?: (url: URL) => void; via?: (url: URL) => URL };
+/** What is fetched, for the reasons given when it is refused. */
+export type Wanted = { accept: RegExp; max: number; notIt: string; tooLarge: string; headers?: string };
+const PAGE: Pick<Wanted, 'notIt' | 'tooLarge'> = { notIt: 'That address is not a web page.', tooLarge: 'The page is too large.' };
 
 const PRIVATE = 'Addresses on a private network are not fetched.';
 const privateName = (h: string) => !h.includes('.') || /(^|\.)(localhost|local|internal|lan|home\.arpa)$/.test(h);
@@ -82,7 +90,7 @@ async function check(raw: string, { allowPrivate, signal }: Guard) {
   return url;
 }
 
-async function read(body: ReadableStream<Uint8Array> | null, max: number) {
+async function read(body: ReadableStream<Uint8Array> | null, max: number, tooLarge: string) {
   const chunks: Uint8Array[] = [];
   let size = 0;
   const reader = body?.getReader();
@@ -90,7 +98,7 @@ async function read(body: ReadableStream<Uint8Array> | null, max: number) {
     size += r.value.byteLength;
     if (size > max) {
       await reader!.cancel();
-      throw new Refusal('The page is too large.', 413);
+      throw new Refusal(tooLarge, 413);
     }
     chunks.push(r.value);
   }
@@ -100,10 +108,10 @@ async function read(body: ReadableStream<Uint8Array> | null, max: number) {
 }
 
 /** Fetches by hand through redirects, checking every hop, and stops reading past `max` bytes. */
-async function get(raw: string, guard: Guard, accept: RegExp, max: number) {
+export async function get(raw: string, guard: Guard, { accept, max, notIt, tooLarge, headers = 'text/html,application/xhtml+xml,image/*;q=0.8' }: Wanted) {
   let url = await check(raw, guard);
   for (let hop = 0; ; hop++) {
-    const res = await fetch(url, { redirect: 'manual', signal: guard.signal, headers: { accept: 'text/html,application/xhtml+xml,image/*;q=0.8', 'user-agent': UA } });
+    const res = await fetch(guard.via?.(url) ?? url, { redirect: 'manual', signal: guard.signal, headers: { accept: headers, 'user-agent': UA } });
     const location = res.headers.get('location');
     const [type = '', ...params] = (res.headers.get('content-type') ?? '')
       .toLowerCase()
@@ -114,19 +122,24 @@ async function get(raw: string, guard: Guard, accept: RegExp, max: number) {
       return new Refusal(message, status);
     };
     if (res.status >= 300 && res.status < 400 && location) {
-      if (hop === MAX_HOPS) throw await refuse('The page redirects too many times.', 502);
+      if (hop === MAX_HOPS) throw await refuse('The address redirects too many times.', 502);
       await res.body?.cancel();
-      url = await check(new URL(location, url).href, guard);
+      const next = new URL(location, url);
+      guard.follow?.(next);
+      url = await check(next.href, guard);
       continue;
     }
-    if (!res.ok) throw await refuse(`The site answered with an error (${res.status}).`, 502);
-    if (!accept.test(type)) throw await refuse('That address is not a web page.', 415);
-    if (Number(res.headers.get('content-length')) > max) throw await refuse('The page is too large.', 413);
+    if (!res.ok) {
+      await res.body?.cancel();
+      throw new Refusal(`The site answered with an error (${res.status}).`, 502, res.status);
+    }
+    if (!accept.test(type)) throw await refuse(notIt, 415);
+    if (Number(res.headers.get('content-length')) > max) throw await refuse(tooLarge, 413);
     const charset = params
       .find((p) => p.startsWith('charset='))
       ?.slice(8)
       .replace(/"/g, '');
-    return { url, type, charset, bytes: await read(res.body, max) };
+    return { url, type, charset, headers: res.headers, bytes: await read(res.body, max, tooLarge) };
   }
 }
 
@@ -194,7 +207,7 @@ async function clean(html: string, base: URL, allowPrivate: boolean) {
     images.map(async (img, i) => {
       try {
         if (i >= IMAGES.count) throw new Error('too many');
-        const { type, bytes } = await get(img.getAttribute('src') ?? '', guard, IMAGE, IMAGES.each);
+        const { type, bytes } = await get(img.getAttribute('src') ?? '', guard, { ...PAGE, accept: IMAGE, max: IMAGES.each });
         if ((budget -= bytes.byteLength) < 0) throw new Error('over budget');
         img.setAttribute('src', `data:${type};base64,${base64(bytes)}`);
       } catch {
@@ -211,7 +224,7 @@ export async function handlePage(request: Request, env: { ALLOW_PRIVATE_HOSTS?: 
   if (request.method !== 'GET') return json({ error: 'Only GET is supported.' }, 405);
   const allowPrivate = env.ALLOW_PRIVATE_HOSTS === '1';
   try {
-    const page = await get(new URL(request.url).searchParams.get('url') ?? '', { allowPrivate, signal: AbortSignal.timeout(TIMEOUT) }, HTML, MAX_PAGE);
+    const page = await get(new URL(request.url).searchParams.get('url') ?? '', { allowPrivate, signal: AbortSignal.timeout(TIMEOUT) }, { ...PAGE, accept: HTML, max: MAX_PAGE });
     const { document } = parseHTML(decode(page));
     const article = new Readability(document).parse();
     if (!article?.content) throw new Refusal('No article could be found on that page.', 422);

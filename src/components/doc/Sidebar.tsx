@@ -1,12 +1,13 @@
 import { Image, Link2, StickyNote } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { useEffect, useRef, useState } from 'react';
-import { loadDoc, regionImage } from '../../pdf/pdfjs';
+import { useEffect, useState } from 'react';
+import { loadDoc } from '../../pdf/pdfjs';
 import { commentOf, docName, endsOf, quoted } from '../../links';
 import { cardText } from '../../search';
 import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
 import type { Highlight } from '../../types';
+import { Pages } from './Pages';
 
 type OutlineItem = Awaited<ReturnType<PDFDocumentProxy['getOutline']>>[number];
 type Tab = 'contents' | 'pages' | 'highlights';
@@ -15,11 +16,9 @@ const TABS: [Tab, string][] = [
   ['pages', 'Pages'],
   ['highlights', 'Highlights'],
 ];
-/** Thumbnail width in CSS pixels, drawn at the screen's own resolution. */
-const THUMB_WIDTH = 104;
 
-/** The document open in a pane, for the sidebar's lists; null while it opens or if it cannot. */
-function useDoc(docId: string, password?: string) {
+/** The document open in a pane, for the sidebar's lists, opened again for each new version of its `file`; null while it opens or if it cannot. */
+function useDoc(docId: string, password?: string, file?: string) {
   const [doc, setDoc] = useState<{ docId: string; doc: PDFDocumentProxy } | null>(null);
   useEffect(() => {
     let stale = false;
@@ -28,7 +27,7 @@ function useDoc(docId: string, password?: string) {
       () => {},
     );
     return () => void (stale = true);
-  }, [docId, password]);
+  }, [docId, password, file]);
   return doc?.docId === docId ? doc.doc : null;
 }
 
@@ -36,7 +35,8 @@ function useDoc(docId: string, password?: string) {
 export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: string; page: number; onJump: () => void }) {
   const [tab, setTab] = useState<Tab>('contents');
   const password = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.password);
-  const doc = useDoc(docId, password);
+  const file = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.file);
+  const doc = useDoc(docId, password, file);
   return (
     <>
       <div className="side-tabs" role="tablist" aria-label="Sidebar">
@@ -50,7 +50,7 @@ export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: stri
         {!doc ? null : tab === 'contents' ? (
           <Contents doc={doc} docId={docId} pane={pane} onJump={onJump} />
         ) : tab === 'pages' ? (
-          <Pages doc={doc} docId={docId} password={password} pane={pane} current={page} onJump={onJump} />
+          <Pages key={docId} doc={doc} docId={docId} password={password} pane={pane} current={page} onJump={onJump} />
         ) : (
           <Highlights docId={docId} pane={pane} onJump={onJump} />
         )}
@@ -101,77 +101,6 @@ function Contents({ doc, docId, pane, onJump }: { doc: PDFDocumentProxy; docId: 
     </ul>
   );
   return <nav aria-label="Table of contents">{list(outline)}</nav>;
-}
-
-function Pages({ doc, docId, password, pane, current, onJump }: { doc: PDFDocumentProxy; docId: string; password?: string; pane: Pane; current: number; onJump: () => void }) {
-  const list = useRef<HTMLOListElement>(null);
-  const [ratio, setRatio] = useState<number | null>(null);
-  useEffect(() => {
-    void doc.getPage(1).then((p) => {
-      const { width, height } = p.getViewport({ scale: 1 });
-      setRatio(width / height);
-    });
-  }, [doc]);
-
-  // Keeps the current page's thumbnail in view, without scrolling anything else.
-  useEffect(() => {
-    const scroller = list.current?.parentElement;
-    const el = list.current?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!scroller || !el) return;
-    const top = el.offsetTop;
-    if (top < scroller.scrollTop || top + el.offsetHeight > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top - (scroller.clientHeight - el.offsetHeight) / 2;
-  }, [current, ratio]);
-
-  if (!ratio) return null;
-  return (
-    <ol className="thumbs" ref={list}>
-      {Array.from({ length: doc.numPages }, (_, i) => (
-        <li key={i}>
-          <button
-            aria-label={`Page ${i + 1}`}
-            aria-current={current === i + 1 ? 'page' : undefined}
-            onClick={() => {
-              showPage(docId, i + 1, { pane });
-              onJump();
-            }}
-          >
-            <Thumb doc={doc} docId={docId} password={password} page={i + 1} ratio={ratio} />
-            <span>{i + 1}</span>
-          </button>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/** A page drawn small once it scrolls near view, and kept for the next time it is shown. */
-function Thumb({ doc, docId, password, page, ratio }: { doc: PDFDocumentProxy; docId: string; password?: string; page: number; ratio: number }) {
-  const box = useRef<HTMLSpanElement>(null);
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let stale = false;
-    const seen = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        seen.disconnect();
-        void doc
-          .getPage(page)
-          .then((p) => regionImage(docId, password, page, [0, 0, 1, 1], (THUMB_WIDTH * devicePixelRatio) / p.getViewport({ scale: 1 }).width))
-          .then((u) => !stale && setUrl(u));
-      },
-      { root: box.current!.closest('.side-list'), rootMargin: '300px 0px' },
-    );
-    seen.observe(box.current!);
-    return () => {
-      stale = true;
-      seen.disconnect();
-    };
-  }, [doc, docId, password, page]);
-  return (
-    <span className="thumb" ref={box} style={{ aspectRatio: ratio }}>
-      {url && <img src={url} alt="" draggable={false} />}
-    </span>
-  );
 }
 
 const byPlace = (a: Highlight, b: Highlight) =>
