@@ -4,10 +4,11 @@ import { useSyncExternalStore } from 'react';
 const WIDE = '(min-width: 1280px)';
 
 const wide = () => matchMedia(WIDE).matches;
+/** How many document panes there is room for side by side. */
+export const paneRoom = () => (wide() ? 3 : 2);
 const onWide = (change: () => void) => {
   const query = matchMedia(WIDE);
   query.addEventListener('change', change);
   return () => query.removeEventListener('change', change);
 };
-/** How many panes there is room for side by side. */
 export const usePaneRoom = () => (useSyncExternalStore(onWide, wide) ? 3 : 2);

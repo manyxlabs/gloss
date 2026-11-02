@@ -3,13 +3,13 @@ import { useEffect } from 'react';
 import { docName, endsOf, quoted } from '../../links';
 import { cardText } from '../../search';
 import { showEnd, unlinkCard, unlinkPassages } from '../../store/links';
-import { paneCount, showCard, useStore, type Pane } from '../../store/project';
+import { showCard, shownPanes, useStore, type Pane } from '../../store/project';
 import type { Highlight } from '../../types';
 
 /** What a passage's link marker opens: each passage and card it is linked to, to go to or unlink. */
 export function LinkPopover({ highlight, pane, x, y, onClose }: { highlight: Highlight; pane: Pane; x: number; y: number; onClose: () => void }) {
   const project = useStore((s) => s.project);
-  const split = useStore((s) => paneCount(s) > 1);
+  const split = useStore((s) => shownPanes(s) > 1);
   const ends = project ? endsOf(project, highlight.id) : [];
   const only = ends.length === 1 && 'highlight' in ends[0]! ? ends[0].highlight.id : null;
 

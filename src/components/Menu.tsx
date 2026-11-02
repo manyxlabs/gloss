@@ -9,7 +9,20 @@ const EDGE = 8;
  * no room, following it as the page scrolls. It is drawn in the page's body, as a scrolling list or
  * a lifted card would clip or move it. A click elsewhere or Escape closes it.
  */
-export function Menu({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose: () => void; children: ReactNode }) {
+export function Menu({
+  anchor,
+  label,
+  onClose,
+  children,
+  panel,
+}: {
+  anchor: HTMLElement;
+  label: string;
+  onClose: () => void;
+  children: ReactNode;
+  /** A panel of its own controls rather than a list of commands, such as the list of documents. */
+  panel?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const close = useRef(onClose);
@@ -24,24 +37,26 @@ export function Menu({ anchor, label, onClose, children }: { anchor: HTMLElement
       const below = box.bottom + GAP + h <= innerHeight - EDGE;
       setAt({
         top: below ? box.bottom + GAP : Math.max(EDGE, box.top - GAP - h),
-        left: Math.min(Math.max(EDGE, box.right - w), innerWidth - w - EDGE),
+        left: Math.min(Math.max(EDGE, panel ? box.left : box.right - w), innerWidth - w - EDGE),
       });
     };
     place();
-    ref.current!.querySelector<HTMLElement>('[role^="menuitem"]:not(:disabled)')?.focus({ preventScroll: true });
+    ref.current!.querySelector<HTMLElement>(panel ? '[aria-current="page"], button:not(:disabled)' : '[role^="menuitem"]:not(:disabled)')?.focus({ preventScroll: true });
     addEventListener('scroll', place, { capture: true, passive: true });
     addEventListener('resize', place);
     return () => {
       removeEventListener('scroll', place, { capture: true });
       removeEventListener('resize', place);
     };
-  }, [anchor]);
+  }, [anchor, panel]);
 
   useEffect(() => {
-    const inside = (t: EventTarget | null) => t instanceof Node && (ref.current?.contains(t) || anchor.contains(t));
+    // A menu opened from inside a panel is drawn apart from it, yet belongs to it.
+    const inside = (t: EventTarget | null) =>
+      t instanceof Node && (ref.current?.contains(t) || anchor.contains(t) || (!!panel && t instanceof Element && !!t.closest('.menu.floating')));
     const down = (e: PointerEvent) => !inside(e.target) && close.current();
     const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || (panel && document.querySelectorAll('.menu.floating').length > 1)) return;
       close.current();
       anchor.focus();
     };
@@ -51,7 +66,7 @@ export function Menu({ anchor, label, onClose, children }: { anchor: HTMLElement
       removeEventListener('pointerdown', down);
       removeEventListener('keydown', key);
     };
-  }, [anchor]);
+  }, [anchor, panel]);
 
   const step = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -62,7 +77,14 @@ export function Menu({ anchor, label, onClose, children }: { anchor: HTMLElement
   };
 
   return createPortal(
-    <div ref={ref} className="menu glass floating" role="menu" aria-label={label} onKeyDown={step} style={at ?? { top: 0, left: 0, visibility: 'hidden' }}>
+    <div
+      ref={ref}
+      className={`menu glass floating${panel ? ` ${panel}` : ''}`}
+      role={panel ? 'dialog' : 'menu'}
+      aria-label={label}
+      onKeyDown={panel ? undefined : step}
+      style={at ?? { top: 0, left: 0, visibility: 'hidden' }}
+    >
       {children}
     </div>,
     document.body,

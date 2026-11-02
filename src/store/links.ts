@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { prune } from '../links';
 import type { Anchor } from '../pdf/anchor';
 import type { Color, Highlight } from '../types';
-import { addHighlight, edit, paneCount, PANES, setActiveDoc, showSource, uid, useStore, type Pane } from './project';
+import { addHighlight, edit, PANES, setActiveDoc, showSource, shownPanes, uid, useStore, type Pane } from './project';
 
 /**
  * Waiting for the reader to pick a passage: the other end of a link from `from`, or another
@@ -90,7 +90,7 @@ export function showEnd(highlightId: string, from: Pane) {
   const s = useStore.getState();
   const h = s.project?.highlights.find((x) => x.id === highlightId);
   if (!h) return;
-  const n = paneCount(s);
+  const n = shownPanes(s);
   const others = Array.from({ length: n - 1 }, (_, i) => ((from + 1 + i) % n) as Pane);
   const pane = others.find((p) => s[PANES[p]] === h.docId) ?? others[0] ?? from;
   setActiveDoc(h.docId, pane);

@@ -2,7 +2,7 @@ import { Fragment, useRef, useState } from 'react';
 import { paneCount, useStore, type Pane } from '../store/project';
 import { DocPane } from './DocPane';
 import { LinkBanner } from './LinkBanner';
-import { usePaneRoom } from './paneRoom';
+import { usePaneRoom } from '../panes';
 
 const SIZES_KEY = 'gloss:pane-sizes';
 /** No pane is dragged narrower than this share of the documents' width. */
