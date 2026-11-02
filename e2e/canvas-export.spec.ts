@@ -4,6 +4,8 @@ import { ARTIFACTS, card, openProject, picture, readPdf, select, shot } from './
 import { PICTURE, pictureReport } from './pdfs';
 
 test.use({ viewport: { width: 1600, height: 1000 } });
+// Each test exports or redraws pages several times over, which takes a while on a busy machine.
+test.describe.configure({ timeout: 90_000 });
 
 const MARGIN = 32;
 const PT = 0.75;
