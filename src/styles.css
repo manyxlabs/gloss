@@ -1,0 +1,973 @@
+:root {
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --panel-2: #f1f1f4;
+  --text: #17171c;
+  --muted: #62626e;
+  --border: #e3e3e8;
+  --accent: #4f46e5;
+  --accent-ink: #ffffff;
+  --accent-soft: #eef0ff;
+  --reader: #e9e9ee;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
+  --danger: #c2410c;
+
+  --hl-yellow: #fde047;
+  --hl-green: #86efac;
+  --hl-blue: #93c5fd;
+  --hl-pink: #f9a8d4;
+  --hl-purple: #c4b5fd;
+  --edge-yellow: #ca8a04;
+  --edge-green: #16a34a;
+  --edge-blue: #2563eb;
+  --edge-pink: #db2777;
+  --edge-purple: #7c3aed;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #111114;
+  --panel: #1a1a1f;
+  --panel-2: #23232a;
+  --text: #ececf1;
+  --muted: #a0a0ad;
+  --border: #2e2e36;
+  --accent: #8b85ff;
+  --accent-ink: #0f0f14;
+  --accent-soft: #25244a;
+  --reader: #0c0c0f;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
+  --danger: #fb923c;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 'Inter Variable', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+button.icon {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 16px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Header bar, shared by the library and a project. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  margin-right: auto;
+}
+
+.brand small {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.bar .home {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 18px;
+  flex: none;
+}
+
+.bar .home:hover {
+  background: var(--panel-2);
+}
+
+.bar .name {
+  flex: 0 1 260px;
+  min-width: 80px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-weight: 600;
+  font-size: 15px;
+  text-overflow: ellipsis;
+}
+
+.bar .name:hover,
+.bar .name:focus {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+/* Library */
+.library {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.library.dropping {
+  outline: 3px dashed var(--accent);
+  outline-offset: -10px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 16px;
+  flex: 1;
+}
+
+.hero {
+  position: relative;
+  padding: 64px 0 40px;
+}
+
+.art {
+  float: right;
+  width: min(360px, 40%);
+  margin: 4px 0 16px 32px;
+}
+
+@media (max-width: 760px) {
+  .art {
+    float: none;
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    margin: 0 0 28px;
+  }
+}
+
+.features {
+  clear: both;
+  list-style: none;
+  margin: 8px 0 56px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.features li {
+  align-content: start;
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.features span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.hero h1 {
+  font-size: clamp(28px, 5vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  margin: 0 0 14px;
+  max-width: 18ch;
+}
+
+.hero p {
+  color: var(--muted);
+  max-width: 60ch;
+  margin: 0;
+  font-size: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+button.big {
+  padding: 10px 18px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+.hero .hint {
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.library h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.library section[aria-labelledby] {
+  clear: both;
+}
+
+.projects {
+  list-style: none;
+  margin: 0 0 48px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.projects li {
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.projects a {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  color: inherit;
+  text-decoration: none;
+  display: grid;
+}
+
+.projects a span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.projects strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects li:hover {
+  border-color: var(--accent);
+}
+
+.projects button {
+  margin-right: 8px;
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  justify-content: center;
+  padding: 24px 16px;
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+
+.foot a {
+  color: var(--muted);
+}
+
+.problems {
+  position: relative;
+  margin-top: 16px;
+  padding: 10px 40px 10px 14px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  color: var(--danger);
+  background: var(--panel);
+  font-size: 14px;
+}
+
+.problems p {
+  margin: 0;
+}
+
+.problems button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.workspace > .problems {
+  margin: 8px 12px 0;
+}
+
+.lost {
+  padding: 64px 16px;
+  text-align: center;
+}
+
+/* Workspace */
+.workspace {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--split) 6px 1fr;
+}
+
+.divider {
+  cursor: col-resize;
+  background: var(--border);
+  touch-action: none;
+  position: relative;
+}
+
+.divider:hover,
+.divider:active {
+  background: var(--accent);
+}
+
+.switch {
+  display: none;
+}
+
+.search {
+  position: relative;
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 420px;
+  margin-left: auto;
+}
+
+.search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.results {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(480px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+}
+
+.results h3 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 10px 8px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.results button {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  white-space: normal;
+  font-weight: 400;
+  padding: 6px 8px;
+}
+
+.results .page {
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 42px;
+}
+
+.results .snippet {
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.results mark {
+  background: var(--hl-yellow);
+  color: #111;
+  border-radius: 2px;
+}
+
+.results .none {
+  margin: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Documents */
+.doc-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--reader);
+}
+
+.doc-pane.dropping {
+  outline: 3px dashed var(--accent);
+  outline-offset: -6px;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  max-width: 220px;
+  flex: none;
+}
+
+.tab.active {
+  background: var(--accent-soft);
+}
+
+.tab button {
+  border: 0;
+  background: transparent;
+  padding: 5px 4px 5px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.tab.active button {
+  color: var(--text);
+}
+
+.tab button.close {
+  padding: 5px 8px;
+  opacity: 0;
+}
+
+.tab:hover .close,
+.tab.active .close {
+  opacity: 0.7;
+}
+
+.tabs .add {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  flex: none;
+}
+
+.doc-body {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+/* pdf.js requires its scroll container to be absolutely positioned. */
+.doc-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  touch-action: pan-x pan-y;
+}
+
+.pdfViewer {
+  --page-margin: 12px auto;
+  --page-border: 0;
+  padding-bottom: 24px;
+}
+
+.pdfViewer .page {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+
+.hl-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hl {
+  position: absolute;
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+}
+
+.hl-yellow {
+  --hl: var(--hl-yellow);
+  --edge: var(--edge-yellow);
+}
+.hl-green {
+  --hl: var(--hl-green);
+  --edge: var(--edge-green);
+}
+.hl-blue {
+  --hl: var(--hl-blue);
+  --edge: var(--edge-blue);
+}
+.hl-pink {
+  --hl: var(--hl-pink);
+  --edge: var(--edge-pink);
+}
+.hl-purple {
+  --hl: var(--hl-purple);
+  --edge: var(--edge-purple);
+}
+
+.hl {
+  background: var(--hl);
+}
+
+/* An excerpt on the canvas is underlined in the document, so it is clear the passage was used. */
+.hl.linked {
+  box-shadow: inset 0 -2px 0 var(--edge);
+}
+
+.hl.flash {
+  animation: flash 1.6s ease-out;
+}
+
+@keyframes flash {
+  0%,
+  30% {
+    outline: 3px solid var(--edge);
+    outline-offset: 2px;
+  }
+  100% {
+    outline: 3px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+.popup {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  transform: translate(-50%, calc(-100% - 10px));
+  white-space: nowrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+/* On touch screens the system's own copy menu sits above a selection, so ours goes below it. */
+.popup.below {
+  transform: translate(-50%, 34px);
+}
+
+.popup button {
+  padding: 5px 10px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--hl) !important;
+  border: 2px solid transparent;
+}
+
+.swatch.current {
+  border-color: var(--edge);
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+}
+
+.doc-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+.zoom {
+  display: flex;
+  gap: 2px;
+}
+
+.zoom button {
+  border: 0;
+  background: transparent;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+.zoom .scale {
+  min-width: 54px;
+}
+
+/* Canvas */
+.canvas {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.canvas.over {
+  outline: 3px dashed var(--accent);
+  outline-offset: -6px;
+}
+
+.canvas .react-flow {
+  --xy-background-pattern-dots-color-default: var(--border);
+  --xy-edge-stroke-default: var(--muted);
+  --xy-edge-stroke-selected-default: var(--accent);
+  --xy-minimap-background-color-default: var(--panel);
+  --xy-controls-button-background-color-default: var(--panel);
+  --xy-controls-button-background-color-hover-default: var(--panel-2);
+  --xy-controls-button-color-default: var(--text);
+  --xy-controls-button-border-color-default: var(--border);
+  --xy-attribution-background-color-default: transparent;
+  --xy-minimap-mask-background-color-default: color-mix(in srgb, var(--bg) 60%, transparent);
+  --xy-minimap-node-background-color-default: var(--muted);
+  --xy-edge-stroke-width-default: 1.5;
+  background: transparent;
+}
+
+.canvas-tools {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
+.canvas-tools button {
+  box-shadow: var(--shadow);
+}
+
+.canvas-hint {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-width: 340px;
+  padding: 0 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.card {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  font-size: 14px;
+}
+
+.card.excerpt {
+  border-left: 4px solid var(--edge);
+}
+
+.card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.card.excerpt.selected {
+  border-left-color: var(--edge);
+}
+
+.card blockquote {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.card footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.card .source {
+  border: 0;
+  background: var(--panel-2);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.card .source:hover {
+  color: var(--accent);
+}
+
+.card .ghost {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.grow {
+  display: grid;
+}
+
+.grow::after {
+  content: attr(data-value) ' ';
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  visibility: hidden;
+}
+
+.grow::after,
+.grow textarea {
+  grid-area: 1 / 1;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.grow textarea {
+  width: 100%;
+  resize: none;
+  background: transparent;
+  outline: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.card.excerpt .grow {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.card .missing {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.card .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.react-flow__node:hover .card .react-flow__handle,
+.react-flow.connecting .card .react-flow__handle {
+  opacity: 1;
+}
+
+.card .react-flow__resize-control.line.right {
+  border-color: transparent;
+  border-right-width: 8px;
+  cursor: ew-resize;
+}
+
+.react-flow__minimap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Phones: one side at a time. */
+@media (max-width: 760px) {
+  .switch {
+    display: flex;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .switch button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .switch [aria-selected='true'] {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  /* Both sides keep their size while hidden, so the canvas can still place and centre cards. */
+  .panes {
+    position: relative;
+    display: block;
+  }
+
+  .panes > .doc-pane,
+  .panes > .canvas {
+    position: absolute;
+    inset: 0;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  /* Clipped rather than made invisible: React Flow sets its cards visible inline, which would win. */
+  .show-doc .canvas,
+  .show-canvas .doc-pane {
+    clip-path: inset(0 0 100% 0);
+    pointer-events: none;
+  }
+
+  .bar .name {
+    flex: 1 1 0;
+  }
+
+  .search {
+    flex: 0 1 140px;
+  }
+
+  .workspace .bar > button:not(.icon) {
+    display: none;
+  }
+
+  .react-flow__minimap {
+    display: none;
+  }
+}
