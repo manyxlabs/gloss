@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Join } from './components/Join';
 import { Library } from './components/Library';
+import { AppUpdates } from './components/AppUpdates';
 import { PasswordDialog } from './components/PasswordDialog';
 import { parseLink } from './sync/crypto';
 
@@ -32,6 +33,7 @@ export function App() {
         <Library />
       )}
       <PasswordDialog />
+      <AppUpdates />
     </>
   );
 }

@@ -27,6 +27,7 @@ The one other exception is adding a web page: its address goes to Gloss's server
 - **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one).
 - **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
+- **Installable and offline**: install Gloss as an app from the browser; once visited it opens and works with no network, and an installed copy on a computer can open PDFs, Word and PowerPoint files from the file manager. A new version is loaded only when you choose.
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
 - **Search everything**: every page of every PDF, every card and every comment, with Ctrl+K.
 - **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z.
