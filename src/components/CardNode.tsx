@@ -4,6 +4,7 @@ import { outline, pathOf, SCREEN } from '../ink';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, showSource, ungroup, updateCard, useStore } from '../store/project';
 import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
+import { CardLinks } from './CardLinks';
 
 /**
  * A textarea that grows with its text. A hidden copy of the text sizes the box in CSS, so the
@@ -81,7 +82,14 @@ export function CardNode(props: NodeProps<Card>) {
   if (data.kind === 'group') return <GroupCard id={props.id} data={data} selected={selected} />;
   return (
     <>
-      {data.kind === 'ink' ? <InkCard data={data} selected={selected} /> : <TextCard {...props} data={data} />}
+      {data.kind === 'ink' ? (
+        <>
+          <InkCard data={data} selected={selected} />
+          <CardLinks cardId={props.id} />
+        </>
+      ) : (
+        <TextCard {...props} data={data} />
+      )}
       {/* After the card, so they sit above it and can be grabbed. */}
       {SIDES.map((side) => (
         <Handle key={side} id={side} type="source" position={side} />
@@ -131,6 +139,7 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
       ) : (
         <p className="missing">The text this came from is gone.</p>
       )}
+      <CardLinks cardId={id} />
     </article>
   );
 }

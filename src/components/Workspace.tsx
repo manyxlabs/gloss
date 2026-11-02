@@ -6,6 +6,7 @@ import { closeProject, openProject, redo, rename, setView, undo, useStore } from
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
 import { ExportMenu } from './ExportMenu';
+import { InkLink } from './InkLink';
 import { LinkBanner } from './LinkBanner';
 import { Search } from './Search';
 import { Share } from './Share';
@@ -133,6 +134,7 @@ export function Workspace({ id }: { id: string }) {
           <Canvas />
         </ReactFlowProvider>
       </div>
+      <InkLink />
     </div>
   );
 }
