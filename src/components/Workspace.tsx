@@ -8,6 +8,7 @@ import { DocPane } from './DocPane';
 import { ExportMenu } from './ExportMenu';
 import { InkLink } from './InkLink';
 import { LinkBanner } from './LinkBanner';
+import { Lost } from './Lost';
 import { Search } from './Search';
 import { Share } from './Share';
 import { ThemeToggle } from './ThemeToggle';
@@ -78,10 +79,9 @@ export function Workspace({ id }: { id: string }) {
 
   if (missing)
     return (
-      <main className="lost">
-        <p>This project is not in this browser. Projects are kept only on the device they were made on.</p>
-        <a href="#/">All projects</a>
-      </main>
+      <Lost title="This project is not here">
+        Projects are kept in the browser they were made in. To open one on this device, open its share link here, or restore a backup of it from the start page.
+      </Lost>
     );
   if (!project) return null;
 
