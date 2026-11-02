@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { AlignmentType, Document, HeadingLevel, ImageRun, LevelFormat, Packer, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx';
-import { strToU8, zipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { card, select, shot, STANDARD_FONTS } from './helpers';
+import { ARTIFACTS, card, openProject, select, shot, STANDARD_FONTS } from './helpers';
+import { ESSAY } from './pdfs';
 
 type File = { name: string; mimeType: string; buffer: Buffer };
 
@@ -252,4 +253,56 @@ test('Markdown and plain text are typeset, in any Latin, Greek or Cyrillic scrip
   await expect(page.getByRole('tab', { name: 'Diary' })).toHaveAttribute('title', 'Diary\nConverted from Diary.txt');
   await expect(span(page, 'The pools were full of life.')).toBeVisible();
   await excerpt(page, 'A second paragraph', 'flat sand.', 'A second paragraph about the evening tide, which came in quickly over the flat sand.');
+});
+
+test('notes export as Markdown, PDF and Word with the same sections and sources', async ({ page }) => {
+  await openProject(page);
+  await select(page, 'Coral reefs occupy', 'of all marine species.');
+  await page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();
+  const canvas = (await page.locator('.canvas').boundingBox())!;
+  await page.mouse.dblclick(canvas.x + 140, canvas.y + canvas.height - 160);
+  await expect(page.getByRole('textbox', { name: 'Note' })).toBeFocused();
+  await page.keyboard.type('Reefs are small but crowded.');
+  // A highlight left in the document, which the notes list after the canvas.
+  await select(page, 'Rising sea temperatures');
+  await page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Highlight yellow' }).click();
+
+  const save = async (label: string, file: string) => {
+    await page.getByRole('button', { name: 'Export notes' }).click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+    expect(download.suggestedFilename()).toBe(`Reef essay.${file.split('.').pop()}`);
+    copyFileSync(await download.path(), `${ARTIFACTS}/${file}`);
+    return readFileSync(`${ARTIFACTS}/${file}`);
+  };
+  await page.getByRole('button', { name: 'Export notes' }).click();
+  await expect(page.getByRole('menuitem')).toHaveCount(3);
+  await shot(page, 'export-menu');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  const md = (await save('Markdown (.md)', 'export-notes.md')).toString();
+  expect(md).toContain(`> ${ESSAY[0]![1]}\n> (Reef essay, p. 1)`);
+
+  const pdf = await getDocument({ data: new Uint8Array(await save('PDF (.pdf)', 'export-notes.pdf')), standardFontDataUrl: STANDARD_FONTS }).promise;
+  const page1 = await pdf.getPage(1);
+  const items = (await page1.getTextContent()).items.flatMap((i) => ('str' in i ? [i] : []));
+  const pdfText = items.map((i) => i.str).join(' ');
+  for (const words of ['Reef essay', 'Coral reefs occupy', '(Reef essay, p. 1)', 'Reefs are small but crowded.', 'Highlights', 'p. 1: Rising sea temperatures'])
+    expect(pdfText).toContain(words);
+  // The project title is the largest type on the page.
+  const size = (s: string) => Math.max(...items.filter((i) => i.str.includes(s)).map((i) => i.height));
+  expect(size('Reef essay')).toBeGreaterThan(size('Coral reefs occupy') * 1.6);
+
+  const docx = unzipSync(new Uint8Array(await save('Word (.docx)', 'export-notes.docx')));
+  const xml = strFromU8(docx['word/document.xml']!);
+  for (const words of [
+    'Reef essay',
+    'Coral reefs occupy less than one percent',
+    '(Reef essay, p. 1)',
+    'Reefs are small but crowded.',
+    'Highlights',
+    'p. 1: Rising sea temperatures',
+  ])
+    expect(xml).toContain(words);
+  expect(xml).toMatch(/w:pStyle w:val="Title"/);
 });

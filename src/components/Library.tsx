@@ -25,7 +25,7 @@ const FEATURES = [
   [FoldVertical, 'Squeeze the pages between', 'Pinch two distant passages together, or select what is in between and squeeze it, to read them side by side.'],
   [PenLine, 'Write by hand', 'Draw on the page or the canvas with a finger, a mouse or a stylus, which writes even without picking the pen.'],
   [Search, 'Search everything', 'One box searches every page of every PDF and every note you wrote.'],
-  [FileDown, 'Take it with you', 'Export the PDF with your highlights and handwriting as real annotations, or your notes as Markdown.'],
+  [FileDown, 'Take it with you', 'Export the PDF with your highlights and handwriting as real annotations, or your notes as Markdown, PDF or Word.'],
   [Lock, 'Private by design', 'Your PDFs and notes stay in this browser. Nothing is uploaded, and there is no account.'],
 ] as const;
 
