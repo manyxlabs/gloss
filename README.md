@@ -14,8 +14,10 @@ PDFs and notes are kept in the browser's own storage (IndexedDB), nothing is upl
 - **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen.
 - **Groups**: select cards and group them under a name; drag a card in or out, and move the group to move them all.
 - **Export the PDF** with your highlights, excerpt comments and handwriting as standard PDF annotations, so any reader shows them and can edit them.
-- **Several documents in one project**, in tabs, all feeding the same canvas.
-- **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them.
+- **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one).
+- **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
+- **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
+- **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
 - **Search everything**: every page of every PDF and every card, with Ctrl+K.
 - **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z.
 - **Export notes** as Markdown, with groups as sections and each excerpt's source and page.
