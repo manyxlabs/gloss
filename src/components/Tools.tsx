@@ -1,7 +1,9 @@
 import { Eraser, MousePointer2, PenLine, SquareDashed } from 'lucide-react';
 import { PAPER, SCREEN } from '../ink';
 import { setTools, useStore, type DocTool } from '../store/project';
-import { INKS } from '../types';
+import { INKS, type InkColor } from '../types';
+
+const INK_NAMES: Record<InkColor, string> = { ink: 'Black ink', red: 'Red ink', blue: 'Blue ink', green: 'Green ink' };
 
 const TOOLS: [DocTool, string, typeof PenLine][] = [
   ['select', 'Select', MousePointer2],
@@ -34,8 +36,8 @@ export function Tools({ side }: { side: 'docTool' | 'canvasTool' }) {
             key={c}
             className="ink-swatch"
             aria-pressed={ink === c}
-            aria-label={`${c} ink`}
-            title={`${c} ink`}
+            aria-label={INK_NAMES[c]}
+            title={INK_NAMES[c]}
             style={{ color: (side === 'docTool' ? PAPER : SCREEN)[c] }}
             onClick={() => setTools({ inkColor: c })}
           />

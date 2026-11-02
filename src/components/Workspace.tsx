@@ -1,5 +1,5 @@
 import { ReactFlowProvider } from '@xyflow/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { take } from '../notices';
 import { closeProject, openProject, redo, rename, setView, undo, useStore } from '../store/project';
@@ -8,6 +8,7 @@ import { DocPane } from './DocPane';
 import { ExportMenu } from './ExportMenu';
 import { InkLink } from './InkLink';
 import { LinkBanner } from './LinkBanner';
+import { Lost } from './Lost';
 import { Search } from './Search';
 import { Share } from './Share';
 import { ThemeToggle } from './ThemeToggle';
@@ -30,6 +31,8 @@ export function Workspace({ id }: { id: string }) {
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
   const side = useStore((s) => s.sideDocId !== null);
+  const canUndo = useStore((s) => s.past.length > 0);
+  const canRedo = useStore((s) => s.future.length > 0);
   const body = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,10 +79,9 @@ export function Workspace({ id }: { id: string }) {
 
   if (missing)
     return (
-      <main className="lost">
-        <p>This project is not in this browser. Projects are kept only on the device they were made on.</p>
-        <a href="#/">All projects</a>
-      </main>
+      <Lost title="This project is not here">
+        Projects are kept in the browser they were made in. To open one on this device, open its share link here, or restore a backup of it from the start page.
+      </Lost>
     );
   if (!project) return null;
 
@@ -94,9 +96,25 @@ export function Workspace({ id }: { id: string }) {
           aria-label="Project name"
           defaultValue={project.name}
           key={`${project.id}:${project.name}`}
-          onBlur={(e) => e.target.value.trim() && rename(e.target.value.trim())}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          onBlur={(e) => {
+            const name = e.target.value.trim();
+            // A project cannot be left without a name: an empty one goes back to what it was.
+            if (name) rename(name);
+            e.target.value = name || project.name;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') e.currentTarget.value = project.name;
+            if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
+          }}
         />
+        <span className="history">
+          <button className="icon" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
+            <Undo2 size={17} />
+          </button>
+          <button className="icon" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled={!canRedo} onClick={redo}>
+            <Redo2 size={17} />
+          </button>
+        </span>
         <Search />
         <Share />
         <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} />

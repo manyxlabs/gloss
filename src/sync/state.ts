@@ -30,6 +30,8 @@ const firstColor = () => {
   keep('gloss:color', color);
   return color;
 };
+/** The name of someone who would rather not give one. */
+export const GUEST = 'Guest';
 /** How this person appears to the others in a shared project. */
 export const useMe = create(() => ({ name: stored('gloss:name') ?? '', color: firstColor() }));
 export const setName = (name: string) => {
