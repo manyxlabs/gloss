@@ -1,12 +1,13 @@
 import { typeset, type Block } from './convert/typeset';
 import type { NoteItem, Outline } from './export';
+import { inkPng } from './inkImage';
 
 const para = (text: string, muted?: boolean): Block => ({ kind: 'para', runs: [{ text }], ...(muted ? { muted } : {}) });
 
-function item(i: NoteItem): Block[] {
+async function item(i: NoteItem): Promise<Block[]> {
   const body: Block[] =
-    i.kind === 'note'
-      ? [para(i.text)]
+    i.kind !== 'excerpt'
+      ? [...(i.kind === 'note' && i.text ? [para(i.text)] : []), ...(i.ink ? [{ kind: 'image', data: await inkPng(i.ink) } as const] : [])]
       : [
           { kind: 'quote', blocks: [para(i.text), para(`(${i.doc}, p. ${i.page})`, true)] },
           ...(i.note ? [para(`Comment: ${i.note}`)] : []),
@@ -20,7 +21,7 @@ export async function notesPdf(o: Outline) {
   const blocks: Block[] = [{ kind: 'heading', level: 1, runs: [{ text: o.title }] }];
   for (const s of o.sections) {
     if (s.title !== undefined) blocks.push({ kind: 'heading', level: 2, runs: [{ text: s.title }] });
-    s.items.forEach((i, n) => blocks.push(...(n ? [{ kind: 'rule' } as const] : []), ...item(i)));
+    for (const [n, i] of s.items.entries()) blocks.push(...(n ? [{ kind: 'rule' } as const] : []), ...(await item(i)));
   }
   if (o.highlights.length) {
     blocks.push({ kind: 'heading', level: 2, runs: [{ text: 'Highlights' }] });

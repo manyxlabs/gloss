@@ -34,13 +34,7 @@ export function ColorPicker({ current, label, onPick }: { current?: Color; label
   const [editing, setEditing] = useState<number | null>(null);
   const other = current && !favourites.includes(current) ? current : null;
   const swatch = (c: Color) => (
-    <button
-      key={c}
-      className={`swatch hl-${c}${c === current ? ' current' : ''}`}
-      aria-label={label(SWATCHES[c].name)}
-      title={label(SWATCHES[c].name)}
-      onClick={() => onPick(c)}
-    />
+    <button key={c} className={`swatch hl-${c}${c === current ? ' current' : ''}`} aria-label={label(SWATCHES[c].name)} title={label(SWATCHES[c].name)} onClick={() => onPick(c)} />
   );
   return (
     <>

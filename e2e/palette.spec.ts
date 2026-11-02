@@ -36,7 +36,10 @@ test('32 colours: favourites inline, the rest under More, on the page, on cards,
   for (const c of COLORS) {
     toolbar = await openHighlight(page, 'Coral reefs occupy');
     await toolbar.getByRole('button', { name: 'More colours' }).click();
-    await page.getByRole('dialog', { name: 'All colours' }).getByRole('button', { name: `Make it ${SWATCHES[c].name}`, exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'All colours' })
+      .getByRole('button', { name: `Make it ${SWATCHES[c].name}`, exact: true })
+      .click();
     await expect(mark(page)).toHaveCSS('background-color', rgb(SWATCHES[c].fill));
     await expect(excerpt).toHaveCSS('border-left-color', rgb(SWATCHES[c].edge));
   }
