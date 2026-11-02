@@ -6,14 +6,20 @@ Pull passages out of your documents, arrange and connect them, add your own note
 Everything runs in the browser.
 PDFs and notes are kept in the browser's own storage (IndexedDB), and there is no account.
 Nothing is uploaded unless you share a project, and then only encrypted.
-The one other exception is adding a web page: its address goes to Gloss's server, which fetches the page because a browser may not read other sites.
+The one other exception is adding from a link: the address goes to Gloss's server, which fetches the page or file because a browser may not read other sites.
 
 ## What it does
 
 - **More than PDFs.** Word (.docx) and PowerPoint (.pptx) files, images (JPG, PNG, WebP, GIF, HEIC), text and Markdown are converted in the browser into PDFs with real, selectable text, so everything else works on them as on any PDF.
   Images added together become one PDF, a page each.
   A slide deck becomes one landscape page per slide.
-- **Web pages.** Add from the web with an address: the article is kept with its title, author, pictures, source address and the date it was saved.
+- **Web pages.** Add from a link with a page's address: the article is kept with its title, author, pictures, source address and the date it was saved.
+- **Share links.** A share link from Google Drive (including Google Docs, Slides and Sheets, exported as PDFs), Dropbox, OneDrive or SharePoint, or Box adds the file itself rather than the page that shows it, as does a link straight to a file.
+  The file is then converted like any file opened from the computer.
+  A private link is refused with a reason: share the file so that anyone with the link can view it.
+- **Page tools** in the sidebar's Pages tab: rotate, move, duplicate and delete pages, and insert pages from any file Gloss opens, before or after a page.
+  Pick several pages with Ctrl or Shift, use a page's menu, or drag pages to a new place.
+  Highlights, figures, comments, handwriting and excerpts move with their pages, and turn with them; deleting pages that hold any asks first, with counts.
 - **Excerpts that link back.** Select text and press Excerpt, or drag the selection onto the canvas. The card opens the document at the passage, and clicking the passage shows its card.
 - **Highlights** in five colours, kept apart from excerpts until you want them on the canvas.
 - **Figures and tables**: pick Snip and draw a box around one. Excerpted, its card shows that part of the page as a picture, drawn from the PDF.
@@ -29,7 +35,9 @@ The one other exception is adding a web page: its address goes to Gloss's server
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
 - **Search everything**: every page of every PDF, every card and every comment, with Ctrl+K.
-- **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z.
+- **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z, page edits included.
+- **Folders** on the start page: file projects in folders from a project's folder button or by dragging, rename, collapse and delete them (their projects are kept).
+  Projects are listed by when they were last opened.
 - **Export notes** as Markdown, PDF or Word, with groups as sections and each excerpt's source and page.
 - **Phones**: one side at a time, touch selection, and pinch to zoom the page.
 - **Sync and work together**, end-to-end encrypted, when you choose to share a project.
@@ -37,7 +45,8 @@ The one other exception is adding a web page: its address goes to Gloss's server
 ## Sync and sharing
 
 A project stays on its device until you press **Share** in its header and create a link.
-Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, handwriting, squeezes, canvases and the project's name.
+Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, handwriting, squeezes, canvases, page edits and the project's name.
+Library folders stay with each device.
 Everyone in the project shows as an avatar with where they are reading, and their pointer shows on the canvas.
 Edits made offline are kept and merge when the connection returns.
 **Stop syncing on this device** keeps the local copy but stops exchanging changes; the others carry on.
@@ -46,6 +55,7 @@ Each project is a [Yjs](https://yjs.dev) document with a map per kind of thing, 
 Selection, undo history and the page you were reading on stay with each device.
 The Worker relays changes through a Durable Object per shared project, over a WebSocket that hibernates while nobody is editing, and keeps the PDFs in R2.
 It keeps a log of changes, which devices replace with a snapshot once it grows long.
+An edit to a document's pages stores a new version of its file under a new name; the document's entry names that version, so the other devices fetch it, and switch to it once it has arrived.
 
 ### Security model
 
@@ -76,11 +86,12 @@ npm run test:e2e
 npm run test:sync
 ```
 
-Adding web pages needs the Worker in `worker/`, which `npm run worker` runs locally.
-Its tests run the built app under `wrangler dev` next to a small local site:
+Adding from links needs the Worker in `worker/`, which `npm run worker` runs locally.
+Its tests run the built app under `wrangler dev`: web pages next to a small local site, and share links against a local server that answers at the cloud storage providers' addresses, which the test Worker is pointed at with `TEST_PROVIDER_ORIGIN` (unset, as in production, nothing is redirected).
 
 ```sh
 npx playwright test -c playwright.import.config.ts
+npx playwright test -c playwright.links.config.ts
 ```
 
 The end-to-end tests build the app, drive it in Chromium on a desktop and a phone viewport, and leave screenshots and the exported notes in `test-results/artifacts/`.
@@ -101,6 +112,24 @@ Conversion keeps a document's words, structure and pictures, not its exact look.
   Scripts whose letters must be joined or reordered (Devanagari, Arabic, Hebrew, Thai and others) and Chinese, Japanese and Korean cannot be set as text by the PDF library Gloss uses, so a paragraph in them is drawn by the browser and placed as a picture, with a warning.
   Such paragraphs cannot be selected, excerpted or searched.
   In tables and code, characters the font lacks become “?”.
+
+## Page tools
+
+Each edit is written with pdf-lib into a new version of the file, stored beside the old one, and the document switches to it in one step.
+The page tree is rewritten in place, so the table of contents, links, forms and metadata stay, and objects nothing refers to any more are dropped, so deleting pages makes the file smaller.
+A duplicated page shares its original's content but not its links or form fields.
+A squeeze is kept only where it still hides the same pages, unturned; others are opened.
+Undo switches back to the earlier version, which is kept while the undo history needs it; the history keeps the last ten versions of files, and older page edits drop out of it.
+A password protected PDF cannot be rewritten: page tools ask for a copy without the password.
+
+## Adding from links
+
+`/api/file` turns a share link into the address that downloads its file (Drive's `uc?export=download`, following its confirm page for files too large to scan; Dropbox's `dl=1`; OneDrive's shares API; SharePoint's `download=1`; Box's shared static link), then fetches it with the same checks as a web page: http and https only, names checked against private networks over DNS, every redirect checked again, a time limit, and a 50 MB limit.
+Only PDFs, Word and PowerPoint files, images and text come back, recognised by their first bytes as many downloads are labelled only as bytes.
+A redirect to a sign in page, or a refusal from the provider, is reported as a private link.
+
+Pickers that browse a Google Drive, Dropbox, OneDrive or Box account need app keys registered with each provider, which Gloss does not have.
+A picker would hand its files to the same path as files opened from the computer: `addDocs` (or `importFiles` from the start page), which converts them in `src/convert`.
 
 ## Contributing
 
