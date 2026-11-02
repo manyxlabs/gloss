@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { ARTIFACTS, openProject, readPdf, select, shot } from './helpers';
 
 const selection = (page: Page) => page.getByRole('toolbar', { name: 'Selection' });
@@ -59,9 +60,9 @@ test('documents exported as one PDF, in the order chosen, with their annotations
     expect(pdf.numPages).toBe(2 + 3 + 1);
     expect(await textOf(pdf, 1)).toContain('Field notes from the reef survey');
     expect(await textOf(pdf, 3)).toContain('The ocean covers');
-    const canvas = await textOf(pdf, 6);
-    expect(canvas).toContain('Coral reefs occupy');
-    expect(canvas).toContain('Reef essay · p. 1');
+    // The canvas is the picture the Export menu makes of it.
+    const canvas = await (await pdf.getPage(6)).getOperatorList();
+    expect(canvas.fnArray).toContain(OPS.paintImageXObject);
   });
 
   await test.step('An outline entry for each document, holding its bookmarks', async () => {

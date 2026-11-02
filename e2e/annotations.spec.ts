@@ -112,10 +112,12 @@ test('annotations from another app are brought in as highlights, comments, a can
   const marks = page.locator('.pdfViewer > .page[data-page-number="1"] .hl');
   await expect(marks).toHaveCount(4);
   const coral = page.locator('.pdfViewer > .page[data-page-number="1"] .hl.hl-yellow').first();
-  const words = await textBox(page, 'Coral reefs occupy');
-  const box = (await coral.boundingBox())!;
-  expect(inside(words, box)).toBeGreaterThan(0.85);
-  expect(inside(box, words)).toBeGreaterThan(0.6);
+  // The page is redrawn as the cleaned file opens, so the mark is measured once it has settled.
+  const overlap = async () => {
+    const [words, box] = [await textBox(page, 'Coral reefs occupy'), await coral.boundingBox()];
+    return box ? Math.min(inside(words, box) / 0.85, inside(box, words) / 0.6) : 0;
+  };
+  await expect.poll(overlap).toBeGreaterThan(1);
   await expect(page.locator('.note-mark')).toHaveCount(3);
 
   await openHighlights(page);

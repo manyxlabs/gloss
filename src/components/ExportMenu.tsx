@@ -2,6 +2,7 @@ import { ChevronDown, NotebookText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { download, outline, toMarkdown } from '../export';
 import { useStore } from '../store/project';
+import { openCanvasExport } from './CanvasExport';
 import { CombinedExport } from './CombinedExport';
 
 const FORMATS = [
@@ -16,6 +17,7 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
   const [busy, setBusy] = useState(false);
   const [combining, setCombining] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const noCards = useStore((s) => !s.project?.cards.length);
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +64,9 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
             </button>
           ))}
           <hr />
+          <button role="menuitem" disabled={noCards} onClick={() => (setOpen(false), openCanvasExport())}>
+            Canvas as a picture…
+          </button>
           <button role="menuitem" onClick={() => (setOpen(false), setCombining(true))}>
             Documents as one PDF…
           </button>

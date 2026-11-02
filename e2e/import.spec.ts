@@ -259,8 +259,8 @@ test('notes export as Markdown, PDF and Word with the same sections and sources'
     return readFileSync(`${ARTIFACTS}/${file}`);
   };
   await page.getByRole('button', { name: 'Export notes' }).click();
-  // The three formats, then the documents as one PDF.
-  await expect(page.getByRole('menuitem')).toHaveText(['Markdown (.md)', 'PDF (.pdf)', 'Word (.docx)', 'Documents as one PDF…']);
+  // The three formats, then the canvas as a picture and the documents as one PDF.
+  await expect(page.getByRole('menuitem')).toHaveText(['Markdown (.md)', 'PDF (.pdf)', 'Word (.docx)', 'Canvas as a picture…', 'Documents as one PDF…']);
   await shot(page, 'export-menu');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
