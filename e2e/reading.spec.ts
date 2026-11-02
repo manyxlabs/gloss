@@ -90,7 +90,7 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await expect(page.locator('.react-flow__edge')).toHaveCount(1);
   await expect(page.getByRole('textbox', { name: 'Note' })).toHaveValue('Bleaching and low grazing seem linked.');
   await page.goto('/');
-  await expect(page.getByRole('link', { name: /Reef essay.*2 PDFs · 3 cards/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Reef essay.*2 documents · 3 cards/ })).toBeVisible();
 });
 
 test('a phone shows one side at a time and excerpts a touch selection', async ({ browser }) => {

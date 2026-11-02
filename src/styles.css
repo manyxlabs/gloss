@@ -431,7 +431,7 @@ button.link:hover:not(:disabled) {
   font-size: 14px;
 }
 
-.library h2 {
+.library main > section > h2 {
   font-size: 13px;
   font-weight: 650;
   text-transform: uppercase;
@@ -2488,4 +2488,49 @@ dialog.sheet::backdrop {
 .popup textarea {
   user-select: text;
   -webkit-user-select: text;
+}
+
+/* Someone with projects sees them first, under a row with the ways to start another. */
+.projects-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px 0 16px;
+}
+
+.projects-head > h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.returning .projects {
+  margin-bottom: 20px;
+}
+
+.projects-head .actions {
+  margin: 0;
+}
+
+.returning .more,
+.returning .hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.returning .hint {
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 40px;
+}
+
+.returning .problems {
+  margin: 0 0 16px;
 }

@@ -2,7 +2,7 @@ import { Download, FolderOpen, MonitorDown, FileDown, FoldVertical, Link2, Lock,
 import { useEffect, useRef, useState } from 'react';
 import { backupOf, BackupError, isBackup, restore } from '../backup';
 import { download } from '../download';
-import type { Input } from '../convert';
+import type { ConvertOptions, Input } from '../convert';
 import { ACCEPT } from '../convert/formats';
 import { leave } from '../notices';
 import { deleteProject, listProjects, putProject } from '../store/db';
@@ -78,7 +78,7 @@ export function Library() {
     void listProjects().then(setProjects);
   }, []);
 
-  const start = async (all: Input[]) => {
+  const start = async (all: Input[], how: ConvertOptions = {}) => {
     setBusy(true);
     try {
       // Backups come back as the projects they hold; anything else starts a new project.
@@ -88,7 +88,13 @@ export function Library() {
       const failed: string[] = [];
       for (const b of backups) {
         try {
-          restored.push((await restore(b)).id);
+          // Restoring adds a copy each time, which is rarely meant twice over.
+          const project = await restore(b, (name, original) =>
+            confirm(
+              original ? `“${name}”, the project in this backup, is already here. Restore a copy of it?` : `This backup was already restored as “${name}”. Restore another copy?`,
+            ),
+          );
+          if (project) restored.push(project.id);
         } catch (err) {
           failed.push(err instanceof BackupError ? err.message : `${b.name} could not be restored.`);
         }
@@ -100,8 +106,8 @@ export function Library() {
         return;
       }
       // Loaded here rather than imported above, so pdf.js is not part of the start page.
-      const { importFiles, newProject } = await import('../store/project');
-      const { project, problems } = await importFiles(newProject('Untitled project'), inputs);
+      const { importFiles, newProject, UNTITLED } = await import('../store/project');
+      const { project, problems } = await importFiles(newProject(UNTITLED), inputs, how);
       setProblems([...failed, ...problems]);
       if (inputs.length && !project.docs.length) return;
       await putProject({ ...project, name: project.docs[0]?.name ?? project.name });
@@ -122,6 +128,85 @@ export function Library() {
       if (files.length) void startRef.current(await Promise.all(files.map((f) => f.getFile())));
     });
   }, []);
+
+  // Someone with projects comes back to them first; the introduction is for a first visit.
+  const returning = !!projects?.length;
+  const actions = (
+    <div className="actions">
+      <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
+        <FolderOpen size={18} /> {busy ? 'Opening…' : 'Open files'}
+      </button>
+      <WebPicker kind="big" add={(url, how) => start([{ url }], how)} />
+    </div>
+  );
+  const more = (
+    <p className="more">
+      <button className="link" disabled={busy} onClick={() => void start([])}>
+        Start an empty project
+      </button>
+      <span aria-hidden="true">·</span>
+      <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
+        Restore a backup
+      </button>
+    </p>
+  );
+  const hint = (
+    <p className="hint">
+      <span className="mouse-only">Or drop files anywhere here:</span>
+      <span className="touch-only">Opens:</span>
+      {['PDF', 'Word', 'PowerPoint', 'Images', 'Text', 'Markdown', 'Web pages', '.gloss backup'].map((f) => (
+        <span key={f} className="chip">
+          {f}
+        </span>
+      ))}
+    </p>
+  );
+  const problemList = problems.length > 0 && (
+    <div className="problems" role="alert">
+      {problems.map((p) => (
+        <p key={p}>{p}</p>
+      ))}
+    </div>
+  );
+  const projectList = (
+    <ul className="projects">
+      {projects?.map((p) => (
+        <li key={p.id} className="glass">
+          <a href={`#/p/${p.id}`}>
+            <strong>{p.name}</strong>
+            <span>
+              {plural(p.docs.length, 'document')} · {plural(p.cards.length, 'card')} · {ago(p.updatedAt)}
+            </span>
+          </a>
+          <button
+            className="icon"
+            aria-label={`Back up ${p.name}`}
+            title="Download a backup: the project and its documents in one file"
+            onClick={async () => {
+              try {
+                download(`${p.name}.gloss`, await backupOf(p));
+              } catch (err) {
+                setProblems([(err as Error).message]);
+              }
+            }}
+          >
+            <Download size={17} />
+          </button>
+          <button
+            className="ghost"
+            aria-label={`Delete ${p.name}`}
+            onClick={async () => {
+              if (!confirm(`Delete “${p.name}” and its documents from this browser? This cannot be undone.`)) return;
+              await deleteProject(p);
+              setProjects(await listProjects());
+            }}
+          >
+            Delete
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div
@@ -152,129 +237,74 @@ export function Library() {
         <ThemeToggle />
       </header>
 
-      <main className="wrap">
-        <section className="hero">
-          <div>
-            <span className="eyebrow">
-              <Sparkles size={14} /> Free, private, in your browser
-            </span>
-            <h1>
-              Read your documents next to <em>a canvas for your thinking.</em>
-            </h1>
-            <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
-            <div className="actions">
-              <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
-                <FolderOpen size={18} /> {busy ? 'Opening…' : 'Open files'}
-              </button>
-              <WebPicker big add={(url) => start([{ url }])} />
-            </div>
-            <p className="more">
-              <button className="link" disabled={busy} onClick={() => void start([])}>
-                Start an empty project
-              </button>
-              <span aria-hidden="true">·</span>
-              <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
-                Restore a backup
-              </button>
-            </p>
-            <p className="hint">
-              Or drop files anywhere here:
-              {['PDF', 'Word', 'PowerPoint', 'Images', 'Text', 'Markdown', '.gloss backup'].map((f) => (
-                <span key={f} className="chip">
-                  {f}
-                </span>
-              ))}
-            </p>
-            <input
-              ref={restoreInput}
-              type="file"
-              accept=".gloss"
-              hidden
-              onChange={(e) => {
-                const files = [...(e.target.files ?? [])];
-                e.target.value = '';
-                if (files.length) void start(files);
-              }}
-            />
-            <input
-              ref={input}
-              type="file"
-              accept={ACCEPT}
-              multiple
-              hidden
-              onChange={(e) => {
-                const files = [...(e.target.files ?? [])];
-                e.target.value = '';
-                if (files.length) void start(files);
-              }}
-            />
-            {problems.length > 0 && (
-              <div className="problems" role="alert">
-                {problems.map((p) => (
-                  <p key={p}>{p}</p>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="art-frame glass">
-            <Illustration />
-          </div>
-        </section>
-
-        {projects?.length === 0 && (
-          <ul className="features">
-            {FEATURES.map(([Icon, title, text]) => (
-              <li key={title} className="glass">
-                <Icon size={20} />
-                <strong>{title}</strong>
-                <span>{text}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {projects && projects.length > 0 && (
+      <main className={`wrap${returning ? ' returning' : ''}`}>
+        {returning ? (
           <section aria-labelledby="projects-h">
-            <h2 id="projects-h">Your projects</h2>
-            <ul className="projects">
-              {projects.map((p) => (
-                <li key={p.id} className="glass">
-                  <a href={`#/p/${p.id}`}>
-                    <strong>{p.name}</strong>
-                    <span>
-                      {plural(p.docs.length, 'PDF')} · {plural(p.cards.length, 'card')} · {ago(p.updatedAt)}
-                    </span>
-                  </a>
-                  <button
-                    className="icon"
-                    aria-label={`Back up ${p.name}`}
-                    title="Download a backup: the project and its PDFs in one file"
-                    onClick={async () => {
-                      try {
-                        download(`${p.name}.gloss`, await backupOf(p));
-                      } catch (err) {
-                        setProblems([(err as Error).message]);
-                      }
-                    }}
-                  >
-                    <Download size={17} />
-                  </button>
-                  <button
-                    className="ghost"
-                    aria-label={`Delete ${p.name}`}
-                    onClick={async () => {
-                      if (!confirm(`Delete “${p.name}” and its PDFs from this browser? This cannot be undone.`)) return;
-                      await deleteProject(p);
-                      setProjects(await listProjects());
-                    }}
-                  >
-                    Delete
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="projects-head">
+              <h2 id="projects-h">Your projects</h2>
+              {actions}
+            </div>
+            {problemList}
+            {projectList}
+            {more}
+            {hint}
           </section>
+        ) : (
+          projects && (
+            <>
+              <section className="hero">
+                <div>
+                  <span className="eyebrow">
+                    <Sparkles size={14} /> Free, private, in your browser
+                  </span>
+                  <h1>
+                    Read your documents next to <em>a canvas for your thinking.</em>
+                  </h1>
+                  <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
+                  {actions}
+                  {more}
+                  {hint}
+                  {problemList}
+                </div>
+                <div className="art-frame glass">
+                  <Illustration />
+                </div>
+              </section>
+              <ul className="features">
+                {FEATURES.map(([Icon, title, text]) => (
+                  <li key={title} className="glass">
+                    <Icon size={20} />
+                    <strong>{title}</strong>
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )
         )}
+        <input
+          ref={restoreInput}
+          type="file"
+          accept=".gloss"
+          hidden
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            if (files.length) void start(files);
+          }}
+        />
+        <input
+          ref={input}
+          type="file"
+          accept={ACCEPT}
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            if (files.length) void start(files);
+          }}
+        />
       </main>
 
       <footer className="foot">

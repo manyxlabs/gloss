@@ -435,6 +435,8 @@ test('links and shared comments survive a backup, and comments saved before shar
   const file = `${ARTIFACTS}/Reef essay with links.gloss`;
   copyFileSync(await download.path(), file);
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Restore a backup' }).click()]);
+  // Restored beside the project it came from, which Gloss checks is meant.
+  page.once('dialog', (d) => d.accept());
   await chooser.setFiles({ name: 'Reef essay.gloss', mimeType: 'application/octet-stream', buffer: readFileSync(file) });
   await expect(page.getByRole('tab', { name: 'Survey notes' })).toBeVisible();
   await expect(linkMarks(page)).toHaveCount(2);

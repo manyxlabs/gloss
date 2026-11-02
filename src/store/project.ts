@@ -1,7 +1,7 @@
 import { addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, type NodeChange, type XYPosition } from '@xyflow/react';
 import { create } from 'zustand';
 import { before } from '../pdf/folds';
-import type { Input } from '../convert';
+import type { ConvertOptions, Input } from '../convert';
 import { migrate, prune } from '../links';
 import { closeDocs, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
@@ -179,6 +179,8 @@ export function closeProject() {
   set({ project: null, activeDocId: null, sideDocId: null, past: [], future: [] });
 }
 
+export const UNTITLED = 'Untitled project';
+
 export const newProject = (name: string): Project => ({
   id: uid(),
   name,
@@ -226,9 +228,9 @@ async function openProtected(data: Blob, name: string) {
 }
 
 /** Converts what was added to PDFs and stores them. Returns a message for each file that could not be added, or added only in part. */
-export async function importFiles(project: Project, inputs: Input[]): Promise<{ project: Project; problems: string[] }> {
+export async function importFiles(project: Project, inputs: Input[], options: ConvertOptions = {}): Promise<{ project: Project; problems: string[] }> {
   const { convert } = await import('../convert');
-  const { converted, problems } = await convert(inputs);
+  const { converted, problems } = await convert(inputs, options);
   const added: [DocMeta, Blob][] = [];
   for (const { name, data, source } of converted) {
     try {
@@ -251,13 +253,15 @@ export async function importFiles(project: Project, inputs: Input[]): Promise<{ 
   return { project: next, problems };
 }
 
-export async function addDocs(files: Input[]) {
+export async function addDocs(files: Input[], options: ConvertOptions = {}) {
   const { project } = get();
   if (!project) return [];
-  const { project: next, problems } = await importFiles(project, files);
-  const first = next.docs[project.docs.length];
+  const { project: next, problems } = await importFiles(project, files, options);
+  const added = next.docs.slice(project.docs.length);
+  const first = added[0];
   // Another edit may have landed while the files were read; only the documents are taken from `next`.
-  edit((p) => ({ docs: [...p.docs, ...next.docs.slice(project.docs.length)] }), false);
+  // An empty project still unnamed takes the name of what it was given first.
+  if (first) edit((p) => ({ docs: [...p.docs, ...added], ...(!p.docs.length && p.name === UNTITLED ? { name: first.name } : {}) }));
   if (first) set({ activeDocId: first.id });
   return problems;
 }
