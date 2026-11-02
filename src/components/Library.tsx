@@ -6,6 +6,7 @@ import { ACCEPT } from '../convert/formats';
 import { leave } from '../notices';
 import { listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
+import { AllSearch } from './AllSearch';
 import { Logo } from './Logo';
 import { Projects } from './Projects';
 import { ThemeToggle } from './ThemeToggle';
@@ -190,6 +191,7 @@ export function Library() {
         {returning ? (
           <>
             {problemList}
+            <AllSearch />
             <Projects projects={projects!} reload={async () => setProjects(await listProjects())} onProblems={setProblems} actions={actions} />
             {more}
             {hint}
