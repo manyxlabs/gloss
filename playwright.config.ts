@@ -5,8 +5,8 @@ const port = Number(process.env.PORT ?? 4340);
 
 export default defineConfig({
   testDir: 'e2e',
-  // Sync needs the Worker, so it has its own config: playwright.sync.config.ts.
-  testIgnore: 'sync.spec.ts',
+  // Sync needs the Worker, so its specs, sync.spec.ts and *.sync.spec.ts, have their own config: playwright.sync.config.ts.
+  testIgnore: /sync\.spec\.ts$/,
   outputDir: 'test-results/playwright',
   use: {
     baseURL: process.env.BASE_URL ?? `http://localhost:${port}`,

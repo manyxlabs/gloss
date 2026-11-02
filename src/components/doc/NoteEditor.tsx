@@ -1,6 +1,7 @@
 import { Link2, Trash2, Unlink } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CopyLink, LinkChips } from '../LinkChips';
+import { MentionSuggest } from '../Mentions';
 
 /**
  * Writes or edits the comment pinned beside a highlight. Kept as a draft until saved, so the whole edit is one undo step.
@@ -25,6 +26,7 @@ export function NoteEditor({
   onDetach: () => void;
 }) {
   const [draft, setDraft] = useState(note ?? '');
+  const field = useRef<HTMLTextAreaElement>(null);
   return (
     <form
       className="note-editor"
@@ -34,6 +36,7 @@ export function NoteEditor({
       }}
     >
       <textarea
+        ref={field}
         aria-label="Comment"
         placeholder="Your comment"
         rows={3}
@@ -49,6 +52,7 @@ export function NoteEditor({
           } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSave(draft);
         }}
       />
+      <MentionSuggest field={field} />
       <LinkChips text={draft} />
       {shared > 1 && <p className="shared">On {shared} passages. Editing it here edits it on all of them.</p>}
       <div className="row">

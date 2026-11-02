@@ -30,6 +30,22 @@ const firstColor = () => {
   keep('gloss:color', color);
   return color;
 };
+/** Who this person is in every shared project, kept on this device: names can change, and two people can share one. */
+export const PERSON = (() => {
+  const saved = stored('gloss:person');
+  if (saved) return saved;
+  const id = crypto.randomUUID();
+  keep('gloss:person', id);
+  return id;
+})();
+
+/** Someone who has been in a shared project, as their device last wrote it. */
+export type Person = { id: string; name: string; color: string };
+/** Who added, changed or removed what, and when; `text` is a few words of it. */
+export type Activity = { by: string; at: number; list: string; id: string; op: 'add' | 'edit' | 'remove'; text: string };
+/** The open shared project's people and recent activity, as its shared document has them. */
+export const useActivity = create<{ people: Person[]; activity: Activity[] }>(() => ({ people: [], activity: [] }));
+
 /** The name of someone who would rather not give one. */
 export const GUEST = 'Guest';
 /** How this person appears to the others in a shared project. */
