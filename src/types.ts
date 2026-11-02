@@ -101,6 +101,8 @@ export type Project = {
   comments: Comment[];
   passageLinks: PassageLink[];
   cardLinks: CardLink[];
+  /** The backup this project was restored from, as its project's id and last change, to notice the same backup restored twice. */
+  restoredFrom?: string;
   /** The sync room this project is shared through, with its key; absent while the project stays on this device. */
   sync?: { room: string; key: string };
   /** The library folder it is filed in, on this device only; absent or unknown, it is at the top level. */

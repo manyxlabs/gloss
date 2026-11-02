@@ -37,8 +37,12 @@ export function NoteEditor({
         autoFocus
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onCancel();
-          else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSave(draft);
+          // Escape keeps what was written rather than losing it; Cancel is there to throw it away.
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            if (draft.trim() && draft !== (note ?? '')) onSave(draft);
+            else onCancel();
+          } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSave(draft);
         }}
       />
       {shared > 1 && <p className="shared">On {shared} passages. Editing it here edits it on all of them.</p>}

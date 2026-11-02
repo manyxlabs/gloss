@@ -24,6 +24,8 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await page.mouse.up();
   const rising = card(page, 'Rising sea temperatures');
   await expect(rising).toBeVisible();
+  // The selection went with the drag, and its toolbar with it.
+  await expect(page.getByRole('toolbar', { name: 'Selection' })).toHaveCount(0);
   const dropped = (await rising.boundingBox())!;
   expect(Math.abs(dropped.x - (canvas.x + 160 - 24))).toBeLessThan(40);
 
@@ -58,7 +60,7 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await expect(coral.locator('.card')).toHaveClass(/selected/);
 
   // Search covers every document, and opens the other one at the match.
-  await page.getByRole('searchbox').fill('parrotfish');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('parrotfish');
   await page.getByRole('option', { name: /p\. 2/ }).click();
   await expect(page.getByRole('tab', { name: 'Survey notes' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Page 2 / 2')).toBeVisible();
@@ -90,7 +92,7 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await expect(page.locator('.react-flow__edge')).toHaveCount(1);
   await expect(page.getByRole('textbox', { name: 'Note' })).toHaveValue('Bleaching and low grazing seem linked.');
   await page.goto('/');
-  await expect(page.getByRole('link', { name: /Reef essay.*2 PDFs · 3 cards/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Reef essay.*2 documents · 3 cards/ })).toBeVisible();
 });
 
 test('a phone shows one side at a time and excerpts a touch selection', async ({ browser }) => {

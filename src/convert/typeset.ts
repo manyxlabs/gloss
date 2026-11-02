@@ -77,9 +77,13 @@ async function breathe() {
   lastBreath = performance.now();
 }
 
+/** Follows a long layout page by page, and stops it. */
+export type Watch = { signal?: AbortSignal; onPage?: (page: number) => void };
+
 /** Lays out blocks as pages of drawing operations, and draws them into a PDF. */
 export class Typesetter {
   readonly warnings = new Set<string>();
+  watch: Watch = {};
   private fonts = new Map<Face, Promise<PDFFont>>();
   private images = new Map<Blob, Promise<PDFImage | null>>();
 
@@ -146,8 +150,9 @@ export class Typesetter {
 }
 
 /** Typesets blocks on A4 pages. */
-export async function typeset(title: string, blocks: Block[]) {
+export async function typeset(title: string, blocks: Block[], watch: Watch = {}) {
   const ts = await Typesetter.create(title);
+  ts.watch = watch;
   ts.draw(await ts.layout(blocks, A4, 64), A4);
   return { bytes: await ts.pdf.save(), warnings: [...ts.warnings] };
 }
@@ -327,6 +332,8 @@ class Flow {
     for (const b of blocks) {
       await this.block(b, x, width, tight);
       await breathe();
+      this.ts.watch.signal?.throwIfAborted();
+      this.ts.watch.onPage?.(this.pages.length);
     }
   }
 

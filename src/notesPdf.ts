@@ -30,7 +30,11 @@ export async function notesPdf(o: Outline) {
         {
           kind: 'list',
           ordered: false,
-          items: d.items.map((h) => [para(`p. ${h.page}: ${h.text}${h.note ? ` (comment: ${h.note})` : ''}`), ...h.passages.map((l) => para(`Linked passage: ${l}`, true))]),
+          items: d.items.map((h) => [
+            para(`p. ${h.page}: ${h.text}`),
+            ...(h.note ? [para(`Comment: ${h.note}`)] : []),
+            ...h.passages.map((l) => para(`Linked passage: ${l}`, true)),
+          ]),
         },
       );
   }

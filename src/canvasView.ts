@@ -9,7 +9,8 @@ export function canvasView(project: Project, canvasId: string): [Card[], Link[]]
   const onCanvas = project.cards.filter((c) => canvasOf(project, c) === canvasId);
   const ids = new Set(onCanvas.map((c) => c.id));
   const folded = new Set(onCanvas.filter((c) => c.data.kind === 'group' && c.data.collapsed).map((c) => c.id));
-  const shown = onCanvas.map((c) => (c.parentId && folded.has(c.parentId) ? { ...c, hidden: true } : c));
+  // Older projects asked React Flow to grow a group under a dragged card, which kept it from ever leaving; groups are fitted after a drag instead.
+  const shown = onCanvas.map((c) => (c.parentId && folded.has(c.parentId) ? { ...c, hidden: true } : c.expandParent ? { ...c, expandParent: false } : c));
   const parentOf = new Map(shown.filter((c) => c.hidden).map((c) => [c.id, c.parentId!]));
   const seen = new Set<string>();
   const links = project.links.flatMap((l) => {
