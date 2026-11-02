@@ -1,7 +1,6 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { ARTIFACTS, card, openProject, select, shot } from './helpers';
+import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
 
 /** A note's text is in a field, which a text match does not see; the field's sizer carries it. */
 const note = (page: Page, text: string) => page.locator('.react-flow__node').filter({ has: page.locator(`.grow[data-value^="${text}"]`) });
@@ -248,7 +247,7 @@ test('the exported PDF carries highlights, comments and handwriting as annotatio
   const file = `${ARTIFACTS}/Reef essay (annotated).pdf`;
   copyFileSync(await download.path(), file);
 
-  const task = getDocument({ data: new Uint8Array(readFileSync(file)) });
+  const task = readPdf(file);
   const doc = await task.promise;
   const first = await doc.getPage(1);
   const annots = await first.getAnnotations();
