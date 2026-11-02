@@ -43,17 +43,30 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Installable and offline**: install Gloss as an app from the browser; once visited it opens and works with no network, and an installed copy on a computer can open PDFs, Word and PowerPoint files from the file manager. A new version is loaded only when you choose.
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
 - **Search everything**: every page of every PDF, every card and every comment, with Ctrl+K.
+  Type `#tag` to find what carries a tag, or pick tags from the chips above the results.
+- **Act on all search results**: highlight, tag or excerpt every match at once, in one document or all of them, link them all to a new note or the chosen card, or squeeze the documents down to them.
+  Matches become real highlights on their words, placed from the PDF's text positions, across lines; each action is one undo step.
+- **Tags** on highlights, figures, excerpts, notes and groups, in categories and colours.
+  Tag from a highlight's or a selection's toolbar (Highlight with tag), the comment editor or the canvas's selection bar, and rename, recolour, file, merge and delete tags in the tags manager.
+  Filter by tag: the sidebar lists only the highlights that carry the tags chosen, and the canvas dims the rest.
+- **Squeeze to highlights or matches**: the squeeze button below a document hides everything but its highlights (of a colour or a tag, if chosen) or the matches of some words, with a chosen number of lines of context; Expand all opens it again.
+- **Search all projects** from the start page: names, the text of every document, cards and comments, opening the project at what was found.
+  Each document is read once into an index kept in the browser, which the page says while it happens.
+- **Jump by keyboard** with Ctrl+P or Ctrl+G: type a page number, or part of a document's name, a contents entry, a canvas, a tag or an action, then the arrow keys and Enter.
+  It acts on the document pane last used.
+- **Defined terms** in contracts: terms defined as `"Term" means`, `"Term" shall mean`, `(the "Term")` or `(hereinafter "Term")` are underlined where they are used, and pointing at one, or tapping it, shows its definition with a way to go to it.
+  The book button below a document that defines terms turns this off and on.
 - **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z, page edits included.
 - **Folders** on the start page: file projects in folders from a project's folder button or by dragging, rename, collapse and delete them (their projects are kept).
   Projects are listed by when they were last opened.
-- **Export notes** as Markdown, PDF or Word, with groups as sections, each excerpt's source and page, and the passages linked to it.
+- **Export notes** as Markdown, PDF or Word, with groups as sections, each excerpt's source and page, its tags, and the passages linked to it.
 - **Phones**: one side at a time, touch selection, and pinch to zoom the page.
 - **Sync and work together**, end-to-end encrypted, when you choose to share a project.
 
 ## Sync and sharing
 
 A project stays on its device until you press **Share** in its header and create a link.
-Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, comments, linked passages, handwriting, squeezes, canvases, page edits and the project's name.
+Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, comments, linked passages, tags, handwriting, squeezes, canvases, page edits and the project's name.
 Library folders stay with each device.
 Everyone in the project shows as an avatar with where they are reading, and their pointer shows on the canvas.
 Edits made offline are kept and merge when the connection returns.
