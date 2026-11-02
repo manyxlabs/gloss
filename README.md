@@ -47,6 +47,12 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Folders** on the start page: file projects in folders from a project's folder button or by dragging, rename, collapse and delete them (their projects are kept).
   Projects are listed by when they were last opened.
 - **Export notes** as Markdown, PDF or Word, with groups as sections, each excerpt's source and page, and the passages linked to it.
+- **Export the canvas as a picture** from the Export menu (on a phone, from the canvas tools): PNG at 1×, 2× or 3×, PDF on one page the size of the canvas or across A4 or Letter pages, or SVG.
+  All of the canvas or only the selected cards, cropped to them with a margin, in the light theme or matching the one in use.
+  It shows excerpts, notes, figures, handwriting, groups (a collapsed one as its name), links and linked passages, but not handles, selection, the minimap or the controls.
+- **Dark and sepia pages**: the page colours button in a document's toolbar shows pages light, dark or sepia, or dark only while the app's theme is, on this device.
+  Dark pages keep their highlights' colours and turn handwriting light with the text; pictures on the page stay as they are unless _Keep images as they are_ is turned off.
+  Exported files are not changed.
 - **Phones**: one side at a time, touch selection, and pinch to zoom the page.
 - **Sync and work together**, end-to-end encrypted, when you choose to share a project.
 
@@ -120,6 +126,17 @@ Conversion keeps a document's words, structure and pictures, not its exact look.
   Scripts whose letters must be joined or reordered (Devanagari, Arabic, Hebrew, Thai and others) and Chinese, Japanese and Korean cannot be set as text by the PDF library Gloss uses, so a paragraph in them is drawn by the browser and placed as a picture, with a warning.
   Such paragraphs cannot be selected, excerpted or searched.
   In tables and code, characters the font lacks become “?”.
+
+## Pictures of the canvas and page colours
+
+A picture of the canvas is taken of a copy drawn out of sight in its own React Flow, with nothing selected, and captured with [html-to-image](https://github.com/bubkoo/html-to-image), which embeds the Inter font and the figures' images.
+A picture too large for the browser to hold (beyond 16384 pixels a side or 40 million pixels) is drawn at a smaller scale, and the dialog says so.
+The PDF holds the picture at 2× as one image, so its text cannot be selected.
+The SVG wraps the cards as HTML, so it opens in browsers but not in most drawing programs.
+
+Dark pages are the page's canvas turned negative with its hues turned back (`invert` and `hue-rotate` filters), so text stays selectable and nothing is drawn twice.
+Pictures are found by following the page's drawing operations; one covering most of the page is taken for a scan and turns with the page.
+Figure cards on the canvas always show the figure as printed, as a picture of the canvas does.
 
 ## Page tools
 
