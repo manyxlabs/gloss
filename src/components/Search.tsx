@@ -1,7 +1,11 @@
-import { Search as SearchIcon } from 'lucide-react';
+import { ListChecks, Search as SearchIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { search, type CardHit, type CommentHit, type DocHit } from '../search';
+import { parseQuery, search, type CardHit, type CommentHit, type DocHit, type HighlightHit } from '../search';
 import { showCard, showPage, showSource, useStore } from '../store/project';
+import { tagWord } from '../tags';
+import { useLastSearch } from '../store/bulk';
+import { SearchActions } from './SearchActions';
+import { tagStyle } from './Tags';
 
 type Option = { id: string; go: () => void; body: ReactNode };
 
@@ -15,7 +19,10 @@ export function Search() {
     docs: DocHit[];
     cards: CardHit[];
     comments: CommentHit[];
+    highlights: HighlightHit[];
   } | null>(null);
+  /** The matches being acted on in bulk, for the words searched: of one document, by its id, or of all of them. */
+  const [acting, setActing] = useState<{ words: string; id: string } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -30,6 +37,7 @@ export function Search() {
         void search(project, q).then((r) => {
           if (stale) return;
           setResults({ query: q, ...r });
+          useLastSearch.setState({ query: parseQuery(q, project.tags).text });
           setActive(-1);
         }),
       200,
@@ -74,8 +82,23 @@ export function Search() {
   // Every result in the order shown, so the arrow keys can walk them.
   // Choosing a result hands the keyboard back to the page it opens.
   const close = (then: () => void) => () => (setOpen(false), input.current?.blur(), then());
-  const groups: { title: string; options: Option[] }[] = shown
+  const groups: { title: string; docId?: string; options: Option[] }[] = shown
     ? [
+        {
+          title: 'Tagged passages',
+          options: shown.highlights.map((hit) => ({
+            id: `tagged-${hit.highlightId}`,
+            go: close(() => showSource(hit.highlightId)),
+            body: (
+              <>
+                <span className="page">p. {hit.page}</span>
+                <span className="snippet">
+                  {docName(hit.docId)}: {hit.text}
+                </span>
+              </>
+            ),
+          })),
+        },
         {
           title: 'On the canvas',
           options: shown.cards.map((hit) => ({ id: `card-${hit.cardId}`, go: close(() => showCard(hit.cardId)), body: <span className="snippet">{hit.text}</span> })),
@@ -97,6 +120,7 @@ export function Search() {
         },
         ...(project?.docs ?? []).map((doc) => ({
           title: doc.name,
+          docId: doc.id,
           options: shown.docs
             .filter((h) => h.docId === doc.id)
             .map((hit, i) => ({
@@ -118,7 +142,21 @@ export function Search() {
     : [];
   const options = groups.flatMap((g) => g.options);
   const current = options[active];
-  const listed = open && (shown || searching);
+  const tags = project?.tags ?? [];
+  const words = shown && parseQuery(shown.query, tags);
+  // Bulk actions take plain words: a search by tag finds passages that are already highlights.
+  const bulk = words && !words.picks.length && words.text && shown.docs.length ? words.text : null;
+  const actingOn = acting && acting.words === bulk ? acting.id : null;
+  const act = (id: string) => setActing(actingOn === id || !bulk ? null : { words: bulk, id });
+  const listed = open && (shown || searching || (!q && tags.length > 0));
+  /** Adds a tag to the search, or takes it out. */
+  const toggleTag = (word: string) => {
+    const term = `#${word}`.toLowerCase();
+    const parts = query.trim().split(/\s+/).filter(Boolean);
+    const next = parts.some((p) => p.toLowerCase() === term) ? parts.filter((p) => p.toLowerCase() !== term) : [...parts, `#${word}`];
+    setQuery(next.join(' ') + (next.length ? ' ' : ''));
+    input.current?.focus();
+  };
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -157,16 +195,56 @@ export function Search() {
       {!query && <kbd>Ctrl K</kbd>}
       {listed && (
         <div className="results" id="search-results" role="listbox" aria-label="Search results" aria-busy={searching} ref={list}>
+          {tags.length > 0 && (
+            <div className="search-tags" role="group" aria-label="Search by tag">
+              {tags.map((t) => (
+                <button
+                  key={t.id}
+                  className="tag-chip"
+                  style={tagStyle(t)}
+                  aria-pressed={q
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .includes(`#${tagWord(t)}`.toLowerCase())}
+                  onClick={() => toggleTag(tagWord(t))}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          )}
           {searching ? (
             <p className="none" role="status">
               Searching…
             </p>
           ) : (
-            !options.length && <p className="none">Nothing matches “{shown!.query}”.</p>
+            shown && !options.length && <p className="none">Nothing matches “{shown.query}”.</p>
+          )}
+          {bulk && (
+            <div className="act-all">
+              <button className="ghost" aria-expanded={actingOn === 'all'} onClick={() => act('all')}>
+                <ListChecks size={15} /> Act on all matches
+              </button>
+              {actingOn === 'all' && <SearchActions key={bulk} query={bulk} onDone={() => (setOpen(false), setActing(null))} />}
+            </div>
           )}
           {groups.map((g) => (
             <div key={g.options[0]!.id} role="group" aria-label={g.title}>
-              <h3>{g.title}</h3>
+              <h3 className={bulk && g.docId ? 'with-actions' : undefined}>
+                <span>{g.title}</span>
+                {bulk && g.docId && (
+                  <button
+                    className="icon"
+                    aria-label={`Act on the matches in ${g.title}`}
+                    title="Highlight, tag, excerpt or link every match in this document"
+                    aria-expanded={actingOn === g.docId}
+                    onClick={() => act(g.docId!)}
+                  >
+                    <ListChecks size={15} />
+                  </button>
+                )}
+              </h3>
+              {bulk && g.docId && actingOn === g.docId && <SearchActions key={bulk} query={bulk} docId={g.docId} onDone={() => (setOpen(false), setActing(null))} />}
               {g.options.map((o) => (
                 <button key={o.id} id={o.id} role="option" tabIndex={-1} aria-selected={o === current} onClick={o.go} onPointerMove={() => setActive(options.indexOf(o))}>
                   {o.body}
