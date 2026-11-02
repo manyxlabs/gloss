@@ -101,23 +101,28 @@ test('the library looks right in both themes on a desktop and a phone', async ({
     ['desktop', { viewport: { width: 1280, height: 900 } }],
     ['phone', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }],
   ] as const) {
-    for (const colorScheme of ['light', 'dark'] as const) {
-      const context = await browser.newContext({ ...options, colorScheme });
-      const page = await context.newPage();
-      for (const name of ['Coral bleaching in the shallow reef', 'Kelp study']) await addProject(page, name);
-      await page.getByRole('button', { name: 'Move Kelp study to a folder' }).click();
-      await page.getByRole('menuitem', { name: 'New folder…' }).click();
-      await page.getByRole('textbox', { name: 'Folder name' }).fill('Field seasons 2025 and 2026');
-      await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
-      await projects(page).getByRole('button', { name: 'New folder', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+    // One set of projects per device, shown in both themes: making them is the slow part.
+    const context = await browser.newContext(options);
+    const page = await context.newPage();
+    for (const name of ['Coral bleaching in the shallow reef', 'Kelp study']) await addProject(page, name);
+    await page.getByRole('button', { name: 'Move Kelp study to a folder' }).click();
+    await page.getByRole('menuitem', { name: 'New folder…' }).click();
+    await page.getByRole('textbox', { name: 'Folder name' }).fill('Field seasons 2025 and 2026');
+    await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+    await projects(page).getByRole('button', { name: 'New folder', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
       // Nothing is wider than the screen.
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(options.viewport.width);
       await projects(page).scrollIntoViewIfNeeded();
       await page.getByRole('button', { name: 'Move Coral bleaching in the shallow reef to a folder' }).click();
-      await shot(page, `library-${label}-${colorScheme}`);
-      await context.close();
+      // Colours ease over 150 ms.
+      await page.waitForTimeout(300);
+      await shot(page, `library-${label}-${theme}`);
+      await page.keyboard.press('Escape');
     }
+    await context.close();
   }
 });
 
