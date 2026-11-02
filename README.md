@@ -31,6 +31,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Ink links**: with the pen, draw from a highlight onto a card on the canvas to link them.
   The card shows where its passage is, and the passage's marker shows the card.
 - **Contents, pages and highlights** in a sidebar beside each document: the PDF's table of contents, page thumbnails, and every highlight and comment in page order.
+- **Scanned PDFs**: pages that are only pictures of text are found when a document opens, and **Make text selectable** (in the banner, or a page's menu in the Pages tab) reads them on the device in English, Hindi or both.
+  The words are written into the PDF as invisible text over their pictures, so selecting, excerpting, searching, squeezing and exporting work as on any PDF.
+- **Annotations from other apps**: highlights, underlines, strike-outs, squiggles, sticky notes, text boxes and ink that Acrobat, Preview and others left in a PDF can be brought in as Gloss's own, when the PDF is added or later from the Highlights tab.
 - **Password protected PDFs** open after you enter the password, which is kept with the project (and, in a shared project, travels with it end-to-end encrypted).
 - **Squeeze** the text between two passages out of view to read them side by side: pinch two fingers held one above the other, or select what is in between and press Squeeze. A bar marks each squeeze and opens it again.
 - **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen, and once one has been used, a finger or palm scrolls and pans instead of drawing.
@@ -129,6 +132,27 @@ A duplicated page shares its original's content but not its links or form fields
 A squeeze is kept only where it still hides the same pages, unturned; others are opened.
 Undo switches back to the earlier version, which is kept while the undo history needs it; the history keeps the last ten versions of files, and older page edits drop out of it.
 A password protected PDF cannot be rewritten: page tools ask for a copy without the password.
+
+## Text recognition
+
+Gloss looks for pages that draw an image but have fewer than 20 letters of text.
+Reading them uses [Tesseract](https://github.com/naptha/tesseract.js) in its own Web Worker, with its WebAssembly core and language data served from Gloss's own address, never a CDN: the pictures never leave the browser.
+Those files (about 2.8 MB for the core, 2.9 MB for English and 1.4 MB for Hindi, compressed data) are fetched the first time text is read and kept by the service worker, so from then on reading works offline; they are not part of the app's own download, and the code that drives them loads only when reading starts.
+Each page is drawn at about 300 dots per inch and read; each word is written with pdf-lib as invisible text (render mode 3) in Noto Sans or Noto Sans Devanagari, stretched to the width of its picture, with one size for each line from its tallest letters to its baseline.
+Devanagari is written unshaped, as pdf-lib cannot shape it: the letters are in reading order, so copying and searching work, and only an invisible glyph's shape is off.
+Words in other scripts, and words read with low confidence, are left out.
+The result is a new version of the file, like a page edit: one step to undo, and shared with the others in a synced project.
+Cancelling leaves the document as it was.
+A password protected PDF cannot be rewritten, so reading it needs a copy without the password.
+
+## Annotations from other apps
+
+When a PDF is added, Gloss reads its annotations with pdf.js and asks before bringing them in.
+Highlights, underlines, strike-outs and squiggles become highlights in the nearest of Gloss's five colours, over the words they marked, with the annotation's note and its replies as the comment.
+A sticky note or a text box becomes a comment on the line of text beside it; with no text within an inch, it becomes a note on the canvas, and Gloss says which.
+Ink becomes handwriting on the page, in the nearest ink.
+The originals are then taken out of the file, with their pop-ups and replies, in a new version of it, rather than hidden while drawing: so they are not drawn twice, the exported PDF has each annotation once, and other devices in a synced project get the same file.
+Other annotations (links, forms, shapes, stamps) stay in the PDF as they were, and all of it is one step to undo.
 
 ## Adding from links
 

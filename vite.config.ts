@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     // Installable, and works offline once visited: the app and its code are cached up front;
-    // the large pdf.js data files and fonts are cached the first time they are used.
+    // the large pdf.js data files, fonts and text recognition files are cached the first time they are used.
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
@@ -39,12 +39,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png}', 'pdfjs/standard_fonts/*', 'pdfjs/wasm/*', 'pdfjs/iccs/*'],
-        globIgnores: ['**/heic*.js'],
+        globIgnores: ['**/heic*.js', 'ocr/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
-          { urlPattern: ({ url }) => url.pathname.startsWith('/pdfjs/') || url.pathname.startsWith('/fonts/'), handler: 'CacheFirst', options: { cacheName: 'gloss-data' } },
+          { urlPattern: ({ url }) => /^\/(pdfjs|fonts|ocr)\//.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-data' } },
           { urlPattern: ({ url }) => /\/heic[^/]*\.js$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-heic' } },
         ],
       },

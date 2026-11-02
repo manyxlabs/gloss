@@ -1,0 +1,156 @@
+/* Notices about a document, such as a scan whose text cannot be selected yet, above its toolbar,
+   where they leave the top of the page in view. */
+.doc-banners {
+  position: absolute;
+  z-index: 15;
+  bottom: 64px;
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(680px, calc(100% - 16px));
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.sidebar-beside .doc-banners {
+  left: calc(50% + var(--sidebar-width) / 2);
+  max-width: min(680px, calc(100% - var(--sidebar-width) - 16px));
+}
+
+/* Nearly opaque, like the document toolbar, as it floats over a white page. */
+.doc-banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    var(--shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  min-width: min(340px, 100%);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .doc-banner {
+    background: var(--panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+.doc-banner-icon {
+  flex: none;
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.doc-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-banner-text p {
+  margin: 0;
+}
+
+.doc-banner-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-banner-actions button:not(.icon) {
+  padding: 5px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.doc-banner-actions button.icon {
+  width: 28px;
+  height: 28px;
+}
+
+.doc-banner select {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.doc-banner progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 5px;
+  border: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--panel-2);
+  accent-color: var(--accent);
+}
+
+.doc-banner progress::-webkit-progress-bar {
+  background: var(--panel-2);
+}
+
+.doc-banner progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.2s;
+}
+
+.doc-banner progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+/* A narrow pane puts several actions under the message, so neither is squeezed. */
+.narrow .doc-banners {
+  width: calc(100% - 16px);
+}
+
+.narrow .doc-banner.wide {
+  flex-wrap: wrap;
+}
+
+.narrow .doc-banner.wide .doc-banner-text {
+  flex-basis: calc(100% - 40px);
+}
+
+.narrow .doc-banner.wide .doc-banner-actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.annots-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.annots-action p {
+  margin: 0;
+}
+
+.annots-action button {
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+}

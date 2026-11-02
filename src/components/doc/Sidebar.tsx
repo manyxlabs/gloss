@@ -8,6 +8,7 @@ import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
 import type { Highlight } from '../../types';
 import { byline } from '../../zotero';
+import { AnnotsAction } from './AnnotsAction';
 import { Bookmarks } from './Bookmarks';
 import { Pages } from './Pages';
 import { Unplaced } from './Unplaced';
@@ -88,6 +89,7 @@ export function Sidebar({
         ) : (
           <>
             <Unplaced docId={docId} />
+            <AnnotsAction docId={docId} />
             <Highlights docId={docId} pane={pane} onJump={onJump} />
           </>
         )}
