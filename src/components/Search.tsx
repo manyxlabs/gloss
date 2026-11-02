@@ -1,7 +1,7 @@
 import { Search as SearchIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { search, type CardHit, type DocHit } from '../search';
-import { showCard, showMatch, useStore } from '../store/project';
+import { search, type CardHit, type CommentHit, type DocHit } from '../search';
+import { showCard, showPage, showSource, useStore } from '../store/project';
 
 export function Search() {
   const project = useStore((s) => s.project);
@@ -11,6 +11,7 @@ export function Search() {
     query: string;
     docs: DocHit[];
     cards: CardHit[];
+    comments: CommentHit[];
   } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -63,11 +64,20 @@ export function Search() {
       {!query && <kbd>Ctrl K</kbd>}
       {open && shown && (
         <div className="results" role="listbox" aria-label="Search results">
-          {!shown.docs.length && !shown.cards.length && <p className="none">Nothing matches “{shown.query}”.</p>}
+          {!shown.docs.length && !shown.cards.length && !shown.comments.length && <p className="none">Nothing matches “{shown.query}”.</p>}
           {shown.cards.length > 0 && <h3>On the canvas</h3>}
           {shown.cards.map((hit) => (
             <button key={hit.cardId} role="option" aria-selected={false} onClick={() => (setOpen(false), showCard(hit.cardId))}>
               <span className="snippet">{hit.text}</span>
+            </button>
+          ))}
+          {shown.comments.length > 0 && <h3>Comments</h3>}
+          {shown.comments.map((hit) => (
+            <button key={hit.highlightId} role="option" aria-selected={false} onClick={() => (setOpen(false), showSource(hit.highlightId))}>
+              <span className="page">p. {hit.page}</span>
+              <span className="snippet">
+                {docName(hit.docId)}: {hit.note}
+              </span>
             </button>
           ))}
           {project?.docs.map((doc) => {
@@ -77,7 +87,7 @@ export function Search() {
                 <div key={doc.id}>
                   <h3>{docName(doc.id)}</h3>
                   {hits.map((hit, i) => (
-                    <button key={i} role="option" aria-selected={false} onClick={() => (setOpen(false), showMatch(doc.id, hit.page, shown.query))}>
+                    <button key={i} role="option" aria-selected={false} onClick={() => (setOpen(false), showPage(doc.id, hit.page, { query: shown.query }))}>
                       <span className="page">p. {hit.page}</span>
                       <span className="snippet">
                         …{hit.before}

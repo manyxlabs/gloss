@@ -39,6 +39,8 @@ export async function openPdf(data: Blob, password?: string): Promise<OpenPdf> {
 
 export const isPdf = async (file: Blob) => (await file.slice(0, 1024).text()).includes('%PDF-');
 
+const MAX_IMAGE_SIDE = 4096;
+
 const open = new Map<string, Promise<OpenPdf>>();
 const texts = new Map<string, Promise<string[]>>();
 const images = new Map<string, Promise<string>>();
@@ -109,7 +111,9 @@ export function regionImage(docId: string, password: string | undefined, pageNo:
   if (!url) {
     url = loadDoc(docId, password).then(async (doc) => {
       const page = await doc.getPage(pageNo);
-      const viewport = page.getViewport({ scale });
+      const full = page.getViewport({ scale: 1 });
+      // A whole page at a high resolution would take hundreds of megabytes on a phone.
+      const viewport = page.getViewport({ scale: Math.min(scale, MAX_IMAGE_SIDE / Math.max(w * full.width, h * full.height)) });
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(w * viewport.width));
       canvas.height = Math.max(1, Math.round(h * viewport.height));

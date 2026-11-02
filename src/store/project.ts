@@ -10,6 +10,8 @@ type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds
 const snapshot = ({ highlights, cards, links, inks, folds, canvases }: Project): Snapshot => ({ highlights, cards, links, inks, folds, canvases });
 
 export type Tool = 'select' | 'pen' | 'eraser';
+/** Documents also take a box drawn around a figure. */
+export type DocTool = Tool | 'snip';
 export type Pane = 0 | 1;
 export const MAIN_CANVAS = 'main';
 
@@ -20,9 +22,9 @@ type State = {
   sideDocId: string | null;
   /** The canvas on show, of the project's canvases. */
   canvasId: string;
-  /** A request for a document pane to scroll to a highlight or a search match; `at` makes a repeat request distinct. */
+  /** A request for a document pane to scroll to a highlight, or to a page with a place on it or a search match; `at` makes a repeat request distinct. */
   jump:
-    | (({ highlightId: string } | { page: number; query: string }) & {
+    | (({ highlightId: string } | { page: number; query?: string; dest?: unknown[] }) & {
         pane: Pane;
         at: number;
       })
@@ -34,7 +36,7 @@ type State = {
   past: Snapshot[];
   future: Snapshot[];
   /** What a pointer does on the documents and on the canvas. A stylus always writes, whatever is chosen. */
-  docTool: Tool;
+  docTool: DocTool;
   canvasTool: Tool;
   inkColor: InkColor;
 };
@@ -262,8 +264,8 @@ export function removeDoc(docId: string) {
   void deleteFile(docId);
 }
 
-export function addHighlight(docId: string, parts: Part[], text: string, color: Color) {
-  const highlight: Highlight = { id: uid(), docId, parts, text, color };
+export function addHighlight(docId: string, parts: Part[], text: string, color: Color, extra: Pick<Highlight, 'area' | 'note'> = {}) {
+  const highlight: Highlight = { id: uid(), docId, parts, text, color, ...extra };
   edit((p) => ({ highlights: [...p.highlights, highlight] }));
   return highlight;
 }
@@ -307,6 +309,16 @@ export const updateCard = (id: string, data: Partial<CardData>) =>
 export const recolor = (id: string, color: Color) =>
   edit((p) => ({
     highlights: p.highlights.map((h) => (h.id === id ? { ...h, color } : h)),
+  }));
+
+/** Pins a note beside a highlight, or takes it away when empty. */
+export const setNote = (id: string, note: string) =>
+  edit((p) => ({
+    highlights: p.highlights.map((h) => {
+      if (h.id !== id) return h;
+      const { note: _, ...rest } = h;
+      return note.trim() ? { ...rest, note: note.trim() } : rest;
+    }),
   }));
 
 /** Removes cards with their links, and the highlights of excerpts no other card still shows. */
@@ -353,13 +365,14 @@ const unfold = (hides: (f: Fold) => boolean) => {
   if (hidden.length) edit((p) => ({ folds: p.folds.filter((f) => !hidden.includes(f)) }), false);
 };
 
-export const showSource = (highlightId: string) => {
+/** Shows a highlight in the pane given, or the one showing its document, preferring the main one. */
+export const showSource = (highlightId: string, inPane?: Pane) => {
   const h = get().project?.highlights.find((x) => x.id === highlightId);
   const part = h?.parts[0];
   if (!h || !part) return;
   const spot = { page: part.page, y: part.rects[0]?.[1] ?? 0 };
   unfold((f) => f.docId === h.docId && before(f.from, spot) && before(spot, f.to));
-  const pane = paneOf(h.docId);
+  const pane = inPane ?? paneOf(h.docId);
   set({
     ...(pane ? {} : { activeDocId: h.docId }),
     jump: { highlightId, pane, at: Date.now() },
@@ -367,12 +380,13 @@ export const showSource = (highlightId: string) => {
   });
 };
 
-export const showMatch = (docId: string, page: number, query: string) => {
+/** Opens a document at a page: at a destination on it (from the PDF's contents), or at a search match there. */
+export const showPage = (docId: string, page: number, how: { query?: string; dest?: unknown[]; pane?: Pane } = {}) => {
   unfold((f) => f.docId === docId && f.from.page <= page && f.to.page >= page);
-  const pane = paneOf(docId);
+  const pane = how.pane ?? paneOf(docId);
   set({
     ...(pane ? {} : { activeDocId: docId }),
-    jump: { page, query, pane, at: Date.now() },
+    jump: { page, query: how.query, dest: how.dest, pane, at: Date.now() },
     view: 'doc',
   });
 };

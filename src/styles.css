@@ -837,14 +837,221 @@ button.big.primary {
 }
 
 .doc-scroll.tool-pen,
-.doc-scroll.tool-eraser {
+.doc-scroll.tool-eraser,
+.doc-scroll.tool-snip {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.doc-scroll.tool-pen {
+.doc-scroll.tool-pen,
+.doc-scroll.tool-snip {
   cursor: crosshair;
+}
+
+.snip-live {
+  position: absolute;
+  z-index: 25;
+  border: 2px dashed var(--accent);
+  border-radius: 3px;
+  background: var(--accent-soft);
+  pointer-events: none;
+}
+
+/* Contents, pages and highlights: beside the page, or over it where the pane is narrow. */
+.doc-pane {
+  --sidebar-width: 232px;
+}
+
+.doc-sidebar {
+  position: absolute;
+  z-index: 22;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-over .doc-sidebar {
+  width: min(300px, 86%);
+  box-shadow: var(--shadow);
+}
+
+.sidebar-beside .doc-scroll {
+  left: var(--sidebar-width);
+}
+
+.sidebar-beside .doc-status {
+  left: calc(50% + var(--sidebar-width) / 2);
+  max-width: calc(100% - var(--sidebar-width) - 16px);
+}
+
+.side-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.side-tabs button {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
+.side-tabs [aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.side-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+  scrollbar-width: thin;
+}
+
+.side-empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.side-list nav ul,
+.side-list .marks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-list nav ul ul {
+  padding-left: 12px;
+}
+
+.side-list nav button,
+.side-list nav a,
+.side-list .marks button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.side-list nav a:hover,
+.side-list .marks button:hover {
+  background: var(--panel-2);
+}
+
+.thumbs {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.thumbs button {
+  flex-direction: column;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.thumbs button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text);
+}
+
+.thumb {
+  display: block;
+  width: 104px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.thumbs [aria-current='page'] .thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.thumbs [aria-current='page'] {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.marks button {
+  display: grid;
+  gap: 2px;
+  border-left: 3px solid var(--edge) !important;
+  border-radius: 3px 7px 7px 3px !important;
+  margin-bottom: 4px;
+}
+
+.marks .what {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.marks .what svg {
+  flex: none;
+  align-self: center;
+  color: var(--edge);
+}
+
+.marks .text {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: 'Iowan Old Style', Charter, Georgia, serif;
+  font-size: 14px;
+}
+
+.marks .page {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.marks .note {
+  color: var(--muted);
+  font-size: 12.5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .doc-scroll.tool-eraser {
@@ -986,6 +1193,58 @@ button.big.primary {
   box-shadow: inset 0 -2px 0 var(--edge);
 }
 
+/* A figure is boxed, not filled, so it stays readable; dashed until it is on the canvas. */
+.hl.area {
+  background: none;
+  mix-blend-mode: normal;
+  border: 2px dashed var(--edge);
+  border-radius: 3px;
+}
+
+.hl.area.linked {
+  border-style: solid;
+  box-shadow: none;
+}
+
+/* A comment's marker, in the page's right margin, level with the highlight's first line. */
+.note-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.note-mark {
+  position: absolute;
+  right: 1.2%;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  translate: 0 -50%;
+  border: 0;
+  border-radius: 50% 50% 50% 3px;
+  background: var(--edge) !important;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  pointer-events: auto;
+}
+
+/* Two lines of writing in the bubble. */
+.note-mark::before {
+  content: '';
+  width: 9px;
+  height: 2px;
+  border-radius: 1px;
+  background: #fff;
+  box-shadow: 0 4px 0 #fff;
+  translate: 0 -2px;
+}
+
+.tool-pen .note-mark,
+.tool-eraser .note-mark,
+.tool-snip .note-mark {
+  pointer-events: none;
+}
+
 .hl.flash {
   animation: flash 1.6s ease-out;
 }
@@ -1002,7 +1261,9 @@ button.big.primary {
   }
 }
 
+/* Nearly opaque, like the document toolbar, as it too floats over a white page that shows through glass as grey. */
 .popup {
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
   position: absolute;
   z-index: 20;
   display: flex;
@@ -1022,6 +1283,32 @@ button.big.primary {
 .popup button:not(.icon, .swatch) {
   padding: 5px 12px;
   border-radius: 10px;
+}
+
+.note-editor {
+  display: grid;
+  gap: 6px;
+  width: min(320px, calc(100vw - 48px));
+}
+
+.note-editor textarea {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 7px 10px;
+  resize: none;
+  font-size: 14px;
+}
+
+.note-editor .row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.note-editor .row .icon {
+  margin-right: auto;
 }
 
 .swatch {
@@ -1053,6 +1340,8 @@ button.big.primary {
 .doc-status {
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   position: absolute;
+  /* Its own width, not what is left of the pane right of its anchor at the middle. */
+  width: max-content;
   z-index: 10;
   left: 50%;
   bottom: 12px;
@@ -1065,6 +1354,20 @@ button.big.primary {
   border-radius: 14px;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* A narrow pane, such as half of two side by side or a phone, wraps the toolbar rather than spilling out of the pane. */
+.doc-status {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.narrow .doc-status {
+  gap: 0;
+}
+
+.narrow .page-no .long {
+  display: none;
 }
 
 .page-no {
@@ -1279,6 +1582,22 @@ button.big.primary {
   color: var(--muted);
 }
 
+.card .snip {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.card div.snip {
+  min-height: 90px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px;
+}
+
 .card .missing {
   margin: 0;
   color: var(--muted);
@@ -1436,8 +1755,7 @@ button.big.primary {
     flex: 0 1 150px;
   }
 
-  .search kbd,
-  .page-no .long {
+  .search kbd {
     display: none;
   }
 
@@ -1461,9 +1779,5 @@ button.big.primary {
 
   .docs.split > .doc-pane + .doc-pane {
     display: none;
-  }
-
-  .doc-status {
-    gap: 0;
   }
 }

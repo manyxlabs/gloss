@@ -1,11 +1,14 @@
 import { cardText } from './search';
-import type { Card, Project } from './types';
+import type { Card, Highlight, Project } from './types';
 
 const quote = (text: string) =>
   text
     .split('\n')
     .map((l) => `> ${l}`)
     .join('\n');
+
+/** A figure has no text to quote; it is marked where the image would go, with any text it holds. */
+const quoted = (h: Highlight) => (h.area ? `[Figure${h.text ? `: ${h.text}` : ''}]` : h.text);
 
 /** The canvas as notes to keep: groups as sections, cards in reading order with sources and links, then highlights left in the documents. */
 export function toMarkdown(p: Project) {
@@ -36,7 +39,8 @@ export function toMarkdown(p: Project) {
       const h = p.highlights.find((x) => x.id === d.highlightId);
       if (!h) return;
       onCanvas.add(h.id);
-      out.push(quote(h.text), `> (${docName(h.docId)}, p. ${h.parts[0]?.page})`, '');
+      out.push(quote(quoted(h)), `> (${docName(h.docId)}, p. ${h.parts[0]?.page})`, '');
+      if (h.note) out.push(`Comment: ${h.note}`, '');
       if (d.comment?.trim()) out.push(d.comment.trim(), '');
     } else return;
     const linked = p.links
@@ -71,7 +75,7 @@ export function toMarkdown(p: Project) {
         .sort((a, b) => (a.parts[0]?.page ?? 0) - (b.parts[0]?.page ?? 0) || (a.parts[0]?.rects[0]?.[1] ?? 0) - (b.parts[0]?.rects[0]?.[1] ?? 0));
       if (!mine.length) continue;
       out.push(`### ${doc.name}`, '');
-      for (const h of mine) out.push(`- p. ${h.parts[0]?.page}: ${h.text}`);
+      for (const h of mine) out.push(`- p. ${h.parts[0]?.page}: ${quoted(h)}`, ...(h.note ? [`  Comment: ${h.note}`] : []));
       out.push('');
     }
   }

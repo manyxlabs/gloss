@@ -1,22 +1,30 @@
-import { Eraser, MousePointer2, PenLine } from 'lucide-react';
+import { Eraser, MousePointer2, PenLine, SquareDashed } from 'lucide-react';
 import { PAPER, SCREEN } from '../ink';
-import { setTools, useStore, type Tool } from '../store/project';
+import { setTools, useStore, type DocTool } from '../store/project';
 import { INKS } from '../types';
 
-const TOOLS: [Tool, string, typeof PenLine][] = [
+const TOOLS: [DocTool, string, typeof PenLine][] = [
   ['select', 'Select', MousePointer2],
   ['pen', 'Pen', PenLine],
   ['eraser', 'Eraser', Eraser],
+  ['snip', 'Snip', SquareDashed],
 ];
 
-/** Select, pen and eraser, with the pen's colours while it is chosen: as they show on paper, or on the canvas, where ink follows the theme. */
+/** Select, pen and eraser, and on documents snip, which boxes a figure; with the pen's colours while it is chosen: as they show on paper, or on the canvas, where ink follows the theme. */
 export function Tools({ side }: { side: 'docTool' | 'canvasTool' }) {
   const tool = useStore((s) => s[side]);
   const ink = useStore((s) => s.inkColor);
   return (
     <div className="tools" role="toolbar" aria-label={side === 'docTool' ? 'Document tools' : 'Canvas tools'}>
-      {TOOLS.map(([id, label, Icon]) => (
-        <button key={id} className="icon" aria-pressed={tool === id} aria-label={label} title={label} onClick={() => setTools({ [side]: id })}>
+      {TOOLS.filter(([id]) => id !== 'snip' || side === 'docTool').map(([id, label, Icon]) => (
+        <button
+          key={id}
+          className="icon"
+          aria-pressed={tool === id}
+          aria-label={label}
+          title={id === 'snip' ? 'Snip: draw a box around a figure or table' : label}
+          onClick={() => setTools({ [side]: id })}
+        >
           <Icon size={17} />
         </button>
       ))}
