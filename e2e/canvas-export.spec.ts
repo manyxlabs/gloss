@@ -102,8 +102,7 @@ async function exportPicture(page: Page, choices: string[], name: string, match 
   const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Export' }).click()]);
   const file = `${ARTIFACTS}/${name}`;
   copyFileSync(await download.path(), file);
-  await expect(dialog).toBeHidden();
-  return { file, suggested: download.suggestedFilename() };
+  return { file, suggested: download.suggestedFilename(), dialog };
 }
 
 test('the canvas exports as a picture of its cards, links and handwriting, without the controls', async ({ page }) => {
@@ -143,6 +142,7 @@ test('the canvas exports as a picture of its cards, links and handwriting, witho
 
   const png = await exportPicture(page, ['Whole canvas', 'PNG', '2×'], 'canvas-export-light.png');
   expect(png.suggested).toBe('Reef essay - Canvas.png');
+  await expect(png.dialog).toBeHidden();
   const light = await inspect(page, png.file, {
     excerpt: inPicture(cards, 'Coral reefs', 2),
     heat: inPicture(cards, 'Heat', 2),
@@ -278,4 +278,27 @@ test('a figure card exports with its picture, drawn from the PDF', async ({ page
   // Mostly the red of the picture, with its white middle.
   expect(shot.boxes.figure!.red / shot.boxes.figure!.pixels).toBeGreaterThan(0.25);
   expect(shot.boxes.figure!.light / shot.boxes.figure!.pixels).toBeGreaterThan(0.1);
+});
+
+test('a canvas too large for the browser at the scale asked for is exported smaller, and says so', async ({ page }) => {
+  await openProject(page);
+  // Out as far as the canvas goes, so two notes a screen apart are thousands of units apart.
+  const zoomOut = page.getByTestId('rf__controls').getByRole('button', { name: 'Zoom Out' });
+  while (await zoomOut.isEnabled()) await zoomOut.click();
+  await write(page, 40, 60, 'North');
+  await write(page, 700, 760, 'South');
+  await page.locator('.react-flow__pane').click({ position: { x: 400, y: 300 } });
+  const bounds = boundsOf(await cardsOnCanvas(page));
+  const [w, h] = [bounds.width + 2 * MARGIN, bounds.height + 2 * MARGIN];
+  const scale = Math.min(16384 / Math.max(w, h), Math.sqrt(40_000_000 / (w * h)));
+  expect(scale).toBeLessThan(3);
+
+  const { file, dialog } = await exportPicture(page, ['PNG', '3×'], 'canvas-export-large.png');
+  await expect(dialog.getByRole('status')).toContainText(/too large to draw at 3×, so it was exported at \d\.\d×/);
+  await shot(page, 'canvas-export-large-note');
+  const picture = await inspect(page, file, {});
+  expect(Math.abs(picture.width / (w * scale) - 1)).toBeLessThan(0.01);
+  expect(Math.abs(picture.height / (h * scale) - 1)).toBeLessThan(0.01);
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toBeHidden();
 });
