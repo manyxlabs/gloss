@@ -19,7 +19,10 @@ export type DocMeta = {
   pages: number;
   size: number;
   lastPage?: number;
-  /** Opens a protected PDF. Kept with the project, which lives only in this browser's storage, and never leaves it. */
+  /**
+   * Opens a protected PDF. Kept with the project in this browser; in a shared project it travels
+   * with the rest, end-to-end encrypted, since everyone with the link can read the PDF anyway.
+   */
   password?: string;
 };
 
@@ -76,4 +79,6 @@ export type Project = {
   inks: Ink[];
   folds: Fold[];
   canvases: CanvasMeta[];
+  /** The sync room this project is shared through, with its key; absent while the project stays on this device. */
+  sync?: { room: string; key: string };
 };
