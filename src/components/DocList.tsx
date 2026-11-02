@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, BookOpen, ChevronRight, Ellipsis, FileText, FileUp, Files, Folder, FolderInput, FolderPlus, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Ellipsis, FileText, FileUp, Files, Folder, FolderInput, FolderPlus, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { addDocFolder, moveDoc, orderedDocs, placeDoc, removeDocFolder, renameDocFolder, type Place } from '../store/docs';
 import { PANES, removeDoc, setActiveDoc, useStore, type Pane } from '../store/project';
@@ -224,7 +224,7 @@ function Panel({ pane, onDone, onDialog }: { pane: Pane; onDone: () => void; onD
                   />
                 ) : (
                   <button className="folder-toggle" aria-expanded={!shut} onClick={() => setCollapsed((c) => new Set(shut ? [...c].filter((x) => x !== f.id) : [...c, f.id]))}>
-                    <ChevronRight size={14} className="chevron" aria-hidden="true" />
+                    <ChevronDown size={14} className="chevron" aria-hidden="true" />
                     <Folder size={15} aria-hidden="true" />
                     <span className="title">{f.name}</span>
                     <span className="count">{inside.length}</span>

@@ -1,6 +1,6 @@
 // Zotero, through its Web API straight from the browser (it allows other sites' pages to call it),
 // with the reader's own key: their library to import PDFs from, and notes sent back to an item.
-import { commentOf } from './links';
+import { commentOf, quoted, where } from './links';
 import type { DocMeta, Project, ZoteroItem } from './types';
 
 const ACCOUNT_KEY = 'gloss:zotero';
@@ -124,9 +124,8 @@ export function noteOf(p: Project, doc: DocMeta) {
     .sort((a, b) => (a.parts[0]?.page ?? Infinity) - (b.parts[0]?.page ?? Infinity) || (a.parts[0]?.rects[0]?.[1] ?? 0) - (b.parts[0]?.rects[0]?.[1] ?? 0));
   const cardNotes = new Map(p.cards.flatMap((c) => (c.data.kind === 'excerpt' && c.data.comment?.trim() ? [[c.data.highlightId, c.data.comment.trim()]] : [])));
   const body = marks.map((h) => {
-    const where = h.parts[0] ? `p. ${h.parts[0].page}` : 'not placed';
     const notes = [commentOf(p, h)?.text, cardNotes.get(h.id)].filter(Boolean).map((t) => `<p>${escape(t!)}</p>`);
-    return `<blockquote><p>${escape(h.area ? `[Figure${h.text ? `: ${h.text}` : ''}]` : `“${h.text}”`)} (${where})</p></blockquote>${notes.join('')}`;
+    return `<blockquote><p>${escape(h.area ? quoted(h) : `“${h.text}”`)} (${where(h)})</p></blockquote>${notes.join('')}`;
   });
   return { html: `<h1>Notes from Gloss: ${escape(doc.name)}</h1>${body.join('')}`, count: marks.length };
 }

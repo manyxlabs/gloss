@@ -1,6 +1,6 @@
 import { FileText, StickyNote, X } from 'lucide-react';
 import { useEffect } from 'react';
-import { docName, endsOf, quoted } from '../../links';
+import { docName, endsOf, quoted, where } from '../../links';
 import { cardText } from '../../search';
 import { showEnd, unlinkCard, unlinkPassages } from '../../store/links';
 import { showCard, shownPanes, useStore, type Pane } from '../../store/project';
@@ -38,7 +38,7 @@ export function LinkPopover({ highlight, pane, x, y, onClose }: { highlight: Hig
                 <FileText size={14} aria-hidden="true" />
                 <span className="text">{quoted(end.highlight) || 'Figure'}</span>
                 <span className="where">
-                  {docName(project, end.highlight.docId)} · p. {end.highlight.parts[0]?.page}
+                  {docName(project, end.highlight.docId)} · {where(end.highlight)}
                 </span>
               </button>
             ) : (

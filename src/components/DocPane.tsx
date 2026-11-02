@@ -96,6 +96,8 @@ const POPUP_HALF_WIDTH = 190;
 const MIN_SNIP = 8;
 /** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
 const SIDEBAR_BESIDE = 560;
+/** Narrower still, as one of three panes, the toolbar leaves out its zoom steps; the percentage still fits the page to the pane. */
+const TIGHT = 360;
 
 /** The pane last pressed in, which Ctrl+D bookmarks. */
 let lastPane: Pane = 0;
@@ -184,6 +186,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const [exporting, setExporting] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  const [tight, setTight] = useState(false);
   const section = useRef<HTMLElement>(null);
   const snipLive = useRef<HTMLDivElement>(null);
   const snip = useRef<Snip | null>(null);
@@ -215,7 +218,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   }, [toolbar]);
 
   useEffect(() => {
-    const resize = new ResizeObserver(([entry]) => setNarrow(entry!.contentRect.width < SIDEBAR_BESIDE));
+    const resize = new ResizeObserver(([entry]) => {
+      setNarrow(entry!.contentRect.width < SIDEBAR_BESIDE);
+      setTight(entry!.contentRect.width < TIGHT);
+    });
     resize.observe(section.current!);
     return () => resize.disconnect();
   }, []);
@@ -697,14 +703,22 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const active = docs.find((d) => d.id === activeDocId);
   const ready = !!active && loaded === activeDocId;
   const error = failed && failed.docId === activeDocId ? failed.message : null;
-  /** Bookmarks the place at the top of the view, named after the words there, to be renamed in the sidebar if it is open. */
+  /**
+   * Bookmarks the place at the top of the view, named after the words from there on, to be
+   * renamed in the sidebar if it is open. Scrolled to the end, where the last pages cannot reach
+   * the top, it is the top of the last page in view; between pages, the top of the next.
+   */
   const bookmarkHere = async () => {
     const c = scroller.current!;
     if (!activeDocId || !ready) return;
     const box = c.getBoundingClientRect();
-    const at = pointOnPage(c, box.left + box.width / 2, box.top + 12) ?? { page: status.page, fy: 0 };
+    const top = pointOnPage(c, box.left + box.width / 2, box.top + 12);
+    const tops = [...c.querySelectorAll<HTMLElement>('.page[data-page-number]:not([data-copy])')].filter((p) => p.getBoundingClientRect().top >= box.top);
+    const end = c.scrollTop + c.clientHeight >= c.scrollHeight - 2;
+    const next = (end ? tops.at(-1) : top ? undefined : tops[0])?.dataset.pageNumber;
+    const at = next ? { page: Number(next), fy: 0 } : (top ?? { page: status.page, fy: 0 });
     const y = Math.max(0, Math.round((at.fy - 0.01) * 1e4) / 1e4);
-    const words = (await textIn(activeDocId, active?.password, at.page, [[0, y, 1, 0.05]]).catch(() => '')).split(' ').filter(Boolean);
+    const words = (await textIn(activeDocId, active?.password, at.page, [[0, y, 1, 1 - y]]).catch(() => '')).split(' ').filter(Boolean);
     const name = words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : `Page ${at.page}`;
     const mark = addBookmark(activeDocId, at.page, y, name);
     setMarked(true);
@@ -744,7 +758,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   return (
     <section
       ref={section}
-      className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
+      className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${tight ? ' tight' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
       aria-label={['Documents', 'Second document', 'Third document'][pane]}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;

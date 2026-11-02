@@ -1,4 +1,4 @@
-import { cite, commentOf, endsOf, quoted } from './links';
+import { cite, commentOf, endsOf, quoted, where } from './links';
 import { cardText } from './search';
 import type { Card, Project } from './types';
 
@@ -7,13 +7,13 @@ import type { Card, Project } from './types';
  * `links` are the cards a card is connected to, and `passages` the passages linked to it or to its passage, as cited.
  */
 export type NoteItem = { links: string[]; passages: string[] } & (
-  { kind: 'note'; text: string } | { kind: 'excerpt'; text: string; doc: string; page?: number; note?: string; comment?: string }
+  { kind: 'note'; text: string } | { kind: 'excerpt'; text: string; doc: string; where: string; note?: string; comment?: string }
 );
 /** The notes in the order every export writes them: sections of cards (a group, or loose cards between groups), then highlights left in the documents. */
 export type Outline = {
   title: string;
   sections: { title?: string; items: NoteItem[] }[];
-  highlights: { doc: string; items: { page?: number; text: string; note?: string; passages: string[] }[] }[];
+  highlights: { doc: string; items: { where: string; text: string; note?: string; passages: string[] }[] }[];
 };
 
 export function outline(p: Project): Outline {
@@ -55,7 +55,7 @@ export function outline(p: Project): Outline {
         kind: 'excerpt',
         text: quoted(h),
         doc: docName(h.docId),
-        page: h.parts[0]?.page,
+        where: where(h),
         note: commentOf(p, h)?.text,
         comment: d.comment?.trim() || undefined,
         links,
@@ -88,7 +88,7 @@ export function outline(p: Project): Outline {
       items: left
         .filter((h) => h.docId === doc.id)
         .sort((a, b) => (a.parts[0]?.page ?? 0) - (b.parts[0]?.page ?? 0) || (a.parts[0]?.rects[0]?.[1] ?? 0) - (b.parts[0]?.rects[0]?.[1] ?? 0))
-        .map((h) => ({ page: h.parts[0]?.page, text: quoted(h), note: commentOf(p, h)?.text, passages: passagesOf(h.id) })),
+        .map((h) => ({ where: where(h), text: quoted(h), note: commentOf(p, h)?.text, passages: passagesOf(h.id) })),
     }))
     .filter((d) => d.items.length);
   return { title: p.name, sections, highlights };
@@ -109,7 +109,7 @@ export function toMarkdown(p: Project) {
     for (const i of s.items) {
       if (i.kind === 'note') out.push(i.text, '');
       else {
-        out.push(quote(i.text), `> (${i.doc}, p. ${i.page})`, '');
+        out.push(quote(i.text), `> (${i.doc}, ${i.where})`, '');
         if (i.note) out.push(`Comment: ${i.note}`, '');
         if (i.comment) out.push(i.comment, '');
       }
@@ -122,7 +122,7 @@ export function toMarkdown(p: Project) {
     out.push('## Highlights', '');
     for (const d of o.highlights) {
       out.push(`### ${d.doc}`, '');
-      for (const h of d.items) out.push(`- p. ${h.page}: ${h.text}`, ...(h.note ? [`  Comment: ${h.note}`] : []), ...h.passages.map((l) => `  Linked passage: ${l}`));
+      for (const h of d.items) out.push(`- ${h.where}: ${h.text}`, ...(h.note ? [`  Comment: ${h.note}`] : []), ...h.passages.map((l) => `  Linked passage: ${l}`));
       out.push('');
     }
   }

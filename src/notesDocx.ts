@@ -17,7 +17,7 @@ function item(i: NoteItem) {
   const body =
     i.kind === 'note'
       ? [para(i.text)]
-      : [quoted(i.text), quoted(`(${i.doc}, p. ${i.page})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
+      : [quoted(i.text), quoted(`(${i.doc}, ${i.where})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
   return [
     ...body,
     ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, MUTED)] : []),
@@ -38,7 +38,7 @@ export function notesDocx(o: Outline) {
       children.push(heading(d.doc, HeadingLevel.HEADING_2));
       for (const h of d.items)
         children.push(
-          new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}`) }),
+          new Paragraph({ bullet: { level: 0 }, children: runs(`${h.where}: ${h.text}`) }),
           ...(h.note ? [new Paragraph({ indent: { left: 720 }, children: runs(`Comment: ${h.note}`) })] : []),
           ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(`Linked passage: ${l}`, MUTED) })),
         );

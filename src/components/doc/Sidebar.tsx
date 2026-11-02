@@ -2,7 +2,7 @@ import { Image, Link2, StickyNote } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useEffect, useState } from 'react';
 import { loadDoc } from '../../pdf/pdfjs';
-import { commentOf, docName, endsOf, quoted } from '../../links';
+import { commentOf, docName, endsOf, quoted, where } from '../../links';
 import { cardText } from '../../search';
 import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
@@ -182,7 +182,8 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
                 <Link2 size={13} aria-label="Linked passage" />
                 <span className="text">{quoted(end.highlight) || 'Figure'}</span>
                 <span className="page">
-                  {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}p. {end.highlight.parts[0]?.page}
+                  {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}
+                  {where(end.highlight)}
                 </span>
               </button>
             ) : (

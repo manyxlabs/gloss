@@ -14,26 +14,24 @@ export function ZoteroDialog({ send, onClose, onProblems }: { send?: DocMeta & {
   const ref = useRef<HTMLDialogElement>(null);
   const [account, setAccount] = useState(savedAccount);
   useEffect(() => ref.current?.showModal(), []);
+  const close = () => ref.current?.close();
   return (
     <dialog ref={ref} className="sheet glass zotero-dialog" aria-labelledby="zotero-h" onClose={onClose}>
       <h2 id="zotero-h">
         <BookOpen size={18} /> {send ? 'Send notes to Zotero' : 'Add from Zotero'}
       </h2>
       {!account ? (
-        <Connect onConnected={setAccount} />
+        <Connect onConnected={setAccount} close={close} />
       ) : send ? (
-        <Send account={account} doc={send} />
+        <Send account={account} doc={send} close={close} />
       ) : (
-        <Library account={account} onImported={(problems) => (onProblems(problems), ref.current?.close())} onDisconnect={() => (disconnect(), setAccount(null))} />
+        <Library account={account} onImported={(problems) => (onProblems(problems), close())} onDisconnect={() => (disconnect(), setAccount(null))} close={close} />
       )}
-      <footer>
-        <button onClick={() => ref.current?.close()}>Close</button>
-      </footer>
     </dialog>
   );
 }
 
-function Connect({ onConnected }: { onConnected: (a: ZoteroAccount) => void }) {
+function Connect({ onConnected, close }: { onConnected: (a: ZoteroAccount) => void; close: () => void }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   return (
@@ -73,16 +71,19 @@ function Connect({ onConnected }: { onConnected: (a: ZoteroAccount) => void }) {
           {problem}
         </p>
       )}
-      <div className="zotero-actions">
+      <footer>
+        <button type="button" onClick={close}>
+          Cancel
+        </button>
         <button type="submit" className="primary" disabled={busy}>
           {busy ? 'Connecting…' : 'Connect'}
         </button>
-      </div>
+      </footer>
     </form>
   );
 }
 
-function Library({ account, onImported, onDisconnect }: { account: ZoteroAccount; onImported: (problems: string[]) => void; onDisconnect: () => void }) {
+function Library({ account, onImported, onDisconnect, close }: { account: ZoteroAccount; onImported: (problems: string[]) => void; onDisconnect: () => void; close: () => void }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ZoteroResult[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -165,11 +166,14 @@ function Library({ account, onImported, onDisconnect }: { account: ZoteroAccount
           </li>
         ))}
       </ul>
+      <footer>
+        <button onClick={close}>Close</button>
+      </footer>
     </>
   );
 }
 
-function Send({ account, doc }: { account: ZoteroAccount; doc: DocMeta & { zotero: ZoteroItem } }) {
+function Send({ account, doc, close }: { account: ZoteroAccount; doc: DocMeta & { zotero: ZoteroItem }; close: () => void }) {
   const [state, setState] = useState<{ busy: true } | { sent: number } | { problem: string } | null>(null);
   return (
     <>
@@ -184,7 +188,8 @@ function Send({ account, doc }: { account: ZoteroAccount; doc: DocMeta & { zoter
           {state.problem}
         </p>
       )}
-      <div className="zotero-actions">
+      <footer>
+        <button onClick={close}>{state && 'sent' in state ? 'Done' : 'Cancel'}</button>
         <button
           className="primary"
           disabled={!!state && 'busy' in state}
@@ -199,7 +204,7 @@ function Send({ account, doc }: { account: ZoteroAccount; doc: DocMeta & { zoter
         >
           {state && 'busy' in state ? 'Sending…' : 'Send notes'}
         </button>
-      </div>
+      </footer>
     </>
   );
 }

@@ -38,7 +38,7 @@ export function Bookmarks({ docId, pane, fresh, onJump }: { docId: string; pane:
     );
   return (
     <>
-      <ul className="marks bookmarks" aria-label="Bookmarks" onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}>
+      <ul className="bookmarks" aria-label="Bookmarks" onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}>
         {marks.map((b) => (
           <li
             key={b.id}
