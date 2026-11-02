@@ -1,52 +1,11 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { expect, test, type Page } from '@playwright/test';
-import { PDFDocument, PDFHexString, PDFName, PDFNull, rgb, StandardFonts, type PDFRef } from 'pdf-lib';
-import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
-import { encryptedPdf, makePdf } from './pdfs';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { ARTIFACTS, card, openProject, openWith, readPdf, select, shot } from './helpers';
+import { encryptedPdf, reportWithContents } from './pdfs';
 
 const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
-
-/** Starts a project from these PDFs, as a reader opening them from the start page would. */
-async function openWith(page: Page, files: { name: string; buffer: Buffer }[]) {
-  await page.goto('/');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
-  await chooser.setFiles(files.map((f) => ({ ...f, mimeType: 'application/pdf' })));
-  await expect(page.locator('.textLayer span').first()).toBeVisible();
-}
-
-type Entry = { title: string; page: number; children?: Entry[] };
-
-/** A report whose pages each open with a heading, with a table of contents (an /Outlines tree) pointing at them. */
-async function reportWithContents(pageCount: number, contents: Entry[]) {
-  const doc = await PDFDocument.load(
-    await makePdf(Array.from({ length: pageCount }, (_, i) => [`Section ${i + 1} heading`, `The body of section ${i + 1} describes the reef in some detail.`])),
-  );
-  const ctx = doc.context;
-  const level = (entries: Entry[], parent: PDFRef) => {
-    const refs = entries.map(() => ctx.nextRef());
-    entries.forEach((e, i) => {
-      const kids = e.children?.length ? level(e.children, refs[i]!) : null;
-      ctx.assign(
-        refs[i]!,
-        ctx.obj({
-          Title: PDFHexString.fromText(e.title),
-          Parent: parent,
-          Dest: [doc.getPage(e.page - 1).ref, PDFName.of('XYZ'), PDFNull, 792, PDFNull],
-          ...(i > 0 ? { Prev: refs[i - 1] } : {}),
-          ...(i < entries.length - 1 ? { Next: refs[i + 1] } : {}),
-          ...(kids ? { First: kids[0], Last: kids.at(-1), Count: kids.length } : {}),
-        }),
-      );
-    });
-    return refs;
-  };
-  const root = ctx.nextRef();
-  const top = level(contents, root);
-  ctx.assign(root, ctx.obj({ Type: 'Outlines', First: top[0], Last: top.at(-1), Count: top.length }));
-  doc.catalog.set(PDFName.of('Outlines'), root);
-  return Buffer.from(await doc.save());
-}
 
 const pageNo = (page: Page, pane = 0) => page.locator('.doc-pane').nth(pane).locator('.page-no');
 const sidebarToggle = (page: Page, pane = 0) => page.locator('.doc-pane').nth(pane).getByRole('button', { name: 'Contents, pages and highlights' });
