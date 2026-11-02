@@ -31,7 +31,7 @@ export async function search(project: Project, raw: string) {
   const query = raw.trim().replace(/\s+/g, ' ').toLowerCase();
   const docs: DocHit[] = [];
   for (const doc of project.docs) {
-    const pages = await pageTexts(doc.id).catch(() => [] as string[]);
+    const pages = await pageTexts(doc.id, doc.password).catch(() => [] as string[]);
     const hits = pages.flatMap((text, i) =>
       snippets(text.replace(/\s+/g, ' '), query).map((s) => ({
         docId: doc.id,

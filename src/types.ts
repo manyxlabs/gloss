@@ -19,6 +19,8 @@ export type DocMeta = {
   pages: number;
   size: number;
   lastPage?: number;
+  /** Opens a protected PDF. Kept with the project, which lives only in this browser's storage, and never leaves it. */
+  password?: string;
 };
 
 export const INKS = ['ink', 'red', 'blue', 'green'] as const;

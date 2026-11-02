@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { before } from '../pdf/folds';
 import { closeDocs, isPdf, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
+import { passwordAsker } from '../password';
 import { addFiles, deleteFile, getProject, putProject } from './db';
 
 type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases'>;
@@ -173,6 +174,21 @@ export const rememberPage = (docId: string, lastPage: number) =>
     false,
   );
 
+/** Opens a PDF, asking for its password until it opens; null when the reader gives up. */
+async function openProtected(file: File) {
+  let password: string | undefined;
+  for (;;) {
+    try {
+      return { ...(await openPdf(file, password)), password };
+    } catch (err) {
+      if (!(err instanceof PdfPasswordError)) throw err;
+      const answer = await passwordAsker.ask(file.name, err.wrong);
+      if (answer === null) return null;
+      password = answer;
+    }
+  }
+}
+
 /** Reads and stores PDFs. Returns a message for each file that could not be added. */
 export async function importFiles(project: Project, files: File[]): Promise<{ project: Project; problems: string[] }> {
   const problems: string[] = [];
@@ -183,21 +199,22 @@ export async function importFiles(project: Project, files: File[]): Promise<{ pr
       continue;
     }
     try {
-      const { doc, close } = await openPdf(file);
+      const opened = await openProtected(file);
+      if (!opened) continue;
+      const { doc, close, password } = opened;
       added.push([
         {
           id: uid(),
           name: file.name.replace(/\.pdf$/i, ''),
           pages: doc.numPages,
           size: file.size,
+          ...(password === undefined ? {} : { password }),
         },
         file,
       ]);
       await close();
-    } catch (err) {
-      problems.push(
-        err instanceof PdfPasswordError ? `${file.name} is password protected. Save a copy without the password and add that.` : `${file.name} could not be read as a PDF.`,
-      );
+    } catch {
+      problems.push(`${file.name} could not be read as a PDF.`);
     }
   }
   if (added.length) await addFiles(added.map(([meta, file]) => [meta.id, file]));
