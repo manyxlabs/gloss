@@ -1,14 +1,14 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Columns2, Copy, FileDown, FoldVertical, Minus, Plus, Trash2, X } from 'lucide-react';
+import { Columns2, Copy, FileDown, FoldVertical, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
 import { outline, PAPER, pathOf } from '../ink';
 import { locate, pageAt, pointOnPage, selectionAnchor, textBoxes, type Anchor } from '../pdf/anchor';
 import { annotatedPdf } from '../pdf/annotate';
 import { layoutFolds, refreshTails } from '../pdf/folds';
-import { loadDoc } from '../pdf/pdfjs';
+import { loadDoc, textIn } from '../pdf/pdfjs';
 import {
   addDocs,
   addFold,
@@ -23,20 +23,26 @@ import {
   removeHighlight,
   removeInk,
   setActiveDoc,
+  setNote,
   setSideBySide,
   showCard,
   useStore,
   type Pane,
 } from '../store/project';
-import { COLORS, type Color, type Highlight, type Point } from '../types';
+import { COLORS, type Color, type Highlight, type Point, type Rect } from '../types';
+import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
+import { Sidebar } from './doc/Sidebar';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
 import { Tools } from './Tools';
 
 type Viewer = { viewer: PDFViewer; bus: EventBus; links: PDFLinkService };
-type Popup = { docId: string; x: number; y: number; below?: boolean } & ({ anchor: Anchor } | { highlightId: string });
+/** A toolbar for a selection or a highlight, or with `editing` the comment on it. */
+type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string });
 type Stroke = { page: number; box: DOMRect; points: Point[]; pen: boolean };
+/** A box being drawn on a page, kept to the stretch of the page in view where it started. */
+type Snip = { page: number; box: DOMRect; from: number; to: number; x: number; y: number };
 
 const FLASH_MS = 1600;
 /** Pen width as a fraction of the page's width: about a fine felt tip on A4. */
@@ -44,6 +50,10 @@ const INK_SIZE = 0.005;
 /** Fingers brought this close together, from where they started, squeeze the text between them. */
 const SQUEEZE_AT = 0.6;
 const POPUP_HALF_WIDTH = 190;
+/** A box smaller than this, in screen pixels, was a click rather than a snip. */
+const MIN_SNIP = 8;
+/** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
+const SIDEBAR_BESIDE = 560;
 
 /** A position inside the scrolling content, so a popup scrolls with the page it belongs to, kept clear of the pane's sides. */
 function inScroller(c: HTMLElement, clientX: number, clientY: number) {
@@ -126,6 +136,17 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     ready: boolean;
   } | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [sidebar, setSidebar] = useState(false);
+  const [narrow, setNarrow] = useState(false);
+  const section = useRef<HTMLElement>(null);
+  const snipLive = useRef<HTMLDivElement>(null);
+  const snip = useRef<Snip | null>(null);
+
+  useEffect(() => {
+    const resize = new ResizeObserver(([entry]) => setNarrow(entry!.contentRect.width < SIDEBAR_BESIDE));
+    resize.observe(section.current!);
+    return () => resize.disconnect();
+  }, []);
 
   useEffect(() => {
     const container = scroller.current!;
@@ -329,18 +350,20 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const p = pdf.current;
     if (!jump || jump.pane !== pane || !p || loaded !== activeDocId) return;
     jumped();
-    if ('query' in jump) {
-      p.viewer.currentPageNumber = jump.page;
-      p.bus.dispatch('find', {
-        source: null,
-        type: '',
-        query: jump.query,
-        caseSensitive: false,
-        entireWord: false,
-        highlightAll: true,
-        findPrevious: false,
-        matchDiacritics: false,
-      });
+    if ('page' in jump) {
+      if (jump.dest) void p.links.goToDestination(jump.dest);
+      else p.viewer.currentPageNumber = jump.page;
+      if (jump.query)
+        p.bus.dispatch('find', {
+          source: null,
+          type: '',
+          query: jump.query,
+          caseSensitive: false,
+          entireWord: false,
+          highlightAll: true,
+          findPrevious: false,
+          matchDiacritics: false,
+        });
       return;
     }
     const h = useStore.getState().project?.highlights.find((x) => x.id === jump.highlightId);
@@ -395,6 +418,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (tool === 'eraser') return erase(e.clientX, e.clientY);
     const hit = pageAt(scroller.current!, e.clientX, e.clientY);
     if (!hit) return;
+    if (tool === 'snip') {
+      snip.current = { page: hit.page, box: hit.box, from: hit.from, to: hit.to, x: e.clientX, y: e.clientY };
+      return drawSnip(snip.current, e.clientX, e.clientY);
+    }
     const s: Stroke = {
       page: hit.page,
       box: hit.box,
@@ -407,6 +434,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   };
 
   const onPointerMove = (e: ReactPointerEvent) => {
+    if (snip.current) return drawSnip(snip.current, e.clientX, e.clientY);
     if (tool === 'eraser' && e.buttons) return erase(e.clientX, e.clientY);
     const s = stroke.current;
     if (!s) return;
@@ -424,9 +452,64 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (s && activeDocId) addInk(activeDocId, s.page, s.points, INK_SIZE, s.pen);
   };
 
+  /** The box being snipped as page fractions, kept to the page and to the stretch of it in view. */
+  const snipRect = (s: Snip, x: number, y: number): Rect => {
+    const fx = (v: number) => Math.min(1, Math.max(0, (v - s.box.left) / s.box.width));
+    const fy = (v: number) => Math.min(s.to, Math.max(s.from, (v - s.box.top) / s.box.height));
+    const [left, right] = [fx(s.x), fx(x)].sort((a, b) => a - b) as [number, number];
+    const [top, bottom] = [fy(s.y), fy(y)].sort((a, b) => a - b) as [number, number];
+    return [left, top, right - left, bottom - top];
+  };
+
+  const drawSnip = (s: Snip | null, x: number, y: number) => {
+    const el = snipLive.current!;
+    if (!s) return void (el.style.display = 'none');
+    const [rx, ry, rw, rh] = snipRect(s, x, y);
+    const at = body.current!.getBoundingClientRect();
+    Object.assign(el.style, {
+      display: 'block',
+      left: `${s.box.left - at.left + rx * s.box.width}px`,
+      top: `${s.box.top - at.top + ry * s.box.height}px`,
+      width: `${rw * s.box.width}px`,
+      height: `${rh * s.box.height}px`,
+    });
+  };
+
+  /** Keeps the box drawn as an area highlight, with the page's text inside it, and offers what can be done with it. */
+  const finishSnip = async (x: number, y: number) => {
+    const s = snip.current;
+    snip.current = null;
+    drawSnip(null, 0, 0);
+    if (!s || !activeDocId) return;
+    const rect = snipRect(s, x, y);
+    if (rect[2] * s.box.width < MIN_SNIP || rect[3] * s.box.height < MIN_SNIP) return setPopup(null);
+    const docId = activeDocId;
+    const text = await textIn(docId, active?.password, s.page, rect).catch(() => '');
+    const h = addHighlight(docId, [{ page: s.page, rects: [rect] }], text, color, { area: true });
+    const c = scroller.current!;
+    const top = Math.min(s.y, y);
+    const below = top - c.getBoundingClientRect().top < 60;
+    setPopup({ docId, highlightId: h.id, below, ...inScroller(c, (s.x + x) / 2, below ? Math.max(s.y, y) : top - 8) });
+  };
+
+  const onPointerCancel = () => {
+    if (!snip.current) return finishStroke();
+    snip.current = null;
+    drawSnip(null, 0, 0);
+  };
+
+  /** A comment's marker in the margin opens the comment, below the marker. */
+  const onClick = (e: ReactMouseEvent) => {
+    const mark = (e.target as HTMLElement).closest<HTMLElement>('.note-mark');
+    if (!mark || !activeDocId) return;
+    const box = mark.getBoundingClientRect();
+    setPopup({ docId: activeDocId, highlightId: mark.dataset.noteId!, editing: true, below: true, ...inScroller(scroller.current!, box.left + box.width / 2, box.top) });
+  };
+
   const onPointerUp = (e: ReactPointerEvent) => {
+    if (tool === 'snip') return void finishSnip(e.clientX, e.clientY);
     if (tool !== 'select') return finishStroke();
-    if (!activeDocId || (e.target as HTMLElement).closest('.popup, .fold-bar')) return;
+    if (!activeDocId || (e.target as HTMLElement).closest('.popup, .fold-bar, .note-mark')) return;
     const docId = activeDocId;
     const c = scroller.current!;
     const touch = e.pointerType === 'touch';
@@ -512,7 +595,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
   return (
     <section
-      className={`doc-pane${dropping ? ' dropping' : ''}`}
+      ref={section}
+      className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
       aria-label={pane ? 'Second document' : 'Documents'}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
@@ -523,6 +607,18 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       onDrop={onDrop}
     >
       <div className="tabs" role="tablist" aria-label="Open documents">
+        {active && (
+          <button
+            className="icon"
+            aria-label="Contents, pages and highlights"
+            title="Contents, pages and highlights"
+            aria-pressed={sidebar}
+            aria-expanded={sidebar}
+            onClick={() => setSidebar(!sidebar)}
+          >
+            <PanelLeft size={16} />
+          </button>
+        )}
         {docs.map((d) => (
           <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
             <button role="tab" aria-selected={d.id === activeDocId} onClick={() => setActiveDoc(d.id, pane)} title={d.name}>
@@ -559,17 +655,38 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       </div>
 
       <div className="doc-body" ref={body}>
+        {sidebar && active && (
+          <aside className="doc-sidebar" aria-label="Contents, pages and highlights">
+            <Sidebar pane={pane} docId={active.id} page={status.page} onJump={() => narrow && setSidebar(false)} />
+          </aside>
+        )}
         <div
           className={`doc-scroll tool-${tool}`}
           ref={scroller}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={finishStroke}
+          onPointerCancel={onPointerCancel}
+          onClick={onClick}
           onDragStart={onDragStart}
         >
           <div className="pdfViewer" ref={viewerDiv} />
-          {shown && 'anchor' in shown && (
+          {shown?.editing && ('anchor' in shown || highlight) && (
+            <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Comment">
+              <NoteEditor
+                note={highlight?.note}
+                onCancel={() => setPopup(null)}
+                onSave={(note) => {
+                  if ('anchor' in shown) {
+                    if (note.trim()) addHighlight(activeDocId!, shown.anchor.parts, shown.anchor.text, color, { note: note.trim() });
+                    getSelection()?.removeAllRanges();
+                  } else setNote(shown.highlightId, note);
+                  setPopup(null);
+                }}
+              />
+            </div>
+          )}
+          {shown && !shown.editing && 'anchor' in shown && (
             <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="toolbar" aria-label="Selection">
               <button className="primary" onClick={() => excerpt(fromSelection(shown.anchor, color).id)}>
                 Excerpt
@@ -587,6 +704,15 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 />
               ))}
               <span className="sep" />
+              <button
+                className="icon"
+                aria-label="Comment"
+                title="Highlight with a comment in the margin"
+                // The comment is written below the selection, where a box taller than the toolbar has room.
+                onClick={() => setPopup({ ...(selectionPopup(scroller.current!, true, activeDocId) ?? shown), editing: true })}
+              >
+                <MessageSquarePlus size={17} />
+              </button>
               <button className="icon" aria-label="Squeeze" title="Squeeze these lines out of view" onClick={() => squeeze(shown.anchor)}>
                 <FoldVertical size={17} />
               </button>
@@ -595,7 +721,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               </button>
             </div>
           )}
-          {shown && highlight && (
+          {shown && !shown.editing && highlight && (
             <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="toolbar" aria-label="Highlight">
               {card ? (
                 <button className="primary" onClick={() => (setPopup(null), showCard(card.id))}>
@@ -616,6 +742,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 />
               ))}
               <span className="sep" />
+              <button
+                className="icon"
+                aria-label={highlight.note ? 'Edit comment' : 'Comment'}
+                title={highlight.note ? 'Edit the comment in the margin' : 'Add a comment in the margin'}
+                onClick={() => setPopup({ ...shown, below: true, editing: true })}
+              >
+                <MessageSquare size={16} />
+              </button>
               <button className="icon" aria-label="Delete" title="Delete highlight" onClick={() => (setPopup(null), removeHighlight(highlight.id))}>
                 <Trash2 size={16} />
               </button>
@@ -623,6 +757,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           )}
         </div>
 
+        <div className="snip-live" ref={snipLive} style={{ display: 'none' }} />
         <svg className="ink-live" aria-hidden="true">
           <path ref={live} fill={PAPER[inkColor]} />
         </svg>
