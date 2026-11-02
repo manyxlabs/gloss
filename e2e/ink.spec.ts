@@ -28,7 +28,8 @@ async function note(page: Page, text: string, x: number, y: number) {
   await page.mouse.dblclick(flow.x + x, flow.y + y);
   await expect(page.getByRole('textbox', { name: 'Note' }).last()).toBeFocused();
   await page.keyboard.type(text);
-  await page.mouse.click(flow.x + 20, flow.y + flow.height - 20);
+  // Clear of the zoom buttons at the bottom left and the map at the bottom right.
+  await page.mouse.click(flow.x + flow.width / 2, flow.y + flow.height - 24);
 }
 
 test('an ink box and handwriting on a note: written, resized, erased, undone, kept and exported as pictures', async ({ page }) => {

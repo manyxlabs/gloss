@@ -33,6 +33,7 @@ import {
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
 import type { Color, Point, Rect } from '../types';
 import { ColorPicker } from './ColorPicker';
+import { CopyLink } from './LinkChips';
 import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
@@ -776,6 +777,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           {shown?.editing && ('anchor' in shown || highlight) && (
             <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Comment">
               <NoteEditor
+                commentId={comment?.id}
                 note={comment?.text}
                 shared={comment ? highlights.filter((h) => h.commentId === comment.id).length : 1}
                 onCancel={() => setPopup(null)}
@@ -882,6 +884,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <button className="icon" aria-label="Link" title="Link this passage to another" onClick={() => (setPopup(null), startLinking({ kind: 'link', from: highlight.id }))}>
                 <Link2 size={16} />
               </button>
+              <CopyLink target={{ kind: 'h', id: highlight.id }} />
               <button className="icon" aria-label="Delete" title="Delete highlight" onClick={() => (setPopup(null), removeHighlight(highlight.id))}>
                 <Trash2 size={16} />
               </button>
@@ -937,6 +940,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <Plus size={16} />
             </button>
           </span>
+          <CopyLink target={{ kind: 'd', id: active.id }} />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>

@@ -5,6 +5,7 @@ import { setCanvasStyle } from '../store/cards';
 import { setCanvas, useStore } from '../store/project';
 import type { Background } from '../types';
 import { PaletteGrid } from './ColorPicker';
+import { CopyLink } from './LinkChips';
 import { Menu } from './Menu';
 
 /** Where a nested canvas sits, from the top: each step opens that canvas, and Up the one it is in. */
@@ -77,6 +78,7 @@ export function CanvasStyleMenu({ children }: { children?: ReactNode }) {
               The app’s accent
             </button>
             <PaletteGrid current={canvas.accent} label={(name) => `Accent ${name}`} onPick={(accent) => setCanvasStyle(canvas.id, { accent })} />
+            <CopyLink target={{ kind: 'v', id: canvas.id }} className="ghost default" text="Copy link to this canvas" />
             {children}
           </div>
         </Menu>
