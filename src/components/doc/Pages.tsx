@@ -6,6 +6,7 @@ import { anchoredOn, duplicate, editPages, insert, move, PROTECTED, remove, rota
 import { regionImage } from '../../pdf/pdfjs';
 import { showPage, useStore, type Pane } from '../../store/project';
 import { Menu } from '../Menu';
+import { ExtractItems } from './ExtractItems';
 import { OcrMenuItem } from './OcrMenuItem';
 
 /** Thumbnail width in CSS pixels, drawn at the screen's own resolution. */
@@ -235,6 +236,8 @@ export function Pages({
             <CopyPlus size={16} /> Duplicate
           </button>
           <OcrMenuItem docId={docId} pages={at} onClose={() => setMenu(null)} onProblems={setProblems} />
+          <hr />
+          <ExtractItems docId={docId} pages={at} pane={pane} onClose={() => setMenu(null)} onProblems={setProblems} />
           <hr />
           <button role="menuitem" onClick={() => addFrom(at[0]! - 1)}>
             <FilePlus2 size={16} /> Insert pages before…
