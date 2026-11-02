@@ -30,8 +30,15 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
 
   return (
     <div className="export menu-wrap" ref={root}>
-      <button aria-haspopup="menu" aria-expanded={open} title="Download the canvas and highlights as notes" disabled={disabled || busy} onClick={() => setOpen(!open)}>
-        <NotebookText size={16} /> {busy ? 'Exporting…' : 'Export notes'} <ChevronDown size={14} />
+      <button
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={busy ? 'Exporting notes' : 'Export notes'}
+        title="Download the canvas and highlights as notes"
+        disabled={disabled || busy}
+        onClick={() => setOpen(!open)}
+      >
+        <NotebookText size={16} /> <span>{busy ? 'Exporting…' : 'Export notes'}</span> <ChevronDown size={14} />
       </button>
       {open && (
         <div className="menu glass" role="menu">

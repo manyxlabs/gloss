@@ -54,7 +54,18 @@ function useDrop(onDrop: (projectId: string) => void) {
  * project is moved by its folder button or dragged onto a folder; deleting a folder keeps its
  * projects. Folders are kept on this device only, and are not shared with a synced project.
  */
-export function Projects({ projects, reload, onProblems }: { projects: Project[]; reload: () => Promise<void>; onProblems: (problems: string[]) => void }) {
+/** `actions` are the ways to start another project, shown beside the heading. */
+export function Projects({
+  projects,
+  reload,
+  onProblems,
+  actions,
+}: {
+  projects: Project[];
+  reload: () => Promise<void>;
+  onProblems: (problems: string[]) => void;
+  actions?: ReactNode;
+}) {
   const [folders, setFolders] = useState<Folder[] | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -128,7 +139,7 @@ export function Projects({ projects, reload, onProblems }: { projects: Project[]
       <a href={`#/p/${p.id}`} draggable={false}>
         <strong>{p.name}</strong>
         <span>
-          {plural(p.docs.length, 'PDF')} · {plural(p.cards.length, 'card')} · {ago(p.openedAt ?? p.updatedAt)}
+          {plural(p.docs.length, 'document')} · {plural(p.cards.length, 'card')} · {ago(p.openedAt ?? p.updatedAt)}
         </span>
       </a>
       <button
@@ -144,7 +155,7 @@ export function Projects({ projects, reload, onProblems }: { projects: Project[]
       <button
         className="icon"
         aria-label={`Back up ${p.name}`}
-        title="Download a backup: the project and its PDFs in one file"
+        title="Download a backup: the project and its documents in one file"
         onClick={async () => {
           try {
             download(`${p.name}.gloss`, await backupOf(p));
@@ -160,7 +171,7 @@ export function Projects({ projects, reload, onProblems }: { projects: Project[]
         aria-label={`Delete ${p.name}`}
         title="Delete from this browser"
         onClick={async () => {
-          if (!confirm(`Delete “${p.name}” and its PDFs from this browser? This cannot be undone.`)) return;
+          if (!confirm(`Delete “${p.name}” and its documents from this browser? This cannot be undone.`)) return;
           await deleteProject(p);
           await reload();
         }}
@@ -177,6 +188,7 @@ export function Projects({ projects, reload, onProblems }: { projects: Project[]
         <button className="ghost" onClick={() => void create()}>
           <FolderPlus size={16} /> New folder
         </button>
+        {actions}
       </div>
       {folders.map((f) => {
         const members = projects.filter((p) => p.folder === f.id);

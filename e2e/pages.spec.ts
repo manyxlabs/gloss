@@ -273,3 +273,40 @@ test('page tools say a password protected PDF needs an unprotected copy, and on 
   await expect(thumbs(page).first()).toHaveAttribute('draggable', 'false');
   await context.close();
 });
+
+test('a document with edited pages, removed, comes back at its edited version and then its first with undo, and only files in use are kept', async ({ page }) => {
+  await openProject(page);
+  /** How many files the browser keeps: Survey notes, and each version of Reef essay. */
+  const files = () =>
+    page.evaluate(
+      () =>
+        new Promise<number>((done) => {
+          const open = indexedDB.open('gloss');
+          open.onsuccess = () => {
+            const count = open.result.transaction('files').objectStore('files').count();
+            count.onsuccess = () => (done(count.result), open.result.close());
+          };
+        }),
+    );
+  await openPages(page);
+  // A page with nothing on it goes without asking.
+  await pageAction(page, 1, 'Delete page');
+  await settled(page);
+  await showsPages(page, ['Mangrove forest', 'Kelp forests gr']);
+  expect(await files()).toBe(3);
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Remove Reef essay' }).click();
+  await expect(page.getByRole('tab', { name: 'Reef essay' })).toHaveCount(0);
+  // Both versions stay while undo can bring either back.
+  expect(await files()).toBe(3);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('tab', { name: 'Reef essay' }).click();
+  await showsPages(page, ['Mangrove forest', 'Kelp forests gr']);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await showsPages(page, ['The ocean cover', 'Mangrove forest', 'Kelp forests gr']);
+
+  // Closed, the history goes, and with it the edited version nothing shows any more.
+  await page.getByRole('link', { name: 'All projects' }).click();
+  await expect.poll(files).toBe(2);
+});

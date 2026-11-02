@@ -17,7 +17,13 @@ test('a backup brings a project back whole, as many times as needed, without the
   const file = `${ARTIFACTS}/Reef essay.gloss`;
   copyFileSync(await download.path(), file);
 
-  page.on('dialog', (d) => d.accept());
+  let answer = true;
+  const asked: string[] = [];
+  page.on('dialog', (d) => {
+    asked.push(d.message());
+    void (answer ? d.accept() : d.dismiss());
+  });
+  await expect(page.getByRole('link', { name: /Reef essay/ })).toContainText('2 documents · 1 card');
   await page.getByRole('button', { name: 'Delete Reef essay' }).click();
   await expect(page.getByRole('link', { name: /Reef essay/ })).toHaveCount(0);
 
@@ -34,12 +40,17 @@ test('a backup brings a project back whole, as many times as needed, without the
     .click();
   await expect(page.locator('.page:not([data-copy]) .hl.flash')).toBeInViewport();
 
-  // Restored a second time, then the first copy deleted: the second still has its PDFs.
+  // Restored a second time, once asked whether that is meant; then the first copy deleted: the second still has its PDFs.
   await page.goto('/');
   await restoreFrom();
+  await expect.poll(() => asked.at(-1)).toBe('This backup was already restored as “Reef essay”. Restore another copy?');
   await expect(card(page, 'Coral reefs')).toBeVisible();
   await page.goto('/');
+  answer = false;
+  await restoreFrom();
+  await expect.poll(() => asked.length).toBe(3);
   await expect(page.getByRole('link', { name: /Reef essay/ })).toHaveCount(2);
+  answer = true;
   await page.getByRole('button', { name: 'Delete Reef essay' }).first().click();
   await expect(page.getByRole('link', { name: /Reef essay/ })).toHaveCount(1);
   await page.getByRole('link', { name: /Reef essay/ }).click();

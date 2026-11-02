@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/project';
 import { shareLink } from '../sync/crypto';
 import { useSync, type Status } from '../sync/state';
-import { Peers } from './Presence';
+import { keepName, NameField, Peers } from './Presence';
 
 // The sync engine and Yjs load only once a project is shared.
 const engine = () => import('../sync/session');
@@ -83,7 +83,13 @@ export function Share() {
             </footer>
           </>
         ) : (
-          <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              keepName(e.currentTarget);
+              void engine().then((m) => m.share());
+            }}
+          >
             <p>
               Sharing keeps this project, its PDFs and its canvas in step across your devices and with anyone you give the link to. Changes appear for everyone as they are made,
               and edits made offline catch up later.
@@ -92,13 +98,17 @@ export function Share() {
               Everything is scrambled on this device before it leaves. The key is part of the link and never reaches the server, which only stores scrambled data it cannot read.
               Anyone with the link can read and edit.
             </p>
+            <label className="name-field">
+              <span>Your name, as the others will see it</span>
+              <NameField />
+            </label>
             <footer>
-              <button onClick={close}>Cancel</button>
-              <button className="primary" onClick={() => void engine().then((m) => m.share())}>
-                Create link
+              <button type="button" onClick={close}>
+                Cancel
               </button>
+              <button className="primary">Create link</button>
             </footer>
-          </>
+          </form>
         )}
       </dialog>
     </>

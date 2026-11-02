@@ -13,8 +13,8 @@ async function open(page: Page, files: File[]) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles(files);
-  // Converting is real work, which takes a while on a busy machine.
-  await expect(page.locator('.doc-status')).toBeVisible({ timeout: 15000 });
+  // Typesetting takes seconds, and longer on a machine busy with other tests.
+  await expect(page.locator('.doc-status')).toBeVisible({ timeout: 20_000 });
 }
 
 const span = (page: Page, text: string) => page.locator('.textLayer span', { hasText: text }).first();
@@ -259,7 +259,7 @@ test('notes export as Markdown, PDF and Word with the same sections and sources'
     return readFileSync(`${ARTIFACTS}/${file}`);
   };
   await page.getByRole('button', { name: 'Export notes' }).click();
-  await expect(page.getByRole('menuitem')).toHaveCount(4);
+  await expect(page.getByRole('menuitem')).toHaveCount(3);
   await shot(page, 'export-menu');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);

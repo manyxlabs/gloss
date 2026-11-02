@@ -49,8 +49,10 @@ test('share a project, edit it together and offline, and keep the server blind',
     const dialog = a.page.getByRole('dialog', { name: 'Share this project' });
     await expect(dialog).toContainText('never reaches the server');
     await shot(a.page, 'sync-share-dialog');
+    // The name is asked in the same dialog, so no second one stacks over it.
+    await dialog.getByRole('textbox', { name: 'Your name' }).fill('Ada Lovelace');
     await dialog.getByRole('button', { name: 'Create link' }).click();
-    await giveName(a.page, 'Ada Lovelace');
+    await expect(a.page.getByRole('dialog', { name: 'What should others call you?' })).toHaveCount(0);
     const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
     const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
     expect(link).toMatch(/\/#\/join\/[\w-]{22}\.[\w-]{43}$/);
@@ -214,19 +216,22 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await expect(a.page.locator('.page:not([data-copy]) .link-mark')).toHaveCount(2);
 
   const tabs = (page: Page) => page.getByRole('tablist', { name: 'Canvases' });
-  await tabs(a.page).getByRole('button', { name: 'New canvas' }).click();
+  await a.page.getByRole('button', { name: 'New canvas' }).click();
   await addNote(a.page, 'Only on the second canvas', 200, 200);
 
   await a.page.getByRole('button', { name: 'Share' }).click();
-  await a.page.getByRole('dialog', { name: 'Share this project' }).getByRole('button', { name: 'Create link' }).click();
-  await giveName(a.page, 'Ada');
+  const sharing = a.page.getByRole('dialog', { name: 'Share this project' });
+  await sharing.getByRole('textbox', { name: 'Your name' }).fill('Ada');
+  await sharing.getByRole('button', { name: 'Create link' }).click();
   const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
   const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
   await shared.getByRole('button', { name: 'Done' }).click();
   await synced(a.page);
 
   await b.page.goto(link);
-  await giveName(b.page, 'Ben');
+  // Someone who joins may skip giving a name, and is a guest.
+  await b.page.getByRole('dialog', { name: 'What should others call you?' }).getByRole('button', { name: 'Skip' }).click();
+  await expect(b.page.getByRole('button', { name: 'You (Guest). Change your name' })).toBeVisible();
   await synced(b.page);
   // The comment's marker sits beside both its passages, and the link's beside both of its own.
   await b.page.getByRole('tab', { name: 'Reef essay' }).click();
@@ -250,6 +255,14 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await expect(b.page.getByRole('dialog')).toHaveCount(0);
   await shot(b.page, 'sync-new-features');
 
+  // A document removed on one device goes on the other, and undo brings it back to both, file and all.
+  a.page.once('dialog', (d) => d.accept());
+  await a.page.getByRole('button', { name: 'Remove Survey notes' }).click();
+  await expect(b.page.getByRole('tab', { name: 'Survey notes' })).toHaveCount(0);
+  await a.page.getByRole('button', { name: 'Undo' }).click();
+  await b.page.getByRole('tab', { name: 'Survey notes' }).click({ timeout: 15_000 });
+  await expect(b.page.locator('.textLayer span', { hasText: 'Field notes from the reef survey' }).first()).toBeVisible();
+
   for (const frame of [...a.wire.sent, ...a.wire.uploads]) {
     expect(frame.includes('Check the survey')).toBe(false);
     expect(frame.includes('coral')).toBe(false);
@@ -268,8 +281,9 @@ test('a page edit reaches the other device as a new version of the file, and so 
   await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();
 
   await a.page.getByRole('button', { name: 'Share' }).click();
-  await a.page.getByRole('dialog', { name: 'Share this project' }).getByRole('button', { name: 'Create link' }).click();
-  await giveName(a.page, 'Ada');
+  const sharing = a.page.getByRole('dialog', { name: 'Share this project' });
+  await sharing.getByRole('textbox', { name: 'Your name' }).fill('Ada');
+  await sharing.getByRole('button', { name: 'Create link' }).click();
   const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
   const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
   await shared.getByRole('button', { name: 'Done' }).click();

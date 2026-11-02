@@ -121,8 +121,25 @@ function block(el: Element): Block[] {
     return runs.length ? [{ kind: 'heading', level: Number(tag[1]), runs }] : [];
   }
   if (tag === 'UL' || tag === 'OL') {
-    const items = [...el.children].filter((li) => li.tagName === 'LI').map(blocks);
-    return items.length ? [{ kind: 'list', ordered: tag === 'OL', start: Number(el.getAttribute('start')) || 1, items }] : [];
+    // Items left empty are dropped, and pictures, such as a gallery's, stand on their own between the lists around them, without bullets.
+    const out: Block[] = [];
+    let start = Number(el.getAttribute('start')) || 1;
+    let items: Block[][] = [];
+    const flush = () => {
+      if (items.length) out.push({ kind: 'list', ordered: tag === 'OL', start, items });
+      start += items.length;
+      items = [];
+    };
+    for (const li of el.children) {
+      if (li.tagName !== 'LI') continue;
+      const item = blocks(li);
+      if (item.some((b) => b.kind === 'image') && item.every((b) => b.kind === 'image' || (b.kind === 'para' && b.muted))) {
+        flush();
+        out.push(...item);
+      } else if (item.length) items.push(item);
+    }
+    flush();
+    return out;
   }
   if (tag === 'BLOCKQUOTE') return [{ kind: 'quote', blocks: blocks(el) }];
   if (tag === 'PRE') return [{ kind: 'code', text: (el.textContent ?? '').replace(/\n$/, '') }];
