@@ -1,11 +1,8 @@
-import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { PDFDocument, PDFHexString, PDFName, PDFNull, rgb, StandardFonts, type PDFRef } from 'pdf-lib';
 import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
-import { makePdf } from './pdfs';
+import { encryptedPdf, makePdf } from './pdfs';
 
 const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
 
@@ -145,14 +142,6 @@ test('on a phone the sidebar covers the page and closes after a jump', async ({ 
   await expect(page.locator('.page-no')).toHaveText('Page 4 / 6');
   await context.close();
 });
-
-/** A PDF that opens only with `password`, encrypted by qpdf as a real protected file would be. */
-async function encryptedPdf(password: string) {
-  const dir = mkdtempSync(join(tmpdir(), 'gloss-'));
-  writeFileSync(join(dir, 'plain.pdf'), await makePdf([['Confidential findings: the northern reef recovered faster than expected after the heatwave.']]));
-  execFileSync('qpdf', ['--encrypt', password, `${password}-owner`, '256', '--', join(dir, 'plain.pdf'), join(dir, 'locked.pdf')]);
-  return readFileSync(join(dir, 'locked.pdf'));
-}
 
 test('a password protected PDF asks for its password, refuses a wrong one and opens with the right one', async ({ page }) => {
   await openProject(page);

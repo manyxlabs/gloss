@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { ARTIFACTS, card, openProject, select, shot } from './helpers';
-import { ESSAY } from './pdfs';
+import { encryptedPdf, ESSAY } from './pdfs';
 
 // Everything the server saw from or sent to one device.
 type Wire = { sent: Buffer[]; received: Buffer[]; uploads: Buffer[] };
@@ -150,7 +150,10 @@ test('share a project, edit it together and offline, and keep the server blind',
   await test.step('On a phone, in the dark theme', async () => {
     await b.page.setViewportSize({ width: 390, height: 844 });
     await b.page.getByRole('button', { name: 'Use dark theme' }).click();
-    await b.page.getByRole('tab', { name: /^Canvas/ }).click();
+    await b.page
+      .getByRole('tablist', { name: 'Show' })
+      .getByRole('tab', { name: /^Canvas/ })
+      .click();
     await expect(b.page.getByRole('status')).toHaveText('Synced');
     await shot(b.page, 'sync-phone-dark');
     await b.page.getByRole('button', { name: 'Share' }).click();
@@ -181,4 +184,59 @@ test('share a project, edit it together and offline, and keep the server blind',
       ),
     );
   });
+});
+
+test('a second canvas, a margin comment and a password protected PDF all reach the other device', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const a = await device(browser);
+  const b = await device(browser);
+  await openProject(a.page);
+
+  const [chooser] = await Promise.all([a.page.waitForEvent('filechooser'), a.page.getByRole('button', { name: 'Add PDF' }).click()]);
+  await chooser.setFiles({ name: 'Locked survey.pdf', mimeType: 'application/pdf', buffer: await encryptedPdf('coral') });
+  const ask = a.page.getByRole('dialog', { name: 'Password needed' });
+  await ask.getByLabel('Password').fill('coral');
+  await ask.getByRole('button', { name: 'Open' }).click();
+  await expect(a.page.getByRole('tab', { name: 'Locked survey' })).toHaveAttribute('aria-selected', 'true');
+
+  await a.page.getByRole('tab', { name: 'Reef essay' }).click();
+  await select(a.page, 'Coral reefs occupy');
+  await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Comment' }).click();
+  await a.page.keyboard.type('Check the survey');
+  await a.page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Save' }).click();
+
+  const tabs = (page: Page) => page.getByRole('tablist', { name: 'Canvases' });
+  await tabs(a.page).getByRole('button', { name: 'New canvas' }).click();
+  await addNote(a.page, 'Only on the second canvas', 200, 200);
+
+  await a.page.getByRole('button', { name: 'Share' }).click();
+  await a.page.getByRole('dialog', { name: 'Share this project' }).getByRole('button', { name: 'Create link' }).click();
+  await giveName(a.page, 'Ada');
+  const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
+  const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
+  await shared.getByRole('button', { name: 'Done' }).click();
+  await synced(a.page);
+
+  await b.page.goto(link);
+  await giveName(b.page, 'Ben');
+  await synced(b.page);
+  // The comment's marker sits beside its passage.
+  await b.page.getByRole('tab', { name: 'Reef essay' }).click();
+  await expect(b.page.locator('.page:not([data-copy]) .note-mark')).toHaveCount(1);
+  // The second canvas and its note.
+  await expect(tabs(b.page).getByRole('tab')).toHaveCount(2);
+  await tabs(b.page).getByRole('tab', { name: 'Canvas 2' }).click();
+  await expect(note(b.page, 'Only on the second canvas')).toBeVisible();
+  // The protected PDF opens without asking: its password came with the project, encrypted.
+  await b.page.getByRole('tab', { name: 'Locked survey' }).click();
+  await expect(b.page.locator('.textLayer span', { hasText: 'Confidential findings' }).first()).toBeVisible();
+  await expect(b.page.getByRole('dialog')).toHaveCount(0);
+  await shot(b.page, 'sync-new-features');
+
+  for (const frame of [...a.wire.sent, ...a.wire.uploads]) {
+    expect(frame.includes('Check the survey')).toBe(false);
+    expect(frame.includes('coral')).toBe(false);
+  }
+  await a.context.close();
+  await b.context.close();
 });

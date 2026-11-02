@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 
 /** A text PDF: each page is a list of paragraphs, wrapped to the page like a real document. */
@@ -43,3 +47,11 @@ export const NOTES = [
   ['Field notes from the reef survey. Water clarity was good and bleaching was visible on the shallow branching corals.'],
   ['Parrotfish numbers were lower than in the previous survey, which may explain the spread of algae on the eastern slope.'],
 ];
+
+/** A PDF that opens only with `password`, encrypted by qpdf as a real protected file would be. */
+export async function encryptedPdf(password: string) {
+  const dir = mkdtempSync(join(tmpdir(), 'gloss-'));
+  writeFileSync(join(dir, 'plain.pdf'), await makePdf([['Confidential findings: the northern reef recovered faster than expected after the heatwave.']]));
+  execFileSync('qpdf', ['--encrypt', password, `${password}-owner`, '256', '--', join(dir, 'plain.pdf'), join(dir, 'locked.pdf')]);
+  return readFileSync(join(dir, 'locked.pdf'));
+}
