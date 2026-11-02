@@ -380,7 +380,7 @@ export function Canvas() {
             <StickyNote size={16} /> Note
           </button>
           <Tools side="canvasTool" />
-          {/* On a phone, beside the canvas it pictures, as the header's menu is a side away. */}
+          {/* Shown on a phone only, where the header is far from the canvas. */}
           <button
             className="icon picture-export"
             aria-label="Export the canvas as a picture"

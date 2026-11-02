@@ -141,7 +141,7 @@ test('the canvas exports as a picture of its cards, links and handwriting, witho
   await shot(page, 'canvas-export-source');
 
   const png = await exportPicture(page, ['Whole canvas', 'PNG', '2×'], 'canvas-export-light.png');
-  expect(png.suggested).toBe('Reef essay - Canvas.png');
+  expect(png.suggested).toBe('Reef essay - Canvas 1.png');
   await expect(png.dialog).toBeHidden();
   const light = await inspect(page, png.file, {
     excerpt: inPicture(cards, 'Coral reefs', 2),

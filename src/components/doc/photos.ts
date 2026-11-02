@@ -50,14 +50,18 @@ function draw(div: HTMLElement, source: HTMLCanvasElement, boxes: Rect[]) {
   drawnFrom.set(layer, source);
   layer.replaceChildren(
     ...boxes.map(([x, y, w, h]) => {
-      // Only the picture's whole pixels, stretched by under a pixel to its exact edges: a pixel
-      // shared with the page around it would show as a light seam.
-      const [sx, sy] = [Math.ceil(x * source.width), Math.ceil(y * source.height)];
+      // The picture's whole pixels, stretched over every pixel it touches: a pixel left to the
+      // filter shows as a seam of the picture turned negative, and one shared with the paper as a
+      // light frame. pdf.js may also draw a picture a pixel past its exact box.
+      const [W, H] = [source.width, source.height];
+      const [sx, sy] = [Math.ceil(x * W), Math.ceil(y * H)];
+      const [sw, sh] = [Math.max(1, Math.floor((x + w) * W) - sx), Math.max(1, Math.floor((y + h) * H) - sy)];
+      const [left, top] = [Math.floor(x * W), Math.floor(y * H)];
+      const [right, bottom] = [Math.min(W, Math.ceil((x + w) * W)), Math.min(H, Math.ceil((y + h) * H))];
       const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.floor((x + w) * source.width) - sx);
-      c.height = Math.max(1, Math.floor((y + h) * source.height) - sy);
-      c.getContext('2d')?.drawImage(source, sx, sy, c.width, c.height, 0, 0, c.width, c.height);
-      Object.assign(c.style, { left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%` });
+      [c.width, c.height] = [sw, sh];
+      c.getContext('2d')?.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+      Object.assign(c.style, { left: `${(left / W) * 100}%`, top: `${(top / H) * 100}%`, width: `${((right - left) / W) * 100}%`, height: `${((bottom - top) / H) * 100}%` });
       return c;
     }),
   );
