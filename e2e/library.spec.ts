@@ -73,6 +73,7 @@ test('folders hold projects, moved by menu and by dragging, kept across reloads,
   await page.getByRole('menu', { name: 'Thesis' }).getByRole('menuitem', { name: 'Rename' }).click();
   await page.getByRole('textbox', { name: 'Folder name' }).fill('Thesis chapters');
   await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+  await expect(toggle(page, 'Thesis chapters')).toHaveAttribute('aria-expanded', 'false');
   await page.reload();
   await expect(toggle(page, 'Thesis chapters')).toHaveAttribute('aria-expanded', 'false');
   await expect(toggle(page, 'Thesis chapters')).toHaveAccessibleName('Thesis chapters 2 projects');

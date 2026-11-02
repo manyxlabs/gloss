@@ -61,7 +61,7 @@ export function Pages({
     const scroller = list.current?.parentElement;
     const el = list.current?.querySelector<HTMLElement>('[aria-current="page"]');
     if (!scroller || !el) return;
-    const top = el.offsetTop;
+    const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
     if (top < scroller.scrollTop || top + el.offsetHeight > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top - (scroller.clientHeight - el.offsetHeight) / 2;
   }, [current, ratio]);
 
