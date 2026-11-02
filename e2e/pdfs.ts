@@ -55,3 +55,22 @@ export async function encryptedPdf(password: string) {
   execFileSync('qpdf', ['--encrypt', password, `${password}-owner`, '256', '--', join(dir, 'plain.pdf'), join(dir, 'locked.pdf')]);
   return readFileSync(join(dir, 'locked.pdf'));
 }
+
+/** Where `pictureReport` draws its picture, in PDF points from the bottom left. */
+export const PICTURE = { x: 196, y: 250, width: 220, height: 160 };
+
+/** A page of text with a picture (`png`) below it and a caption, as a report with a photograph would be. */
+export async function pictureReport(png: Buffer) {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.TimesRoman);
+  const page = pdf.addPage([612, 792]);
+  const lines = [
+    'Survey of the reef flat at low tide, with the transect marked by a red buoy line.',
+    'Branching corals were pale on the shallow side and healthy beyond the drop off.',
+    'Grazing fish were counted along each transect in the morning and the afternoon.',
+  ];
+  lines.forEach((text, i) => page.drawText(text, { x: 66, y: 720 - i * 24, size: 13, font }));
+  page.drawImage(await pdf.embedPng(png), PICTURE);
+  page.drawText('Photograph 1: the northern transect', { x: 210, y: 226, size: 12, font });
+  return Buffer.from(await pdf.save());
+}

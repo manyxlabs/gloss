@@ -3,6 +3,7 @@ import { cite, commentOf, endsOf } from '../../links';
 import { cardText } from '../../search';
 import { useLinking } from '../../store/links';
 import { useStore } from '../../store/project';
+import { paintPhotos } from './photos';
 
 export type PageView = { id: number; div: HTMLElement };
 
@@ -43,6 +44,7 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
   const { linking } = useLinking.getState();
   const linkingFrom = linking?.kind === 'link' ? linking.from : null;
   const excerpted = new Set(project.cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
+  paintPhotos(view, docId);
   const marks = layer(view.div, () => document.createElement('div'), 'hl-layer', '.textLayer');
   marks.replaceChildren(
     ...project.highlights

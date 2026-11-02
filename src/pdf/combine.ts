@@ -4,7 +4,6 @@ import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRef } from 'pdf-
 import { bookmarksOf } from '../store/bookmarks';
 import type { Project } from '../types';
 import { annotatedPdf } from './annotate';
-import { addCanvasPage } from './canvasPage';
 import { appendOutline, bookmarkEntries, type OutlineEntry } from './outline';
 
 const DEST = PDFName.of('Dest');
@@ -64,8 +63,17 @@ export async function combinedPdf(project: Project, docIds: string[], canvasId: 
       problems.push(`“${doc.name}” was left out: ${(err as Error).message}`);
     }
   }
-  const canvas = canvasId === null ? null : await addCanvasPage(out, project, canvasId);
-  if (canvas) outline.push({ title: project.canvases.find((c) => c.id === canvasId)?.name ?? 'Canvas', page: canvas });
+  if (canvasId !== null) {
+    // The canvas as the Export menu pictures it, on a page of its own size.
+    const { canvasPng } = await import('../components/CanvasExport');
+    const png = await canvasPng(project, canvasId);
+    const title = project.canvases.find((c) => c.id === canvasId)?.name ?? 'Canvas';
+    if (png) {
+      const { picturePdf } = await import('../canvasPicture');
+      const page = await PDFDocument.load(await (await picturePdf(await png.blob.arrayBuffer(), png.width, png.height, 'fit', title)).arrayBuffer());
+      outline.push({ title, page: out.getPage(await append(out, page)) });
+    }
+  }
   if (!out.getPageCount()) throw new Error(problems.join(' ') || 'There was nothing to export.');
   appendOutline(out, outline);
   out.catalog.set(PDFName.of('PageMode'), PDFName.of('UseOutlines'));
