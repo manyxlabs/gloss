@@ -1009,6 +1009,30 @@ button.big.primary {
   color: var(--muted);
 }
 
+/* A narrow pane, such as one of two side by side, gets a compact toolbar. */
+.doc-pane {
+  container-type: inline-size;
+}
+
+@container (max-width: 460px) {
+  .doc-status {
+    gap: 0;
+    padding: 3px;
+  }
+
+  .page-no .long {
+    display: none;
+  }
+
+  .zoom .scale {
+    min-width: 40px;
+  }
+
+  .doc-status button.icon {
+    width: 28px;
+  }
+}
+
 .page-no {
   padding: 0 6px;
   font-variant-numeric: tabular-nums;
