@@ -89,30 +89,48 @@ export function pageTexts(docId: string, password?: string) {
   return pages;
 }
 
-/** The text whose middle lies inside a box on a page, in reading order. */
-export async function textIn(docId: string, password: string | undefined, pageNo: number, [x, y, w, h]: Rect) {
+/** A word on a page: its middle, and its box from below the line to the top of its letters, in page fractions. */
+export type Word = { text: string; mid: [number, number]; box: Rect; eol: boolean };
+
+/** The words of a page in reading order. A run is often a whole line; words are placed along it by their share of its characters. */
+export async function wordsOn(docId: string, password: string | undefined, pageNo: number): Promise<Word[]> {
   const page = await (await loadDoc(docId, password)).getPage(pageNo);
   const viewport = page.getViewport({ scale: 1 });
-  let text = '';
-  const inside = (px: number, py: number) => {
+  const at = (px: number, py: number) => {
     const [vx, vy] = viewport.convertToViewportPoint(px, py) as [number, number];
-    const [fx, fy] = [vx / viewport.width, vy / viewport.height];
-    return fx >= x && fx <= x + w && fy >= y && fy <= y + h;
+    return [vx / viewport.width, vy / viewport.height] as [number, number];
   };
+  const out: Word[] = [];
   for (const item of (await page.getTextContent()).items) {
     if (!('str' in item)) continue;
-    // A run is often a whole line, of which the box may hold only part: each word is kept when its
-    // middle is inside. Words are placed along the run by their share of its characters.
     const [a, b, c, d, e, f] = item.transform as number[];
     const along = Math.hypot(a!, b!) || 1;
     const [ux, uy] = [((a! / along) * item.width) / (item.str.length || 1), ((b! / along) * item.width) / (item.str.length || 1)];
-    const words = [...item.str.matchAll(/\S+/g)].filter((m) => {
-      const mid = m.index + m[0].length / 2;
-      return inside(e! + ux * mid + c! / 2, f! + uy * mid + d! / 2);
+    const words = [...item.str.matchAll(/\S+/g)];
+    words.forEach((m, i) => {
+      const [from, to, mid] = [m.index, m.index + m[0].length, m.index + m[0].length / 2];
+      // A quarter of the type size below the line holds descenders, as the text layer's own boxes do.
+      const corners = [from, to].flatMap((k) => [at(e! + ux * k - c! / 4, f! + uy * k - d! / 4), at(e! + ux * k + c!, f! + uy * k + d!)]);
+      const xs = corners.map((p) => p[0]);
+      const ys = corners.map((p) => p[1]);
+      const [left, top] = [Math.min(...xs), Math.min(...ys)];
+      out.push({
+        text: m[0],
+        mid: at(e! + ux * mid + c! / 2, f! + uy * mid + d! / 2),
+        box: [left, top, Math.max(...xs) - left, Math.max(...ys) - top],
+        eol: !!item.hasEOL && i === words.length - 1,
+      });
     });
-    if (words.length) text += words.map((m) => m[0]).join(' ') + (item.hasEOL ? '\n' : ' ');
   }
-  return cleanText(text);
+  return out;
+}
+
+/** Words as text, joined as they read. */
+export const joined = (words: Word[]) => cleanText(words.map((w) => w.text + (w.eol ? '\n' : ' ')).join(''));
+
+/** The text whose middle lies inside a box on a page, in reading order. */
+export async function textIn(docId: string, password: string | undefined, pageNo: number, [x, y, w, h]: Rect) {
+  return joined((await wordsOn(docId, password, pageNo)).filter(({ mid: [fx, fy] }) => fx >= x && fx <= x + w && fy >= y && fy <= y + h));
 }
 
 /**
