@@ -289,7 +289,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       return;
     }
     let stale = false;
-    loadDoc(activeDocId).then(
+    loadDoc(activeDocId, useStore.getState().project?.docs.find((d) => d.id === activeDocId)?.password).then(
       (doc) => {
         if (stale) return;
         p.bus.on(

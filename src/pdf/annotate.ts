@@ -22,10 +22,11 @@ const n = (v: number) => +v.toFixed(3);
 export async function annotatedPdf(project: Project, docId: string) {
   const bytes = await getFile(docId);
   if (!bytes) throw new Error('This PDF is missing from this browser’s storage.');
-  const pdf = await PDFDocument.load(await bytes.arrayBuffer(), {
-    updateMetadata: false,
-  });
-  const source = await loadDoc(docId);
+  const pdf = await PDFDocument.load(await bytes.arrayBuffer(), { updateMetadata: false, ignoreEncryption: true });
+  // pdf-lib cannot decrypt, and what it wrote into the still encrypted file would be unreadable.
+  if (pdf.isEncrypted)
+    throw new Error('it is password protected, and annotations cannot be written into a protected PDF. Save a copy without the password, add that, and export it.');
+  const source = await loadDoc(docId, project.docs.find((d) => d.id === docId)?.password);
   const ctx = pdf.context;
   const multiply = ctx.obj({ Type: 'ExtGState', BM: 'Multiply' });
 

@@ -496,6 +496,64 @@ button.big.primary {
   margin: 8px 12px 0;
 }
 
+/* Glass needs something to frost, so the dialog is a solid panel over a dimmed page. */
+.password-dialog {
+  width: min(380px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.password-dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+
+.password-dialog h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.password-dialog h2 svg {
+  color: var(--accent);
+}
+
+.password-dialog p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.password-dialog input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 9px;
+  padding: 7px 10px;
+}
+
+.password-dialog input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.password-dialog .wrong {
+  margin: 8px 0 0;
+  color: var(--danger);
+}
+
+.password-dialog .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
 .lost {
   padding: 64px 16px;
   text-align: center;
