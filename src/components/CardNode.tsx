@@ -1,21 +1,16 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { outline, pathOf, SCREEN } from '../ink';
 import { regionImage } from '../pdf/pdfjs';
-import { checkpoint, collapseGroup, showSource, ungroup, updateCard, useStore } from '../store/project';
+import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
 import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
 import { CardLinks } from './CardLinks';
 
-/**
- * A textarea that grows with its text. A hidden copy of the text sizes the box in CSS, so the
- * height stays right when the font finishes loading or the card is resized.
- */
-function Grow({ value, onChange, placeholder, autoFocus, label }: { value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean; label: string }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+/** Focuses a field once its new card shows: React Flow keeps a card hidden until it has measured it, and a hidden field cannot take focus. */
+function useAutoFocus(ref: RefObject<HTMLElement | null>, on: boolean | undefined) {
   useEffect(() => {
-    if (!autoFocus) return;
-    // React Flow keeps a new card hidden until it has measured it, and a hidden field cannot take focus.
+    if (!on) return;
     let frame = 0;
     let tries = 0;
     const attempt = () => {
@@ -24,11 +19,93 @@ function Grow({ value, onChange, placeholder, autoFocus, label }: { value: strin
     };
     attempt();
     return () => cancelAnimationFrame(frame);
-  }, [autoFocus]);
+  }, [on, ref]);
+}
+
+/** Whether this card was just made here, so its field should take the focus; asked once, as the card appears. */
+function useFresh(id: string, empty: boolean) {
+  const [fresh] = useState(() => empty && useStore.getState().fresh === id);
+  useEffect(() => void (fresh && useStore.setState({ fresh: null })), [fresh]);
+  return fresh;
+}
+
+/**
+ * A textarea that grows with its text. A hidden copy of the text sizes the box in CSS, so the
+ * height stays right when the font finishes loading or the card is resized. It is left to the
+ * browser while focused, so its own undo works there; what changes elsewhere, by undo or on
+ * another device, is shown once it is not.
+ */
+function Grow({
+  cardId,
+  value,
+  onChange,
+  onDone,
+  placeholder,
+  autoFocus,
+  label,
+}: {
+  cardId: string;
+  value: string;
+  onChange: (v: string) => void;
+  onDone?: () => void;
+  placeholder: string;
+  autoFocus?: boolean;
+  label: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const typing = useRef<ReturnType<typeof startTyping>>(null);
+  // React writes a changed defaultValue into the field's text, which clears the browser's undo, so it is given once.
+  const [initial] = useState(value);
+  useAutoFocus(ref, autoFocus);
+  useLayoutEffect(() => {
+    const el = ref.current!;
+    if (el.value !== value && document.activeElement !== el) el.value = value;
+  }, [value]);
   return (
     <div className="grow" data-value={value || placeholder}>
-      <textarea ref={ref} className="nodrag nowheel" rows={1} value={value} placeholder={placeholder} aria-label={label} onChange={(e) => onChange(e.target.value)} />
+      <textarea
+        ref={ref}
+        className="nodrag nowheel"
+        rows={1}
+        defaultValue={initial}
+        placeholder={placeholder}
+        aria-label={label}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => (typing.current = startTyping())}
+        onBlur={() => {
+          if (typing.current) stopTyping(typing.current, cardId);
+          typing.current = null;
+          onDone?.();
+        }}
+      />
     </div>
+  );
+}
+
+/** A long passage shows its first lines, with a button to show the rest. */
+function Quote({ text }: { text: string }) {
+  const ref = useRef<HTMLQuoteElement>(null);
+  const [long, setLong] = useState(false);
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current!;
+    const measure = () => !open && setLong(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(el);
+    return () => resize.disconnect();
+  }, [text, open]);
+  return (
+    <>
+      <blockquote ref={ref} className={open ? undefined : 'clamped'}>
+        {text}
+      </blockquote>
+      {(long || open) && (
+        <button className="more nodrag ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? 'Show less' : 'Show all'}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -66,6 +143,9 @@ function InkCard({ data, selected }: { data: InkData; selected: boolean }) {
 
 function GroupCard({ id, data, selected }: { id: string; data: GroupData; selected: boolean }) {
   const count = useStore((s) => s.project?.cards.filter((c) => c.parentId === id).length ?? 0);
+  const fresh = useFresh(id, !data.title);
+  const name = useRef<HTMLInputElement>(null);
+  useAutoFocus(name, fresh);
   return (
     <section className={`group${selected ? ' selected' : ''}${data.collapsed ? ' collapsed' : ''}`} aria-label={data.title || 'Group'}>
       {!data.collapsed && <NodeResizer isVisible={selected} minWidth={200} minHeight={120} lineClassName="group-edge" handleClassName="group-corner" onResizeStart={checkpoint} />}
@@ -78,7 +158,7 @@ function GroupCard({ id, data, selected }: { id: string; data: GroupData; select
         >
           {data.collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
-        <input className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
+        <input ref={name} className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
         {data.collapsed ? (
           <span className="count">
             {count} card{count === 1 ? '' : 's'}
@@ -121,8 +201,8 @@ export function CardNode(props: NodeProps<Card>) {
 function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData | NoteData }) {
   const highlight = useStore((s) => (data.kind === 'excerpt' ? s.project?.highlights.find((h) => h.id === data.highlightId) : undefined));
   const doc = useStore((s) => (highlight ? s.project?.docs.find((d) => d.id === highlight.docId) : undefined));
-  // A new, empty note opens ready to type; the flag is read once, so later edits do not steal focus.
-  const [fresh] = useState(data.kind === 'note' && data.text === '');
+  // A note just written opens ready to type; one brought back by undo or from another device does not.
+  const fresh = useFresh(id, data.kind === 'note' && data.text === '');
   const [commenting, setCommenting] = useState(false);
 
   return (
@@ -138,10 +218,10 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
       />
 
       {data.kind === 'note' ? (
-        <Grow value={data.text} onChange={(text) => updateCard(id, { text })} placeholder="Write a note" autoFocus={fresh} label="Note" />
+        <Grow cardId={id} value={data.text} onChange={(text) => updateCard(id, { text })} placeholder="Write a note" autoFocus={fresh} label="Note" />
       ) : highlight ? (
         <>
-          {highlight.area ? <Figure highlight={highlight} password={doc?.password} /> : <blockquote>{highlight.text}</blockquote>}
+          {highlight.area ? <Figure highlight={highlight} password={doc?.password} /> : <Quote text={highlight.text} />}
           <footer>
             <button className="source nodrag" onClick={() => showSource(highlight.id)} title="Show it in the document">
               {doc?.name ?? 'Document'} · p. {highlight.parts[0]?.page}
@@ -153,7 +233,20 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
             )}
           </footer>
           {(data.comment !== undefined || commenting) && (
-            <Grow value={data.comment ?? ''} onChange={(comment) => updateCard(id, { comment })} placeholder="Your thoughts" autoFocus={commenting} label="Comment" />
+            <Grow
+              cardId={id}
+              value={data.comment ?? ''}
+              onChange={(comment) => updateCard(id, { comment })}
+              // A comment left empty goes, and the button to write one comes back.
+              onDone={() => {
+                setCommenting(false);
+                const card = useStore.getState().project?.cards.find((c) => c.id === id);
+                if (card?.data.kind === 'excerpt' && card.data.comment !== undefined && !card.data.comment.trim()) updateCard(id, { comment: undefined });
+              }}
+              placeholder="Your thoughts"
+              autoFocus={commenting}
+              label="Comment"
+            />
           )}
         </>
       ) : (

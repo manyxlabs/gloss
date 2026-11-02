@@ -41,6 +41,15 @@ import { FilePicker } from './FilePicker';
 import { WebPicker } from './WebPicker';
 import { Tools } from './Tools';
 
+// pdf.js tidies its text layers on every keyup and selection change in the document, and that
+// change to the page ends the browser's undo step for typing in any field after one letter.
+// Such events from fields stop at the app's root, short of the document.
+for (const type of ['keyup', 'selectionchange'])
+  document.getElementById('root')!.addEventListener(type, (e) => {
+    const t = e.target as HTMLElement;
+    if (t.isContentEditable || /^(INPUT|TEXTAREA)$/.test(t.tagName)) e.stopPropagation();
+  });
+
 type Viewer = { viewer: PDFViewer; bus: EventBus; links: PDFLinkService };
 /** A toolbar for a selection or a highlight, or with `editing` the comment on it. */
 type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string; links?: boolean });
