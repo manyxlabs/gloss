@@ -35,7 +35,7 @@ async function addNote(page: Page, text: string, x: number, y: number) {
 }
 
 const note = (page: Page, text: string) => page.locator(`.card .grow[data-value="${text}"]`);
-const synced = (page: Page) => expect(page.getByRole('status')).toHaveText('Synced', { timeout: 15_000 });
+const synced = (page: Page) => expect(page.getByRole('status').filter({ hasNotText: 'Gloss' })).toHaveText('Synced', { timeout: 15_000 });
 
 test('share a project, edit it together and offline, and keep the server blind', async ({ browser }) => {
   test.setTimeout(180_000);
@@ -98,7 +98,7 @@ test('share a project, edit it together and offline, and keep the server blind',
 
   await test.step('B goes offline, both edit, and they converge when B is back', async () => {
     await b.context.setOffline(true);
-    await expect(b.page.getByRole('status')).toHaveText('Offline');
+    await expect(b.page.getByRole('status').filter({ hasNotText: 'Gloss' })).toHaveText('Offline');
     await expect(a.page.getByLabel(/^Ben Okafor:/)).toHaveCount(0);
     await addNote(a.page, texts[2]!, 60, 620);
     await addNote(b.page, texts[3]!, 380, 180);
@@ -141,7 +141,7 @@ test('share a project, edit it together and offline, and keep the server blind',
     // Stopping on one device leaves the others syncing.
     await c.page.getByRole('button', { name: 'Share' }).click();
     await c.page.getByRole('button', { name: 'Stop syncing on this device' }).click();
-    await expect(c.page.getByRole('status')).toHaveCount(0);
+    await expect(c.page.getByRole('status').filter({ hasNotText: 'Gloss' })).toHaveCount(0);
     await expect(a.page.getByLabel(/^Cy Third:/)).toHaveCount(0);
     await expect(note(c.page, texts[0]!)).toBeVisible();
     await c.context.close();
@@ -154,7 +154,7 @@ test('share a project, edit it together and offline, and keep the server blind',
       .getByRole('tablist', { name: 'Show' })
       .getByRole('tab', { name: /^Canvas/ })
       .click();
-    await expect(b.page.getByRole('status')).toHaveText('Synced');
+    await expect(b.page.getByRole('status').filter({ hasNotText: 'Gloss' })).toHaveText('Synced');
     await shot(b.page, 'sync-phone-dark');
     await b.page.getByRole('button', { name: 'Share' }).click();
     await shot(b.page, 'sync-phone-dark-dialog');
