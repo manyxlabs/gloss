@@ -1,26 +1,15 @@
-import { Download, FolderOpen, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
+import { FolderOpen, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { backupOf, BackupError, isBackup, restore } from '../backup';
-import { download } from '../download';
+import { BackupError, isBackup, restore } from '../backup';
 import type { Input } from '../convert';
 import { ACCEPT } from '../convert/formats';
 import { leave } from '../notices';
-import { deleteProject, listProjects, putProject } from '../store/db';
+import { listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
 import { Logo } from './Logo';
+import { Projects } from './Projects';
 import { ThemeToggle } from './ThemeToggle';
 import { WebPicker } from './WebPicker';
-
-const ago = (t: number) => {
-  const s = (Date.now() - t) / 1000;
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-  if (s < 60) return 'just now';
-  if (s < 3600) return rtf.format(-Math.round(s / 60), 'minute');
-  if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour');
-  return rtf.format(-Math.round(s / 86400), 'day');
-};
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 const FEATURES = [
   [Link2, 'Excerpts that remember', 'Every card opens the document at the passage it came from, and every passage shows its card.'],
@@ -215,48 +204,7 @@ export function Library() {
           </ul>
         )}
 
-        {projects && projects.length > 0 && (
-          <section aria-labelledby="projects-h">
-            <h2 id="projects-h">Your projects</h2>
-            <ul className="projects">
-              {projects.map((p) => (
-                <li key={p.id} className="glass">
-                  <a href={`#/p/${p.id}`}>
-                    <strong>{p.name}</strong>
-                    <span>
-                      {plural(p.docs.length, 'PDF')} · {plural(p.cards.length, 'card')} · {ago(p.updatedAt)}
-                    </span>
-                  </a>
-                  <button
-                    className="icon"
-                    aria-label={`Back up ${p.name}`}
-                    title="Download a backup: the project and its PDFs in one file"
-                    onClick={async () => {
-                      try {
-                        download(`${p.name}.gloss`, await backupOf(p));
-                      } catch (err) {
-                        setProblems([(err as Error).message]);
-                      }
-                    }}
-                  >
-                    <Download size={17} />
-                  </button>
-                  <button
-                    className="ghost"
-                    aria-label={`Delete ${p.name}`}
-                    onClick={async () => {
-                      if (!confirm(`Delete “${p.name}” and its PDFs from this browser? This cannot be undone.`)) return;
-                      await deleteProject(p);
-                      setProjects(await listProjects());
-                    }}
-                  >
-                    Delete
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {projects && <Projects projects={projects} reload={async () => setProjects(await listProjects())} onProblems={setProblems} />}
       </main>
 
       <footer className="foot">

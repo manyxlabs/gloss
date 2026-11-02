@@ -91,4 +91,10 @@ export type Project = {
   canvases: CanvasMeta[];
   /** The sync room this project is shared through, with its key; absent while the project stays on this device. */
   sync?: { room: string; key: string };
+  /** The library folder it is filed in, on this device only; absent or unknown, it is at the top level. */
+  folder?: string;
+  /** When it was last opened on this device; projects from before this was kept count their last edit. */
+  openedAt?: number;
 };
+
+export type Folder = { id: string; name: string; createdAt: number; collapsed?: boolean };

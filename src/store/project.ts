@@ -180,8 +180,12 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
 });
 
 export async function openProject(id: string) {
-  const stored = await getProject(id);
-  for (const d of stored?.docs ?? []) void dropOldVersions(d);
+  const found = await getProject(id);
+  const stored = found && { ...found, openedAt: Date.now() };
+  if (stored) {
+    void putProject(stored);
+    for (const d of stored.docs) void dropOldVersions(d);
+  }
   // Projects saved before handwriting, squeezing and several canvases existed lack those lists.
   const project = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
   set({
