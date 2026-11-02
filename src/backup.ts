@@ -51,12 +51,13 @@ export async function restore(file: File): Promise<Project> {
     return [ids.get(d.id)!, new Blob([bytes as BlobPart], { type: 'application/pdf' })];
   });
   const doc = (id: string) => ids.get(id) ?? id;
-  // A backup is a copy for this browser alone: any sharing it had stays with the original.
-  const { sync, ...rest } = old as Project & { sync?: unknown };
+  // A backup is a copy for this browser alone: any sharing it had stays with the original, and it starts at the top of the library.
+  const { sync, folder, ...rest } = old;
   const project: Project = {
     ...rest,
     id: crypto.randomUUID(),
     updatedAt: Date.now(),
+    openedAt: Date.now(),
     // Each file is stored under its new id, whatever version of it was backed up.
     docs: old.docs.map(({ file, ...d }) => ({ ...d, id: doc(d.id) })),
     highlights: (old.highlights ?? []).map((h) => ({ ...h, docId: doc(h.docId) })),

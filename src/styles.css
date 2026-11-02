@@ -2268,3 +2268,159 @@ dialog.sheet::backdrop {
   height: 24px;
   color: inherit;
 }
+
+.menu [aria-checked='true']::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  margin: -3px 2px 0 auto;
+  border: solid var(--accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Library folders: collapsible sections of project cards, each a place to drop a dragged project. */
+.projects-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.projects-head h2 {
+  margin: 0;
+}
+
+.projects-head button {
+  padding: 6px 8px;
+  color: var(--accent);
+}
+
+.folder {
+  margin: 0 -10px 10px;
+  padding: 2px 10px 4px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.folder > header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.folder-toggle {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 8px 6px 8px 2px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.folder-toggle:hover:not(:disabled) {
+  background: transparent;
+}
+
+.folder-toggle .chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.folder-toggle[aria-expanded='true'] .chevron {
+  transform: rotate(90deg);
+}
+
+.folder-toggle > svg:nth-child(2) {
+  flex: none;
+  color: var(--accent);
+}
+
+.folder-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-toggle .count {
+  flex: none;
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 99px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.folder-name {
+  flex: 1;
+  min-width: 0;
+  margin: 4px 0;
+  padding: 5px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--panel);
+  font-weight: 600;
+}
+
+.folder .projects {
+  margin: 4px 0 10px;
+}
+
+.folder-empty {
+  margin: 4px 0 10px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.folder.over,
+.projects.top.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.projects.top {
+  margin-left: -10px;
+  margin-right: -10px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+}
+
+.projects .drop-here {
+  grid-column: 1 / -1;
+  justify-content: center;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.library .dragging .projects li:hover {
+  transform: none;
+}
+
+button.icon.danger:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.projects li > button {
+  margin-right: 0;
+}
+
+.projects li > button:last-child {
+  margin-right: 8px;
+}
