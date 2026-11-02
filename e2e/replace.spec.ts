@@ -152,6 +152,8 @@ test('replacing a document with a revised version keeps its marks on the same wo
 
   await test.step('Kept after a reload', async () => {
     await page.reload();
+    // It opens where it was last read, so the first page is brought into view to be drawn.
+    await page.locator('.pdfViewer > .page[data-page-number="1"]').scrollIntoViewIfNeeded();
     await expect(page.locator('.pdfViewer > .page[data-page-number="1"] .textLayer')).toContainText('Editor’s note', { timeout: 10_000 });
     expect(await covers(page, 'blue', 'Coral reefs occupy')).toBe(1);
   });
