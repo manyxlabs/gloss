@@ -1,10 +1,11 @@
 import { ReactFlowProvider } from '@xyflow/react';
-import { ArrowLeft, NotebookText } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { download, toMarkdown } from '../export';
+import { take } from '../notices';
 import { closeProject, openProject, redo, rename, setView, undo, useStore } from '../store/project';
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
+import { ExportMenu } from './ExportMenu';
 import { Search } from './Search';
 import { Share } from './Share';
 import { ThemeToggle } from './ThemeToggle';
@@ -23,7 +24,7 @@ const editable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isCon
 export function Workspace({ id }: { id: string }) {
   const project = useStore((s) => s.project);
   const [missing, setMissing] = useState(false);
-  const [problems, setProblems] = useState<string[]>([]);
+  const [problems, setProblems] = useState<string[]>(take);
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
   const side = useStore((s) => s.sideDocId !== null);
@@ -96,14 +97,7 @@ export function Workspace({ id }: { id: string }) {
         />
         <Search />
         <Share />
-        <button
-          className="export"
-          title="Download the canvas and highlights as Markdown notes"
-          onClick={() => download(`${project.name}.md`, new Blob([toMarkdown(project)], { type: 'text/markdown' }))}
-          disabled={!project.cards.length && !project.highlights.length}
-        >
-          <NotebookText size={16} /> Export notes
-        </button>
+        <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} />
         <ThemeToggle />
       </header>
 

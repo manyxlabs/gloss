@@ -7,6 +7,8 @@ export interface Env {
   ASSETS: Fetcher;
   ROOMS: DurableObjectNamespace<Room>;
   FILES: R2Bucket;
+  /** "1" lets /api/page fetch private hosts such as localhost; only the local tests set it. */
+  ALLOW_PRIVATE_HOSTS?: string;
 }
 
 export { Room };
@@ -15,7 +17,7 @@ export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (pathname.startsWith('/api/sync/')) return handleSync(request, env);
-    if (pathname === '/api/page') return handlePage(request);
+    if (pathname === '/api/page') return handlePage(request, env);
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;

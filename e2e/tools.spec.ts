@@ -212,7 +212,8 @@ test('cards gather into a named group that moves, takes new cards and exports as
   await page.mouse.up();
   await shot(page, 'group');
 
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export notes' }).click()]);
+  await page.getByRole('button', { name: 'Export notes' }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await download.path(), `${ARTIFACTS}/group-notes.md`);
   const notes = readFileSync(`${ARTIFACTS}/group-notes.md`, 'utf8');
   expect(notes).toMatch(/## Reef threats\n\nWarming bleaches corals\.\n\n---\n\nOverfishing lets algae win\.\n\n---\n\nProtected areas help\./);

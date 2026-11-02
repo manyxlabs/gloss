@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { ACCEPT } from '../convert/formats';
 import { addDocs } from '../store/project';
 
 export function FilePicker({ label, primary, onProblems }: { label: string; primary?: boolean; onProblems: (problems: string[]) => void }) {
@@ -7,7 +8,7 @@ export function FilePicker({ label, primary, onProblems }: { label: string; prim
   const [busy, setBusy] = useState(false);
   return (
     <>
-      <button className={primary ? 'primary' : 'add'} disabled={busy} onClick={() => input.current!.click()}>
+      <button className={primary ? 'primary' : 'add'} disabled={busy} title="Add PDFs, Word or PowerPoint files, images, text or Markdown" onClick={() => input.current!.click()}>
         {busy ? (
           'Adding…'
         ) : (
@@ -19,7 +20,7 @@ export function FilePicker({ label, primary, onProblems }: { label: string; prim
       <input
         ref={input}
         type="file"
-        accept="application/pdf,.pdf"
+        accept={ACCEPT}
         multiple
         hidden
         onChange={async (e) => {

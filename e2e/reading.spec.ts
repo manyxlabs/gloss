@@ -76,7 +76,8 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await expect(rising).toBeVisible();
   await expect(page.locator('.hl[data-id]')).toHaveCount(3);
 
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export notes' }).click()]);
+  await page.getByRole('button', { name: 'Export notes' }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await download.path(), `${ARTIFACTS}/notes.md`);
   const notes = readFileSync(`${ARTIFACTS}/notes.md`, 'utf8');
   expect(notes).toContain(`> ${ESSAY[0]![1]}\n> (Reef essay, p. 1)`);
@@ -158,10 +159,16 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
   await context.close();
 });
 
-test('files that are not PDFs are refused with a reason', async ({ page }) => {
+test('files that cannot be opened are refused with a reason', async ({ page }) => {
   await openProject(page);
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
-  await chooser.setFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not a pdf') });
-  await expect(page.getByRole('alert')).toHaveText(/photo\.jpg is not a PDF\./);
+  await chooser.setFiles([
+    { name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not a picture') },
+    { name: 'backup.zip', mimeType: 'application/zip', buffer: Buffer.from('PK') },
+    { name: 'old.doc', mimeType: 'application/msword', buffer: Buffer.from('old') },
+  ]);
+  await expect(page.getByRole('alert')).toContainText('photo.jpg could not be read as an image.');
+  await expect(page.getByRole('alert')).toContainText('backup.zip is not a file Gloss can open.');
+  await expect(page.getByRole('alert')).toContainText('old.doc is in an older or other office format. Save it as .docx or .pptx and add that.');
   await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(2);
 });
