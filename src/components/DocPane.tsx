@@ -1,5 +1,5 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
+import { Check, Columns2, Columns3, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
@@ -24,8 +24,11 @@ import {
   removeFolds,
   removeHighlight,
   removeInk,
+  closePane,
+  openPane,
+  paneCount,
+  PANES,
   setActiveDoc,
-  setSideBySide,
   showCard,
   useStore,
   type Pane,
@@ -41,6 +44,7 @@ import { FilePicker } from './FilePicker';
 import { onTabKeys, revealTab } from './tabs';
 import { WebPicker } from './WebPicker';
 import { Tools } from './Tools';
+import { usePaneRoom } from './paneRoom';
 
 // pdf.js tidies its text layers on every keyup and selection change in the document, and that
 // change to the page ends the browser's undo step for typing in any field after one letter.
@@ -120,10 +124,11 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const linking = useLinking((s) => s.linking);
   const inks = useStore((s) => s.project?.inks);
   const folds = useStore((s) => s.project?.folds);
-  const activeDocId = useStore((s) => (pane ? s.sideDocId : s.activeDocId));
+  const activeDocId = useStore((s) => s[PANES[pane]]);
   // A page edit, or its undo, gives the document a new file to show.
-  const file = useStore((s) => s.project?.docs.find((d) => d.id === (pane ? s.sideDocId : s.activeDocId))?.file);
-  const split = useStore((s) => s.sideDocId !== null);
+  const file = useStore((s) => s.project?.docs.find((d) => d.id === s[PANES[pane]])?.file);
+  const room = usePaneRoom();
+  const last = useStore((s) => Math.min(paneCount(s), room) === pane + 1);
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
   const inkColor = useStore((s) => s.inkColor);
@@ -201,7 +206,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     });
     links.setViewer(viewer);
     pdf.current = { viewer, bus, links };
-    const docNow = () => (pane ? useStore.getState().sideDocId : useStore.getState().activeDocId);
+    const docNow = () => useStore.getState()[PANES[pane]];
 
     bus.on('pagerendered', ({ source }: { source: PageView }) => {
       paint(source, flash.current, docNow());
@@ -674,7 +679,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     <section
       ref={section}
       className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
-      aria-label={pane ? 'Second document' : 'Documents'}
+      aria-label={['Documents', 'Second document', 'Third document'][pane]}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
@@ -722,27 +727,26 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             </div>
           ))}
         </div>
-        {pane ? (
-          <button className="icon side" aria-label="Close this pane" title="Close this pane" onClick={() => setSideBySide(false)}>
+        {!pane && docs.length > 0 && (
+          <>
+            <FilePicker label="Add file" onProblems={onProblems} />
+            <WebPicker add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
+          </>
+        )}
+        {last && pane + 1 < room && docs.length > 0 && (
+          <button
+            className="icon side"
+            aria-label={pane ? 'Open a third pane' : 'Open side by side'}
+            title={pane ? 'Open a third document, or another place, beside these' : 'Open a second document, or another place in this one, side by side'}
+            onClick={openPane}
+          >
+            {pane ? <Columns3 size={16} /> : <Columns2 size={16} />}
+          </button>
+        )}
+        {pane > 0 && (
+          <button className={`icon${last && pane + 1 < room ? '' : ' side'}`} aria-label="Close this pane" title="Close this pane" onClick={() => closePane(pane as 1 | 2)}>
             <X size={16} />
           </button>
-        ) : (
-          docs.length > 0 && (
-            <>
-              <FilePicker label="Add file" onProblems={onProblems} />
-              <WebPicker add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
-              {!split && docs.length > 0 && (
-                <button
-                  className="icon side"
-                  aria-label="Open side by side"
-                  title="Open a second document, or another place in this one, side by side"
-                  onClick={() => setSideBySide(true)}
-                >
-                  <Columns2 size={16} />
-                </button>
-              )}
-            </>
-          )
         )}
       </div>
 

@@ -9,7 +9,9 @@ export type Part = { page: number; rects: Rect[] };
 
 /**
  * Marked text, or with `area` a box drawn around a figure or table. `commentId` is the comment
- * pinned beside it in the document's margin, which other passages may share.
+ * pinned beside it in the document's margin, which other passages may share. With no parts it is
+ * unplaced: its document was replaced by a version where its words were not found, and it waits
+ * in the sidebar, with its comment, links and excerpts, to be placed again or deleted.
  */
 export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; commentId?: string };
 
@@ -39,7 +41,23 @@ export type DocMeta = {
    * Absent, the file is the one the document was added with.
    */
   file?: string;
+  /** Shown before the others, in the tabs and the list of documents. */
+  pinned?: boolean;
+  /** Where it sits among the documents, lowest first; absent, it keeps its place in the list. Shared, so every device orders them alike. */
+  rank?: number;
+  /** The folder of the project's documents it is in; absent or unknown, it is at the top. */
+  folder?: string;
+  /** The Zotero item it was imported from, with what to cite it by. */
+  zotero?: ZoteroItem;
 };
+
+export type ZoteroItem = { userId: string; key: string; title: string; authors: string[]; year?: string; citationKey?: string };
+
+/** A folder of the project's documents. */
+export type DocFolder = { id: string; name: string; rank: number };
+
+/** A named place in a document, listed in its sidebar and exported as an outline entry; `rank` orders a document's bookmarks. */
+export type Bookmark = { id: string; docId: string; page: number; y: number; name: string; rank: number };
 
 /** `link` is a file fetched from a share link as it was, without converting. */
 export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web' | 'link'; name?: string; url?: string };
@@ -101,6 +119,8 @@ export type Project = {
   comments: Comment[];
   passageLinks: PassageLink[];
   cardLinks: CardLink[];
+  bookmarks: Bookmark[];
+  docFolders: DocFolder[];
   /** The backup this project was restored from, as its project's id and last change, to notice the same backup restored twice. */
   restoredFrom?: string;
   /** The sync room this project is shared through, with its key; absent while the project stays on this device. */

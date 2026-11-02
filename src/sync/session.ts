@@ -2,14 +2,14 @@ import { openDB } from 'idb';
 import * as Y from 'yjs';
 import { frame, MAX_FILE, MAX_FRAME, parse, PROTOCOL, T } from '../../worker/protocol';
 import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db';
-import { useStore } from '../store/project';
+import { panesShowing, useStore } from '../store/project';
 import type { Card, DocMeta, Project } from '../types';
 import { decrypt, deriveKeys, encrypt, newRoom, type Binding, type Keys } from './crypto';
 import { asPresence, presence, useMe, useSync, type Presence, type Status } from './state';
 
 // The project as a Yjs document: a map per list, keyed by id, holding each entity as plain JSON,
 // so concurrent edits merge per entity and the last write to one entity wins.
-const LISTS = ['docs', 'highlights', 'cards', 'links', 'inks', 'folds', 'canvases', 'comments', 'passageLinks', 'cardLinks'] as const;
+const LISTS = ['docs', 'highlights', 'cards', 'links', 'inks', 'folds', 'canvases', 'comments', 'passageLinks', 'cardLinks', 'bookmarks', 'docFolders'] as const;
 type List = (typeof LISTS)[number];
 type Entity = { id: string };
 type Shared = { name?: string } & Record<List, Entity[]>;
@@ -273,8 +273,7 @@ class Session {
     try {
       useStore.setState({
         project: merged,
-        activeDocId: shown(state.activeDocId) ? state.activeDocId : (merged.docs[0]?.id ?? null),
-        sideDocId: shown(state.sideDocId) ? state.sideDocId : null,
+        ...panesShowing(state, shown, merged.docs[0]?.id ?? null),
         canvasId: merged.canvases.some((c) => c.id === state.canvasId) ? state.canvasId : (merged.canvases[0]?.id ?? state.canvasId),
         // As when removing a PDF here: the history refers to its highlights, and its file is gone or replaced.
         ...(docGone || versionChanged ? { past: [], future: [] } : {}),
