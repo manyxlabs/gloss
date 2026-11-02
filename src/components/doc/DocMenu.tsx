@@ -4,9 +4,10 @@ import { privateWarning, setDocLocal } from '../../store/privacy';
 import { useStore } from '../../store/project';
 import type { DocMeta } from '../../types';
 import { CopyLink } from '../LinkChips';
+import { DocActions } from '../DocActions';
 import { Menu } from '../Menu';
 
-/** The open document's tab menu: copy a link to it, and keep it on this device only. */
+/** The open document's tab menu: copy a link to it, keep it on this device only, and its own actions (see DocActions). */
 export function DocMenu({ doc }: { doc: DocMeta }) {
   const [button, setButton] = useState<HTMLElement | null>(null);
   return (
@@ -36,6 +37,7 @@ export function DocMenu({ doc }: { doc: DocMeta }) {
           >
             <Lock size={16} /> Only on this device
           </button>
+          <DocActions doc={doc} onClose={() => setButton(null)} />
         </Menu>
       )}
     </>

@@ -1,11 +1,11 @@
-import { Check, FileText, Highlighter, Link, MessageSquare, SquareStack, StickyNote } from 'lucide-react';
+import { Bookmark, Check, FileText, Highlighter, Link, MessageSquare, SquareStack, StickyNote } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getProject, listProjects } from '../store/db';
 import { useStore } from '../store/project';
 import { hashOf, IN_TEXT, isIn, KINDS, linkTo, parseLink, snippetOf, type GlossLink, type Kind, type Target } from '../targets';
 import type { Project } from '../types';
 
-const ICONS: Record<Kind, typeof Link> = { h: Highlighter, c: StickyNote, m: MessageSquare, v: SquareStack, d: FileText };
+const ICONS: Record<Kind, typeof Link> = { h: Highlighter, c: StickyNote, m: MessageSquare, v: SquareStack, d: FileText, b: Bookmark };
 
 /** Copies a link to something in the open project, which opens the project there wherever it is pasted. */
 export function CopyLink({ target, className = 'icon', text, role }: { target: Target; className?: string; text?: string; role?: 'menuitem' }) {

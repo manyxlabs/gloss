@@ -28,7 +28,7 @@ async function item(i: NoteItem) {
   const body =
     i.kind !== 'excerpt'
       ? [...(i.kind === 'note' && i.text ? [para(i.text)] : []), ...(i.ink ? [await picture(i.ink)] : [])]
-      : [quoted(i.text), quoted(`(${i.doc}, p. ${i.page})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
+      : [quoted(i.text), quoted(`(${i.doc}, ${i.where})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
   return [
     ...body,
     ...(i.tags.length ? [para(`Tags: ${i.tags.join(' ')}`, MUTED)] : []),
@@ -50,7 +50,7 @@ export async function notesDocx(o: Outline) {
       children.push(heading(d.doc, HeadingLevel.HEADING_2));
       for (const h of d.items)
         children.push(
-          new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}`) }),
+          new Paragraph({ bullet: { level: 0 }, children: runs(`${h.where}: ${h.text}`) }),
           ...(h.note ? [new Paragraph({ indent: { left: 720 }, children: runs(`Comment: ${h.note}`) })] : []),
           ...(h.tags.length ? [new Paragraph({ indent: { left: 720 }, children: runs(`Tags: ${h.tags.join(' ')}`, MUTED) })] : []),
           ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(`Linked passage: ${l}`, MUTED) })),

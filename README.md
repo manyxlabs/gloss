@@ -20,6 +20,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Page tools** in the sidebar's Pages tab: rotate, move, duplicate and delete pages, and insert pages from any file Gloss opens, before or after a page.
   Pick several pages with Ctrl or Shift, use a page's menu, or drag pages to a new place.
   Highlights, figures, comments, handwriting and excerpts move with their pages, and turn with them; deleting pages that hold any asks first, with counts.
+- **Replace a document with a newer version** from its tab's menu or the list of documents, and keep the markup: highlights, comments, links, excerpts, handwriting, squeezes and bookmarks move to the same words in the new text, through inserted paragraphs, edited sentences and pages that flow differently.
+  What cannot be found is listed as unplaced in the sidebar's Highlights tab, with its comments and excerpts, to place on a selection or delete; undo puts the old version back.
+- **Extract pages** from a page's menu: to a new document in the project, with the highlights, comments, links, handwriting and bookmarks on them, or as a PDF to download.
 - **Excerpts that link back.** Select text and press Excerpt, or drag the selection onto the canvas. The card opens the document at the passage, and clicking the passage shows its card.
 - **Highlights** in 32 colours, kept apart from excerpts until you want them on the canvas.
   Five favourites sit in every highlight toolbar and More opens the rest; Edit favourites in the palette changes which five, on each device.
@@ -33,7 +36,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   A marker in the left margin shows what a passage is linked to and goes there, opening it in the other pane when two are side by side, so both are in view.
 - **Ink links**: with the pen, draw from a highlight onto a card on the canvas to link them.
   The card shows where its passage is, and the passage's marker shows the card.
-- **Contents, pages and highlights** in a sidebar beside each document: the PDF's table of contents, page thumbnails, and every highlight and comment in page order.
+- **Contents, pages and highlights** in a sidebar beside each document: your bookmarks and the PDF's table of contents, page thumbnails, and every highlight and comment in page order.
+- **Bookmarks**: press the bookmark in a document's toolbar, or Ctrl+D, to keep the place you are reading, named after its first words.
+  Rename, reorder (drag, or from a bookmark's menu), copy a link to and delete them in the sidebar; they become outline entries in exported PDFs.
 - **Scanned PDFs**: pages that are only pictures of text are found when a document opens, and **Make text selectable** (in the banner, or a page's menu in the Pages tab) reads them on the device in English, Hindi or both.
   The words are written into the PDF as invisible text over their pictures, so selecting, excerpting, searching, squeezing and exporting work as on any PDF.
 - **Annotations from other apps**: highlights, underlines, strike-outs, squiggles, sticky notes, text boxes and ink that Acrobat, Preview and others left in a PDF can be brought in as Gloss's own, when the PDF is added or later from the Highlights tab.
@@ -44,9 +49,13 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   The notes exports show handwriting as pictures.
   On the canvas the eraser also takes away the links it passes over: lines between cards, a card's links to passages, and its links to other canvases; undo brings them back.
 - **Groups**: select cards and group them under a name, or pinch two cards together on a touch screen; drag a card in or out, move the group to move them all, and collapse it to its name (pinch it closed, spread it open) with its links ending on it.
-- **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them.
+- **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them, and your bookmarks in its outline.
+  **Documents as one PDF**, from Export notes, puts the documents you choose, in the order you choose, into one annotated PDF with an outline entry for each, and the canvas on show as a last page if you like.
   Linked passages in the same document become links that go to each other; links to another document are named in the passage's note. A password protected PDF cannot be exported this way; save a copy without the password first.
-- **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one).
+- **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one), or three on a screen at least 1440 pixels wide, with dividers to drag between them.
+  Jumps open in the pane already showing a document, and a link's other end opens in another pane.
+- **A list of all the documents** from the tab bar: put them in folders, pin them to come first, and reorder them by dragging their tabs or rows.
+- **Zotero**: connect your library with a key of your own, search it, and add items' PDFs with their title, authors, year and citation key; send a document's highlights and comments back to its item as a note.
 - **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
   A **nested canvas** card opens a canvas inside the one it is on, with a path back up; the tabs show the top level, and each tab's menu the canvases in it.
   A card can link to any canvas, with a chip that opens it, and deleting a nested canvas's card takes the canvas and everything in it, until undone.
@@ -88,7 +97,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 ## Sync and sharing
 
 A project stays on its device until you press **Share** in its header and create a link.
-Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, comments, linked passages, tags, handwriting, squeezes, canvases, page edits and the project's name.
+Open the link on another device, or send it to someone, and the project appears there with its PDFs, then stays in step: excerpts, notes, links, comments, linked passages, tags, handwriting, squeezes, canvases, bookmarks, page edits, replaced documents, the documents' order, pins and folders, and the project's name.
 Library folders stay with each device.
 A document or a canvas marked **Only on this device** stays here, with everything on it; see below.
 Everyone in the project shows as an avatar with where they are reading, and their pointer shows on the canvas.
@@ -205,6 +214,30 @@ A sticky note or a text box becomes a comment on the line of text beside it; wit
 Ink becomes handwriting on the page, in the nearest ink.
 The originals are then taken out of the file, with their pop-ups and replies, in a new version of it, rather than hidden while drawing: so they are not drawn twice, the exported PDF has each annotation once, and other devices in a synced project get the same file.
 Other annotations (links, forms, shapes, stamps) stay in the PDF as they were, and all of it is one step to undo.
+
+## Replacing a document
+
+The new version's words are read with pdf.js, and each highlight is looked for by its own words with the words around it: every word votes for where the passage would start, the likeliest places are aligned word by word, allowing for words added, dropped or changed, and the words around it and the page it was on break ties.
+At least three in five of its words must be found in order, all of them for a passage of two or three words, and a single word needs the words around it.
+A highlight found takes the new words' boxes, and its text becomes theirs.
+Figures, handwriting, squeezes and bookmarks move with the words nearest them; where no words are near, as on a page of pictures, they stay at the same place on the same page, and the report says so.
+A squeeze whose ends cannot both be found is opened.
+The new file is stored as a version of the document, as a page edit is, so it syncs and undoes the same way.
+Text is matched as pdf.js reads it, so a scanned version needs its text made selectable first, and a passage rewritten beyond recognition is left unplaced rather than guessed.
+
+## Zotero
+
+Gloss calls the Zotero Web API from the browser, which it allows, so nothing goes through Gloss's server.
+The key and user ID are kept in this browser's storage only.
+Make a key at [zotero.org/settings/keys](https://www.zotero.org/settings/keys): read access to the library is enough to import, and write access lets notes be sent back.
+Only PDFs stored in Zotero (imported files) can be added; linked files live on the computer that linked them.
+The tests point Gloss at a local stand-in for the API by setting `gloss:zotero-api` in local storage; unset, as for everyone else, it talks to `api.zotero.org`.
+
+## Documents as one PDF
+
+Each document is exported annotated, as on its own, and its pages are copied in; links between its passages are pointed at the copied pages.
+The outline has an entry for each document holding its bookmarks; documents' own tables of contents are not carried into the combined file.
+The canvas page is the picture the Export menu makes of the canvas, in the light theme, on a page its own size.
 
 ## Adding from links
 

@@ -70,6 +70,8 @@ export async function restore(file: File, again: (name: string, original: boolea
     docs: old.docs.map(({ file, ...d }) => ({ ...d, id: doc(d.id) })),
     highlights: (old.highlights ?? []).map((h) => ({ ...h, docId: doc(h.docId) })),
     inks: (old.inks ?? []).map((i) => ({ ...i, docId: doc(i.docId) })),
+    bookmarks: (old.bookmarks ?? []).map((b) => ({ ...b, docId: doc(b.docId) })),
+    docFolders: old.docFolders ?? [],
     folds: (old.folds ?? []).map((f) => ({ ...f, docId: doc(f.docId) })),
     cards: old.cards ?? [],
     links: old.links ?? [],

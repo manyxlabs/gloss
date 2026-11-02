@@ -4,6 +4,8 @@ import { cite, commentOf, endsOf } from '../links';
 import { swatchOf } from '../palette';
 import { fileKey, getFile } from '../store/db';
 import type { Project } from '../types';
+import { bookmarksOf } from '../store/bookmarks';
+import { appendOutline, bookmarkEntries } from './outline';
 import { loadDoc } from './pdfjs';
 
 const BORDER = 1.5;
@@ -158,6 +160,7 @@ export async function annotatedPdf(project: Project, docId: string) {
     );
   }
 
+  appendOutline(pdf, bookmarkEntries(pdf, bookmarksOf(project, docId)));
   pdf.setModificationDate(new Date());
   return new Blob([(await pdf.save()) as BlobPart], {
     type: 'application/pdf',

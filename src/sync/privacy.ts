@@ -1,7 +1,7 @@
 import { isLocalCanvas } from '../canvases';
 import type { Project } from '../types';
 
-type Lists = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
+type Lists = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks' | 'bookmarks'>;
 
 /**
  * Everything kept on this device only: documents and canvases marked so, the canvases nested in
@@ -32,6 +32,7 @@ export function privateIds(p: Lists): Set<string> {
     ...cards,
     ...p.inks.filter((i) => docs.has(i.docId)).map((i) => i.id),
     ...p.folds.filter((f) => docs.has(f.docId)).map((f) => f.id),
+    ...p.bookmarks.filter((b) => docs.has(b.docId)).map((b) => b.id),
     ...p.links.filter((l) => cards.has(l.source) || cards.has(l.target)).map((l) => l.id),
     ...p.comments.filter((c) => !shared.has(c.id)).map((c) => c.id),
     ...p.passageLinks.filter((l) => highlights.has(l.a) || highlights.has(l.b)).map((l) => l.id),

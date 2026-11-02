@@ -6,6 +6,7 @@ import { dropOrphans } from '../canvases';
 import { migrate, prune } from '../links';
 import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
+import { paneRoom } from '../panes';
 import { passwordAsker } from '../password';
 import { askAbout } from '../annots/ask';
 import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
@@ -13,8 +14,11 @@ import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProje
 /** Which version of each document's file a document has, as page edits are undone with the rest. */
 export type Version = Pick<DocMeta, 'file' | 'pages' | 'size'>;
 /** A step of history. Its documents carry the version of each file, so undo brings back a removed document and an earlier version alike. */
-type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks' | 'tags'>;
-const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks, tags }: Project): Snapshot => ({
+type Snapshot = Pick<
+  Project,
+  'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks' | 'bookmarks' | 'docFolders' | 'tags'
+>;
+const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks, bookmarks, docFolders, tags }: Project): Snapshot => ({
   docs,
   highlights,
   cards,
@@ -25,6 +29,8 @@ const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comme
   comments,
   passageLinks,
   cardLinks,
+  bookmarks,
+  docFolders,
   tags,
 });
 /** A document at a version. */
@@ -37,19 +43,22 @@ const atVersion = (d: DocMeta, v: Version | undefined): DocMeta => {
 export type Tool = 'select' | 'pen' | 'eraser';
 /** Documents also take a box drawn around a figure. */
 export type DocTool = Tool | 'snip';
-export type Pane = 0 | 1;
+/** The document panes, from the left: the main one, and up to two more beside it on a wide screen. */
+export type Pane = 0 | 1 | 2;
+export const PANES = ['activeDocId', 'sideDocId', 'thirdDocId'] as const;
 export const MAIN_CANVAS = 'main';
 
 type State = {
   project: Project | null;
-  /** The document in the main pane, and in the second pane while two are open side by side. */
+  /** The document in the main pane, and in the second and third while they are open beside it; the third opens only after the second. */
   activeDocId: string | null;
   sideDocId: string | null;
+  thirdDocId: string | null;
   /** The canvas on show, of the project's canvases. */
   canvasId: string;
   /** A request for a document pane to scroll to a highlight, or to a page with a place on it or a search match; `at` makes a repeat request distinct. */
   jump:
-    | (({ highlightId: string } | { page: number; query?: string; dest?: unknown[] }) & {
+    | (({ highlightId: string } | { page: number; query?: string; dest?: unknown[]; y?: number }) & {
         pane: Pane;
         at: number;
       })
@@ -89,6 +98,7 @@ export const useStore = create<State>(() => ({
   project: null,
   activeDocId: null,
   sideDocId: null,
+  thirdDocId: null,
   canvasId: MAIN_CANVAS,
   jump: null,
   focus: null,
@@ -146,27 +156,57 @@ function travel(from: 'past' | 'future') {
     [from]: stack.slice(0, -1),
     [to]: [...state[to], snapshot(state.project)],
     project: { ...state.project, ...target, docs, updatedAt: Date.now() },
-    activeDocId: shown(state.activeDocId) ? state.activeDocId : (docs[0]?.id ?? null),
-    sideDocId: shown(state.sideDocId) ? state.sideDocId : null,
+    ...panesShowing(state, shown, docs[0]?.id ?? null),
   });
+}
+
+/** The panes once documents not `shown` are gone: the main pane takes the first document, and the others close, those right of a closed one moving left. */
+export function panesShowing(s: Pick<State, (typeof PANES)[number]>, shown: (id: string | null) => boolean, first = useStore.getState().project?.docs[0]?.id ?? null) {
+  const rest = [s.sideDocId, s.thirdDocId].filter((id) => id !== null && shown(id));
+  return { activeDocId: shown(s.activeDocId) ? s.activeDocId : first, sideDocId: rest[0] ?? null, thirdDocId: rest[1] ?? null };
 }
 export const undo = () => travel('past');
 export const redo = () => travel('future');
 
-// Saving: the record is rewritten shortly after each change, and at once when the page is hidden.
+// Saving: the record is rewritten shortly after a change, and at once when the page is hidden. A
+// change does not put off a save already due, so a stream of edits is saved as it goes.
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+/** The record being written, until the write is done. */
+let writing: Project | null = null;
 const save = () => {
   clearTimeout(saveTimer);
+  saveTimer = undefined;
   const { project } = get();
-  if (project) void putProject({ ...project, cards: project.cards.map(storedCard) });
+  if (!project) return;
+  const record = { ...project, cards: project.cards.map(storedCard) };
+  writing = record;
+  void putProject(record).then(() => writing === record && (writing = null));
 };
 useStore.subscribe((s, prev) => {
-  if (s.project && s.project !== prev.project && s.project.id === prev.project?.id) {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 300);
+  if (s.project && s.project !== prev.project && s.project.id === prev.project?.id) saveTimer ??= setTimeout(save, 300);
+});
+/** A copy of a record whose write had not finished as the page closed: the browser drops such writes with the page. */
+const UNSAVED = 'gloss:unsaved';
+addEventListener('pagehide', () => {
+  save();
+  try {
+    if (writing) localStorage.setItem(UNSAVED, JSON.stringify(writing));
+  } catch {
+    // Storage blocked or full: only the last moment's edits can be lost.
   }
 });
-addEventListener('pagehide', save);
+/** The copy kept as the page closed, when it is of this project and newer than its record; taken once. */
+function unsaved(id: string, record: Project | undefined) {
+  try {
+    const kept = localStorage.getItem(UNSAVED);
+    if (kept === null) return undefined;
+    localStorage.removeItem(UNSAVED);
+    const p = JSON.parse(kept) as Project;
+    return p.id === id && p.updatedAt > (record?.updatedAt ?? Infinity) ? p : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Files the project stopped showing: versions a page edit, an undo or another device replaced,
@@ -215,15 +255,24 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
 });
 
 export async function openProject(id: string) {
-  const found = await getProject(id);
+  const record = await getProject(id);
+  const found = unsaved(id, record) ?? record;
   const stored = found && { ...found, openedAt: Date.now() };
   if (stored) {
     void putProject(stored);
     for (const d of stored.docs) void dropOldVersions(d);
   }
-  // Projects saved before handwriting, squeezing, several canvases and tags existed lack those lists.
+  // Projects saved before handwriting, squeezing, several canvases, bookmarks and tags existed lack those lists.
   const old = stored
-    ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }], tags: stored.tags ?? [] }
+    ? {
+        ...stored,
+        inks: stored.inks ?? [],
+        folds: stored.folds ?? [],
+        canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }],
+        bookmarks: stored.bookmarks ?? [],
+        docFolders: stored.docFolders ?? [],
+        tags: stored.tags ?? [],
+      }
     : null;
   const project = old && migrate(old);
   // Saved before sync starts, which then shares the change as newer than its own state rather than undoing it.
@@ -233,6 +282,7 @@ export async function openProject(id: string) {
     project,
     activeDocId: project?.docs[0]?.id ?? null,
     sideDocId: null,
+    thirdDocId: null,
     canvasId: project?.canvases[0]?.id ?? MAIN_CANVAS,
     past: [],
     future: [],
@@ -249,7 +299,7 @@ export function closeProject() {
   if (project) release(project, [], []);
   retired.clear();
   closeDocs();
-  set({ project: null, activeDocId: null, sideDocId: null, past: [], future: [] });
+  set({ project: null, activeDocId: null, sideDocId: null, thirdDocId: null, past: [], future: [] });
 }
 
 export const UNTITLED = 'Untitled project';
@@ -269,15 +319,32 @@ export const newProject = (name: string): Project => ({
   comments: [],
   passageLinks: [],
   cardLinks: [],
+  bookmarks: [],
+  docFolders: [],
   tags: [],
 });
 
 export const rename = (name: string) => edit(() => ({ name }), false);
-export const setActiveDoc = (docId: string, pane: Pane = 0) => set(pane ? { sideDocId: docId } : { activeDocId: docId });
-/** Opens a second document pane beside the first, or closes it. */
-export const setSideBySide = (on: boolean) => set((s) => ({ sideDocId: on ? (s.project?.docs.find((d) => d.id !== s.activeDocId)?.id ?? s.activeDocId) : null }));
-/** The pane showing a document, preferring the main one. */
-const paneOf = (docId: string): Pane => (get().activeDocId !== docId && get().sideDocId === docId ? 1 : 0);
+export const setActiveDoc = (docId: string, pane: Pane = 0) => set({ [PANES[pane]]: docId });
+/** How many document panes are open, of which as many as there is room for are shown. */
+export const paneCount = (s: Pick<State, (typeof PANES)[number]>) => (s.thirdDocId !== null ? 3 : s.sideDocId !== null ? 2 : 1);
+export const shownPanes = (s: Pick<State, (typeof PANES)[number]>) => Math.min(paneCount(s), paneRoom());
+/** Opens another document pane to the right, showing a document the others do not, or another place in the last one. */
+export const openPane = () =>
+  set((s) => {
+    const n = paneCount(s);
+    if (n === 3) return {};
+    const shown = PANES.slice(0, n).map((k) => s[k]);
+    return { [PANES[n]]: s.project?.docs.find((d) => !shown.includes(d.id))?.id ?? shown.at(-1) ?? null };
+  });
+/** Closes a pane beside the main one; any to its right moves left. */
+export const closePane = (pane: 1 | 2) => set((s) => (pane === 1 ? { sideDocId: s.thirdDocId, thirdDocId: null } : { thirdDocId: null }));
+/** The pane showing a document, the leftmost where several do; the main one where none does. */
+export const paneOf = (docId: string): Pane => {
+  const s = get();
+  const at = PANES.slice(0, shownPanes(s)).findIndex((k) => s[k] === docId);
+  return (at < 0 ? 0 : at) as Pane;
+};
 export const rememberPage = (docId: string, lastPage: number) =>
   edit(
     (p) => ({
@@ -287,7 +354,7 @@ export const rememberPage = (docId: string, lastPage: number) =>
   );
 
 /** Opens a PDF, asking for its password until it opens; null when the reader gives up. */
-async function openProtected(data: Blob, name: string) {
+export async function openProtected(data: Blob, name: string) {
   let password: string | undefined;
   for (;;) {
     try {
@@ -329,11 +396,12 @@ export async function importFiles(project: Project, inputs: Input[], options: Co
   return { project: next, problems };
 }
 
-export async function addDocs(files: Input[], options: ConvertOptions = {}) {
+/** Adds documents to the open project, each with `extra` to know it by, such as where it came from. */
+export async function addDocs(files: Input[], options: ConvertOptions = {}, extra: Pick<DocMeta, 'zotero'> = {}) {
   const { project } = get();
   if (!project) return [];
   const { project: next, problems } = await importFiles(project, files, options);
-  const added = next.docs.slice(project.docs.length);
+  const added = next.docs.slice(project.docs.length).map((d) => ({ ...d, ...extra }));
   const first = added[0];
   // Another edit may have landed while the files were read; only the documents are taken from `next`.
   // An empty project still unnamed takes the name of what it was given first.
@@ -344,7 +412,8 @@ export async function addDocs(files: Input[], options: ConvertOptions = {}) {
 
 /** Takes a document out with everything on it; undo brings it back, as its file is kept until the history is gone. */
 export function removeDoc(docId: string) {
-  const { project, activeDocId, sideDocId } = get();
+  const state = get();
+  const { project } = state;
   if (!project) return;
   const gone = new Set(project.highlights.filter((h) => h.docId === docId).map((h) => h.id));
   const cards = project.cards.filter((c) => !(c.data.kind === 'excerpt' && gone.has(c.data.highlightId)));
@@ -358,10 +427,10 @@ export function removeDoc(docId: string) {
     links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
     inks: project.inks.filter((i) => i.docId !== docId),
     folds: project.folds.filter((f) => f.docId !== docId),
+    bookmarks: project.bookmarks.filter((b) => b.docId !== docId),
     ...prune({ ...project, highlights, cards }),
   }));
-  if (activeDocId === docId) set({ activeDocId: docs[0]?.id ?? null });
-  if (sideDocId === docId) set({ sideDocId: null });
+  set(panesShowing(state, (id) => id !== docId, docs[0]?.id ?? null));
 }
 
 export function addHighlight(docId: string, parts: Part[], text: string, color: Color, extra: Pick<Highlight, 'area'> = {}) {
@@ -558,19 +627,19 @@ export const showSource = (highlightId: string, inPane?: Pane) => {
   unfold((f) => f.docId === h.docId && before(f.from, spot) && before(spot, f.to));
   const pane = inPane ?? paneOf(h.docId);
   set({
-    ...(pane ? {} : { activeDocId: h.docId }),
+    [PANES[pane]]: h.docId,
     jump: { highlightId, pane, at: Date.now() },
     view: 'doc',
   });
 };
 
-/** Opens a document at a page: at a destination on it (from the PDF's contents), or at a search match there. */
-export const showPage = (docId: string, page: number, how: { query?: string; dest?: unknown[]; pane?: Pane } = {}) => {
+/** Opens a document at a page: at a destination on it (from the PDF's contents), a place down it (a fraction of its height), or a search match there. */
+export const showPage = (docId: string, page: number, how: { query?: string; dest?: unknown[]; y?: number; pane?: Pane } = {}) => {
   unfold((f) => f.docId === docId && f.from.page <= page && f.to.page >= page);
   const pane = how.pane ?? paneOf(docId);
   set({
-    ...(pane ? {} : { activeDocId: docId }),
-    jump: { page, query: how.query, dest: how.dest, pane, at: Date.now() },
+    [PANES[pane]]: docId,
+    jump: { page, query: how.query, dest: how.dest, y: how.y, pane, at: Date.now() },
     view: 'doc',
   });
 };
