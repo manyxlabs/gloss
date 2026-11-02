@@ -266,7 +266,7 @@ test('the exported PDF carries highlights, comments and handwriting as annotatio
   await task.destroy();
 
   // Opened again, the annotations are drawn by the PDF itself.
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add file' }).click()]);
   await chooser.setFiles({ name: 'annotated.pdf', mimeType: 'application/pdf', buffer: readFileSync(file) });
   await expect(page.getByRole('tab', { name: 'annotated' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.hl')).toHaveCount(0);
