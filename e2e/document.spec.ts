@@ -1,4 +1,5 @@
 import { copyFileSync, readFileSync } from 'node:fs';
+import { strFromU8, unzipSync } from 'fflate';
 import { expect, test, type Page } from '@playwright/test';
 import { PDFDocument, PDFHexString, PDFName, PDFNull, rgb, StandardFonts, type PDFRef } from 'pdf-lib';
 import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
@@ -374,6 +375,25 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   const md = readFileSync(`${ARTIFACTS}/comment-notes.md`, 'utf8');
   expect(md).toContain('> (Reef essay, p. 1)\n\nComment: Compare with the eastern slope survey.\n\nTiny area, huge share.');
   expect(md).toMatch(/- p\. 1: Rising sea temperatures[^\n]*\n {2}Comment: Bleaching threshold\?/);
+
+  // The PDF and Word notes write comments the same way.
+  for (const [label, ext] of [
+    ['PDF (.pdf)', 'pdf'],
+    ['Word (.docx)', 'docx'],
+  ]) {
+    await page.getByRole('button', { name: 'Export notes' }).click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+    const out = `${ARTIFACTS}/comment-notes.${ext}`;
+    copyFileSync(await download.path(), out);
+    let text = '';
+    if (ext === 'pdf') {
+      const doc = await readPdf(out).promise;
+      for (let i = 1; i <= doc.numPages; i++) text += (await (await doc.getPage(i)).getTextContent()).items.map((t) => ('str' in t ? t.str : '')).join(' ');
+    } else text = strFromU8(unzipSync(readFileSync(out))['word/document.xml']!);
+    expect(text, ext).toContain('Comment: Compare with the eastern slope survey.');
+    expect(text, ext).toContain('Comment: Bleaching threshold?');
+    expect(text, ext).not.toContain('(comment:');
+  }
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export PDF with highlights' }).click()]);
   const file = `${ARTIFACTS}/Reef essay with comments (annotated).pdf`;

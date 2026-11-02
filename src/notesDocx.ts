@@ -38,7 +38,8 @@ export function notesDocx(o: Outline) {
       children.push(heading(d.doc, HeadingLevel.HEADING_2));
       for (const h of d.items)
         children.push(
-          new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}${h.note ? ` (comment: ${h.note})` : ''}`) }),
+          new Paragraph({ bullet: { level: 0 }, children: runs(`p. ${h.page}: ${h.text}`) }),
+          ...(h.note ? [new Paragraph({ indent: { left: 720 }, children: runs(`Comment: ${h.note}`) })] : []),
           ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(`Linked passage: ${l}`, MUTED) })),
         );
     }
