@@ -1,8 +1,9 @@
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { outline, pathOf, SCREEN } from '../ink';
 import { regionImage } from '../pdf/pdfjs';
-import { checkpoint, showSource, ungroup, updateCard, useStore } from '../store/project';
+import { checkpoint, collapseGroup, showSource, ungroup, updateCard, useStore } from '../store/project';
 import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
 
 /**
@@ -63,15 +64,34 @@ function InkCard({ data, selected }: { data: InkData; selected: boolean }) {
 }
 
 function GroupCard({ id, data, selected }: { id: string; data: GroupData; selected: boolean }) {
+  const count = useStore((s) => s.project?.cards.filter((c) => c.parentId === id).length ?? 0);
   return (
-    <section className={`group${selected ? ' selected' : ''}`} aria-label={data.title || 'Group'}>
-      <NodeResizer isVisible={selected} minWidth={200} minHeight={120} lineClassName="group-edge" handleClassName="group-corner" onResizeStart={checkpoint} />
+    <section className={`group${selected ? ' selected' : ''}${data.collapsed ? ' collapsed' : ''}`} aria-label={data.title || 'Group'}>
+      {!data.collapsed && <NodeResizer isVisible={selected} minWidth={200} minHeight={120} lineClassName="group-edge" handleClassName="group-corner" onResizeStart={checkpoint} />}
       <header>
-        <input className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
-        <button className="nodrag ghost" onClick={() => ungroup(id)} title="Keep the cards, remove the group">
-          Ungroup
+        <button
+          className="nodrag icon fold"
+          aria-label={data.collapsed ? 'Open group' : 'Collapse group'}
+          title={data.collapsed ? 'Open group' : 'Collapse group to its name'}
+          onClick={() => collapseGroup(id, !data.collapsed)}
+        >
+          {data.collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
+        <input className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
+        {data.collapsed ? (
+          <span className="count">
+            {count} card{count === 1 ? '' : 's'}
+          </span>
+        ) : (
+          <button className="nodrag ghost" onClick={() => ungroup(id)} title="Keep the cards, remove the group">
+            Ungroup
+          </button>
+        )}
       </header>
+      {/* Links to cards inside a collapsed group end on the group. */}
+      {SIDES.map((side) => (
+        <Handle key={side} id={side} type="source" position={side} isConnectable={false} />
+      ))}
     </section>
   );
 }

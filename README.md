@@ -22,7 +22,7 @@ The one other exception is adding a web page: its address goes to Gloss's server
 - **Password protected PDFs** open after you enter the password, which is kept only in this browser.
 - **Squeeze** the text between two passages out of view to read them side by side: pinch two fingers held one above the other, or select what is in between and press Squeeze. A bar marks each squeeze and opens it again.
 - **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen, and once one has been used, a finger or palm scrolls and pans instead of drawing.
-- **Groups**: select cards and group them under a name; drag a card in or out, and move the group to move them all.
+- **Groups**: select cards and group them under a name, or pinch two cards together on a touch screen; drag a card in or out, move the group to move them all, and collapse it to its name (pinch it closed, spread it open) with its links ending on it.
 - **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them. A password protected PDF cannot be exported this way; save a copy without the password first.
 - **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one).
 - **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
