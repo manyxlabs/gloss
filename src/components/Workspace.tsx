@@ -1,11 +1,11 @@
 import { ReactFlowProvider } from '@xyflow/react';
-import { ArrowLeft, NotebookText } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { download, toMarkdown } from '../export';
 import { take } from '../notices';
 import { closeProject, openProject, redo, rename, setView, undo, useStore } from '../store/project';
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
+import { ExportMenu } from './ExportMenu';
 import { Search } from './Search';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -95,14 +95,7 @@ export function Workspace({ id }: { id: string }) {
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
         <Search />
-        <button
-          className="export"
-          title="Download the canvas and highlights as Markdown notes"
-          onClick={() => download(`${project.name}.md`, new Blob([toMarkdown(project)], { type: 'text/markdown' }))}
-          disabled={!project.cards.length && !project.highlights.length}
-        >
-          <NotebookText size={16} /> Export notes
-        </button>
+        <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} />
         <ThemeToggle />
       </header>
 

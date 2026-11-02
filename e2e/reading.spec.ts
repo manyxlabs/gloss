@@ -76,7 +76,8 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await expect(rising).toBeVisible();
   await expect(page.locator('.hl[data-id]')).toHaveCount(3);
 
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export notes' }).click()]);
+  await page.getByRole('button', { name: 'Export notes' }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await download.path(), `${ARTIFACTS}/notes.md`);
   const notes = readFileSync(`${ARTIFACTS}/notes.md`, 'utf8');
   expect(notes).toContain(`> ${ESSAY[0]![1]}\n> (Reef essay, p. 1)`);

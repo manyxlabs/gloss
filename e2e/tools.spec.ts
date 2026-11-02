@@ -1,7 +1,7 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { ARTIFACTS, card, openProject, select, shot } from './helpers';
+import { ARTIFACTS, card, openProject, select, shot, STANDARD_FONTS } from './helpers';
 
 /** A note's text is in a field, which a text match does not see; the field's sizer carries it. */
 const note = (page: Page, text: string) => page.locator('.react-flow__node').filter({ has: page.locator(`.grow[data-value^="${text}"]`) });
@@ -213,7 +213,8 @@ test('cards gather into a named group that moves, takes new cards and exports as
   await page.mouse.up();
   await shot(page, 'group');
 
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export notes' }).click()]);
+  await page.getByRole('button', { name: 'Export notes' }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await download.path(), `${ARTIFACTS}/group-notes.md`);
   const notes = readFileSync(`${ARTIFACTS}/group-notes.md`, 'utf8');
   expect(notes).toMatch(/## Reef threats\n\nWarming bleaches corals\.\n\n---\n\nOverfishing lets algae win\.\n\n---\n\nProtected areas help\./);
@@ -248,7 +249,7 @@ test('the exported PDF carries highlights, comments and handwriting as annotatio
   const file = `${ARTIFACTS}/Reef essay (annotated).pdf`;
   copyFileSync(await download.path(), file);
 
-  const task = getDocument({ data: new Uint8Array(readFileSync(file)) });
+  const task = getDocument({ data: new Uint8Array(readFileSync(file)), standardFontDataUrl: STANDARD_FONTS });
   const doc = await task.promise;
   const first = await doc.getPage(1);
   const annots = await first.getAnnotations();
