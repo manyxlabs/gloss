@@ -81,10 +81,15 @@ export function Projects({ projects, reload, onProblems }: { projects: Project[]
     await refresh();
     setRenaming(folder.id);
   };
+  /** Shows a change to a folder at once, then keeps it. */
+  const change = async (folder: Folder) => {
+    setFolders((all) => all?.map((f) => (f.id === folder.id ? folder : f)) ?? null);
+    await putFolder(folder);
+    setFolders(await listFolders());
+  };
   const rename = async (folder: Folder, name: string) => {
     setRenaming(null);
-    if (name.trim() && name.trim() !== folder.name) await putFolder({ ...folder, name: name.trim() });
-    await refresh();
+    if (name.trim() && name.trim() !== folder.name) await change({ ...folder, name: name.trim() });
   };
   const remove = async (folder: Folder, count: number) => {
     setMenu(null);
@@ -96,10 +101,9 @@ export function Projects({ projects, reload, onProblems }: { projects: Project[]
     await deleteFolder(folder.id);
     await refresh();
   };
-  const collapse = async (folder: Folder) => {
+  const collapse = (folder: Folder) => {
     const { collapsed: _, ...rest } = folder;
-    await putFolder(folder.collapsed ? rest : { ...rest, collapsed: true });
-    setFolders(await listFolders());
+    return change(folder.collapsed ? rest : { ...rest, collapsed: true });
   };
 
   const top = useDrop((id) => void move(id, null));
