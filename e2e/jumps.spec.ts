@@ -3,6 +3,11 @@ import { openProject, openWith, pdf, PHONE, select, shot } from './helpers';
 import { reportWithContents } from './pdfs';
 
 const palette = (page: Page) => page.getByRole('dialog', { name: 'Go to' });
+/** Opens the palette and waits for its field, so no key typed next goes elsewhere. */
+async function openPalette(page: Page, key = 'p') {
+  await page.keyboard.press(`ControlOrMeta+${key}`);
+  await expect(palette(page).getByRole('combobox')).toBeFocused();
+}
 const pageNo = (page: Page, pane = 0) => page.locator('.doc-pane').nth(pane).locator('.page-no');
 const allSearch = (page: Page) => page.getByRole('searchbox', { name: 'Search all projects' });
 const allResults = (page: Page) => page.getByRole('listbox', { name: 'Results in all projects' });
@@ -18,7 +23,7 @@ test('the palette jumps to a page, a document, a contents entry, a canvas, a tag
   ]);
 
   await test.step('A page number', async () => {
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await expect(palette(page)).toBeVisible();
     await page.keyboard.type('6');
     await expect(palette(page).getByRole('option').first()).toHaveText(/Go to page 6 of 8/);
@@ -29,7 +34,7 @@ test('the palette jumps to a page, a document, a contents entry, a canvas, a tag
   });
 
   await test.step('A contents entry, walked to with the arrow keys', async () => {
-    await page.keyboard.press('ControlOrMeta+g');
+    await openPalette(page, 'g');
     await page.keyboard.type('contents');
     const options = palette(page).getByRole('option');
     await expect(options).toHaveText([/Introduction/, /Methods/, /Sampling/]);
@@ -42,25 +47,25 @@ test('the palette jumps to a page, a document, a contents entry, a canvas, a tag
   });
 
   await test.step('A document, a canvas and an action', async () => {
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('essay');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('tab', { name: 'Reef essay' })).toHaveAttribute('aria-selected', 'true');
 
     await page.getByRole('button', { name: 'New canvas' }).click();
     await page.getByRole('tablist', { name: 'Canvases' }).getByRole('tab').first().click();
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('canvas 2');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('tablist', { name: 'Canvases' }).getByRole('tab', { name: 'Canvas 2' })).toHaveAttribute('aria-selected', 'true');
 
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('new note');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('textbox', { name: 'Note' })).toBeFocused();
     await page.keyboard.type('Written from the palette');
     await page.locator('.react-flow__pane').click({ position: { x: 30, y: 400 } });
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('undo');
     await page.keyboard.press('Enter');
     await expect(page.locator('.card .grow[data-value="Written from the palette"]')).toHaveCount(0);
@@ -72,7 +77,7 @@ test('the palette jumps to a page, a document, a contents entry, a canvas, a tag
     await page.getByRole('textbox', { name: 'Find or make a tag' }).fill('Coral');
     await page.keyboard.press('Enter');
     await page.getByRole('button', { name: 'Done' }).click();
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('coral');
     await expect(palette(page).getByRole('option', { name: /Filter by Coral/ })).toBeVisible();
     await page.keyboard.press('Enter');
@@ -88,12 +93,12 @@ test('the palette jumps to a page, a document, a contents entry, a canvas, a tag
     await expect(second.locator('.textLayer span').first()).toBeVisible();
     await second.locator('.doc-scroll').click({ position: { x: 20, y: 200 } });
     const before = await pageNo(page).textContent();
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('p 7');
     await page.keyboard.press('Enter');
     await expect(pageNo(page, 1)).toHaveText('Page 7 / 8');
     await expect(pageNo(page)).toHaveText(before!);
-    await page.keyboard.press('ControlOrMeta+p');
+    await openPalette(page);
     await page.keyboard.type('Nothing is called this');
     await expect(palette(page)).toContainText('Nothing matches');
     for (const scheme of ['light', 'dark'] as const) {
@@ -110,7 +115,7 @@ test('on a phone, the palette fits the screen and jumps to a page', async ({ bro
   const context = await browser.newContext(PHONE);
   const page = await context.newPage();
   await openProject(page);
-  await page.keyboard.press('ControlOrMeta+p');
+  await openPalette(page);
   await page.keyboard.type('3');
   const box = (await palette(page).boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);

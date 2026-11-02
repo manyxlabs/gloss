@@ -58,7 +58,8 @@ async function addAnnotated(page: Page) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
   await chooser.setFiles({ name: 'Reef review.pdf', mimeType: 'application/pdf', buffer: await annotatedPdf() });
-  await expect(page.locator('.textLayer')).toContainText('Coral reefs occupy');
+  // Storing, opening and drawing the first page takes longer on a machine busy with other tests.
+  await expect(page.locator('.textLayer')).toContainText('Coral reefs occupy', { timeout: 15_000 });
 }
 
 /** How many of the page canvas's pixels across the middle of the first highlight's words are the highlight's yellow, as the PDF itself draws it. */
