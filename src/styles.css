@@ -530,8 +530,16 @@ button.link:hover:not(:disabled) {
   color: inherit;
 }
 
+/* Over the workspace rather than pushing it down, until dismissed. */
 .workspace > .problems {
-  margin: 8px 12px 0;
+  position: fixed;
+  z-index: 60;
+  top: 60px;
+  right: 12px;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 24px));
+  margin: 0;
+  box-shadow: var(--shadow);
 }
 
 /* Glass needs something to frost, so the dialog is a solid panel over a dimmed page. */
@@ -648,7 +656,7 @@ button.link:hover:not(:disabled) {
   margin-left: auto;
 }
 
-.search svg {
+.search > svg {
   position: absolute;
   left: 10px;
   top: 50%;
@@ -664,6 +672,10 @@ button.link:hover:not(:disabled) {
   border-radius: 9px;
   padding: 6px 54px 6px 32px;
   font-size: 14px;
+}
+
+.search .opener {
+  display: none;
 }
 
 .search kbd {
@@ -682,6 +694,8 @@ button.link:hover:not(:disabled) {
 }
 
 .results {
+  /* Opaque: the page and the canvas behind would show through glass and muddle the results. */
+  background: var(--panel);
   position: absolute;
   z-index: 50;
   top: calc(100% + 6px);
@@ -731,6 +745,10 @@ button.link:hover:not(:disabled) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.results [aria-selected='true'] {
+  background: var(--panel-2);
 }
 
 .results mark {
@@ -1850,8 +1868,8 @@ button.link:hover:not(:disabled) {
   border-color: var(--accent) !important;
 }
 
-/* Phones: one side at a time. */
-@media (max-width: 760px) {
+/* Phones and tablets held upright: one side at a time. */
+@media (max-width: 900px) {
   .switch {
     display: flex;
     gap: 4px;
@@ -1895,12 +1913,64 @@ button.link:hover:not(:disabled) {
     pointer-events: none;
   }
 
+  .tabs .side {
+    display: none;
+  }
+
+  /* Too narrow for two pages; the second pane waits until there is room. */
+  .docs.split {
+    grid-template-columns: 1fr;
+  }
+
+  .docs.split > .doc-pane + .doc-pane {
+    display: none;
+  }
+}
+
+/* Phones: a compact header, with search folded into a button that opens over it. */
+@media (max-width: 760px) {
+  .workspace .bar {
+    gap: 2px;
+    padding: 8px 8px;
+  }
+
   .bar .name {
     flex: 1 1 0;
   }
 
   .search {
-    flex: 0 1 150px;
+    flex: none;
+    margin-left: auto;
+    position: static;
+  }
+
+  .search:not(.open) > :not(.opener) {
+    display: none;
+  }
+
+  .search:not(.open) .opener {
+    display: inline-flex;
+  }
+
+  .search.open {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    max-width: none;
+    padding: 0 12px;
+    background: var(--panel);
+  }
+
+  .search.open > svg {
+    left: 22px;
+  }
+
+  .search.open .results {
+    left: 8px;
+    right: 8px;
+    width: auto;
   }
 
   .search kbd {
@@ -1911,21 +1981,12 @@ button.link:hover:not(:disabled) {
     padding-right: 8px;
   }
 
-  .workspace .bar > .export {
+  /* Export notes keeps only its icon. */
+  .workspace .bar > .export > button > :not(:first-child) {
     display: none;
   }
 
-  .react-flow__minimap,
-  .tabs .side {
-    display: none;
-  }
-
-  /* A phone is too narrow for two pages; the second pane waits until there is room. */
-  .docs.split {
-    grid-template-columns: 1fr;
-  }
-
-  .docs.split > .doc-pane + .doc-pane {
+  .react-flow__minimap {
     display: none;
   }
 }
@@ -2125,10 +2186,17 @@ dialog.sheet::backdrop {
     gap: 0;
   }
 
-  .workspace .bar > .share {
-    padding: 6px 8px;
+  /* Icons alone, like the others in the header. */
+  .workspace .bar > .share,
+  .workspace .bar > .export > button {
+    width: 34px;
+    height: 34px;
+    padding: 0;
     font-size: 0;
     gap: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
   }
 
   .peers .avatar:nth-child(n + 4):not(:last-child) {
@@ -2198,9 +2266,8 @@ dialog.sheet::backdrop {
 .toast {
   position: fixed;
   z-index: 100;
-  left: 50%;
+  right: 12px;
   top: 60px;
-  translate: -50% 0;
   display: flex;
   align-items: center;
   gap: 10px;

@@ -60,7 +60,7 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await expect(coral.locator('.card')).toHaveClass(/selected/);
 
   // Search covers every document, and opens the other one at the match.
-  await page.getByRole('searchbox').fill('parrotfish');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('parrotfish');
   await page.getByRole('option', { name: /p\. 2/ }).click();
   await expect(page.getByRole('tab', { name: 'Survey notes' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Page 2 / 2')).toBeVisible();
