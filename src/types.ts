@@ -64,7 +64,8 @@ export type InkData = {
   size: number;
   pen: boolean;
 };
-export type GroupData = { kind: 'group'; title: string };
+/** A collapsed group shows only its name and how many cards it holds; `openHeight` is its height when open. */
+export type GroupData = { kind: 'group'; title: string; collapsed?: boolean; openHeight?: number };
 /** Every card sits on one of the project's canvases; cards from before there were several have none and sit on the first. */
 export type CardData = (ExcerptData | NoteData | InkData | GroupData) & { canvasId?: string };
 export type CanvasMeta = { id: string; name: string };

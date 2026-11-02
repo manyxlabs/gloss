@@ -600,3 +600,16 @@ export function notePen() {
     // Not remembered; it is noticed again the next time the pen touches.
   }
 }
+
+const COLLAPSED_HEIGHT = 48;
+
+/** Folds a group down to its name, or opens it again, keeping its open size for next time. */
+export function collapseGroup(id: string, collapsed: boolean) {
+  edit((p) => ({
+    cards: p.cards.map((c) => {
+      if (c.id !== id || c.data.kind !== 'group' || !!c.data.collapsed === collapsed) return c;
+      const height = collapsed ? COLLAPSED_HEIGHT : (c.data.openHeight ?? c.height);
+      return { ...c, height, data: { ...c.data, collapsed, openHeight: collapsed ? (c.measured?.height ?? c.height) : c.data.openHeight } } as Card;
+    }),
+  }));
+}

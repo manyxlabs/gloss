@@ -12,6 +12,7 @@ import {
   CARD_WIDTH,
   canvasSpot,
   checkpoint,
+  collapseGroup,
   connect,
   excerpt,
   group,
@@ -29,6 +30,9 @@ import { Cursors } from './Presence';
 import { Tools } from './Tools';
 
 const nodeTypes = { card: CardNode };
+/** Fingers this much closer or further apart than they started count as a pinch in or out. */
+const PINCH_IN = 0.6;
+const PINCH_OUT = 1.5;
 /** Pen width on the canvas, in canvas units, so writing scales with the canvas like everything else on it. */
 const INK_SIZE = 3.5;
 
@@ -38,9 +42,23 @@ export function Canvas() {
   // Only the canvas on show is drawn; links go with the cards they join.
   const [cards, links] = useMemo(() => {
     if (!project) return [[], []];
-    const shown = project.cards.filter((c) => canvasOf(project, c) === canvasId);
-    const ids = new Set(shown.map((c) => c.id));
-    return [shown, project.links.filter((l) => ids.has(l.source) && ids.has(l.target))];
+    const onCanvas = project.cards.filter((c) => canvasOf(project, c) === canvasId);
+    const ids = new Set(onCanvas.map((c) => c.id));
+    // Cards in a collapsed group are hidden, and their links end on the group instead.
+    const folded = new Set(onCanvas.filter((c) => c.data.kind === 'group' && c.data.collapsed).map((c) => c.id));
+    const shown = onCanvas.map((c) => (c.parentId && folded.has(c.parentId) ? { ...c, hidden: true } : c));
+    const parentOf = new Map(shown.filter((c) => c.hidden).map((c) => [c.id, c.parentId!]));
+    const seen = new Set<string>();
+    const links = project.links.flatMap((l) => {
+      if (!ids.has(l.source) || !ids.has(l.target)) return [];
+      const source = parentOf.get(l.source) ?? l.source;
+      const target = parentOf.get(l.target) ?? l.target;
+      const key = [source, target].sort().join(' ');
+      if (source === target || seen.has(key)) return [];
+      seen.add(key);
+      return [source === l.source && target === l.target ? l : { ...l, source, target, deletable: false, selectable: false }];
+    });
+    return [shown, links];
   }, [project, canvasId]);
   const focus = useStore((s) => s.focus);
   const tool = useStore((s) => s.canvasTool);
@@ -66,6 +84,57 @@ export function Canvas() {
         at.y = Math.round(h.internals.positionAbsolute.y + (h.measured.height ?? 100) + 16);
       }
       return at;
+    };
+  }, [rf]);
+
+  // Two fingers on two cards brought together group them; on one group, together closes it and
+  // apart opens it. A pinch on the background still zooms, as React Flow does it.
+  useEffect(() => {
+    const el = wrapper.current!;
+    let pinch: { a: string; b: string; start: number; last: number } | null = null;
+    const nodeAt = (t: Touch) => document.elementFromPoint(t.clientX, t.clientY)?.closest<HTMLElement>('.react-flow__node')?.dataset.id;
+    const spread = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY);
+    const kind = (id: string) => (rf.getNode(id)?.data as Card['data'] | undefined)?.kind;
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      const [a, b] = [nodeAt(e.touches[0]!), nodeAt(e.touches[1]!)];
+      if (!a || !b) return;
+      pinch = { a, b, start: spread(e.touches), last: spread(e.touches) };
+      e.stopPropagation();
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.stopPropagation();
+      e.preventDefault();
+      pinch.last = spread(e.touches);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!pinch || e.touches.length >= 2) return;
+      e.stopPropagation();
+      const { a, b, start, last } = pinch;
+      pinch = null;
+      const ratio = last / start;
+      if (a === b && kind(a) === 'group') {
+        if (ratio < PINCH_IN) collapseGroup(a, true);
+        else if (ratio > PINCH_OUT) collapseGroup(a, false);
+      } else if (a !== b && kind(a) !== 'group' && kind(b) !== 'group' && ratio < PINCH_IN) {
+        const chosen =
+          useStore
+            .getState()
+            .project?.cards.filter((c) => c.selected)
+            .map((c) => c.id) ?? [];
+        group([...new Set([a, b, ...chosen])]);
+      }
+    };
+    el.addEventListener('touchstart', onStart, { capture: true, passive: true });
+    el.addEventListener('touchmove', onMove, { capture: true, passive: false });
+    el.addEventListener('touchend', onEnd, { capture: true });
+    el.addEventListener('touchcancel', onEnd, { capture: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart, { capture: true });
+      el.removeEventListener('touchmove', onMove, { capture: true });
+      el.removeEventListener('touchend', onEnd, { capture: true });
+      el.removeEventListener('touchcancel', onEnd, { capture: true });
     };
   }, [rf]);
 
