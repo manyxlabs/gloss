@@ -31,7 +31,8 @@ import {
   type Pane,
 } from '../store/project';
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
-import { COLORS, type Color, type Point, type Rect } from '../types';
+import type { Color, Point, Rect } from '../types';
+import { ColorPicker } from './ColorPicker';
 import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
@@ -800,18 +801,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <button className="primary" onClick={() => excerpt(fromSelection(shown.anchor, color).id)}>
                 Excerpt
               </button>
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={`swatch hl-${c}${c === color ? ' current' : ''}`}
-                  aria-label={`Highlight ${c}`}
-                  title={`Highlight ${c}`}
-                  onClick={() => {
-                    setColor(c);
-                    fromSelection(shown.anchor, c);
-                  }}
-                />
-              ))}
+              <ColorPicker
+                current={color}
+                label={(name) => `Highlight ${name}`}
+                onPick={(c) => {
+                  setColor(c);
+                  fromSelection(shown.anchor, c);
+                }}
+              />
               <span className="sep" />
               <button
                 className="icon"
@@ -872,15 +869,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                   Excerpt
                 </button>
               )}
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={`swatch hl-${c}${c === highlight.color ? ' current' : ''}`}
-                  aria-label={`Make it ${c}`}
-                  title={`Make it ${c}`}
-                  onClick={() => recolor(highlight.id, c)}
-                />
-              ))}
+              <ColorPicker current={highlight.color} label={(name) => `Make it ${name}`} onPick={(c) => recolor(highlight.id, c)} />
               <span className="sep" />
               <button
                 className="icon"
