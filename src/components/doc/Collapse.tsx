@@ -2,6 +2,7 @@ import { ListCollapse } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { collapseAround, expandAll, useLastSearch } from '../../store/bulk';
 import { useStore } from '../../store/project';
+import { TermsToggle } from './Terms';
 import { COLORS, type Color, type Tag } from '../../types';
 
 const NONE: Tag[] = [];
@@ -54,7 +55,7 @@ export function Collapse({ docId }: { docId: string }) {
       <button
         className="icon"
         aria-label="Squeeze around highlights or words"
-        title="Squeeze to highlights or search matches"
+        title="Squeeze to highlights or search matches, and defined terms"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (setOpen(!open), setMessage(null))}
@@ -112,6 +113,7 @@ export function Collapse({ docId }: { docId: string }) {
               {message}
             </p>
           )}
+          <TermsToggle docId={docId} />
           <div className="row">
             <button type="button" disabled={!folded} onClick={() => (expandAll(docId), setOpen(false))}>
               Expand all

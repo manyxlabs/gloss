@@ -27,8 +27,12 @@ async function hover(page: Page, term: string, pageNo: number) {
 
 test('a defined term shows its definition when pointed at, goes to it, and the lookup turns off and on', async ({ page }) => {
   await openWith(page, [{ name: 'Services agreement.pdf', buffer: await contract() }]);
-  const toggle = page.getByRole('button', { name: 'Defined terms' });
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const panel = page.getByRole('button', { name: 'Squeeze around highlights or words' });
+  const toggle = page.getByRole('switch', { name: 'Defined terms' });
+  await panel.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await shot(page, 'terms-panel');
+  await panel.click();
 
   await test.step('Later uses are underlined; the term where it is defined is not', async () => {
     await page.locator('.pdfViewer > .page[data-page-number="2"]').scrollIntoViewIfNeeded();
@@ -69,8 +73,10 @@ test('a defined term shows its definition when pointed at, goes to it, and the l
   });
 
   await test.step('Turned off, terms are not marked and nothing shows; it stays off after a reload', async () => {
+    await panel.click();
     await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await page.keyboard.press('Escape');
     await expect(page.locator('.term-mark')).toHaveCount(0);
     const span = page.locator('.pdfViewer > .page[data-page-number="2"] .textLayer span', { hasText: 'perform the Services' }).first();
     await span.scrollIntoViewIfNeeded();
@@ -78,8 +84,10 @@ test('a defined term shows its definition when pointed at, goes to it, and the l
     await page.waitForTimeout(600);
     await expect(definition(page)).toHaveCount(0);
     await page.reload();
-    await expect(page.getByRole('button', { name: 'Defined terms' })).toHaveAttribute('aria-pressed', 'false');
-    await page.getByRole('button', { name: 'Defined terms' }).click();
+    await panel.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await page.keyboard.press('Escape');
     await page.locator('.pdfViewer > .page[data-page-number="2"]').scrollIntoViewIfNeeded();
     await expect(mark(page, 'Services', 2)).toBeAttached();
   });

@@ -38,7 +38,7 @@ import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
-import { DefinedTerms, TermsToggle } from './doc/Terms';
+import { DefinedTerms } from './doc/Terms';
 import { TagPicker, TagRow } from './Tags';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
@@ -874,7 +874,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 <FoldVertical size={17} />
               </button>
               <button
-                className="icon"
+                className="icon copy"
                 aria-label={copied ? 'Copied' : 'Copy'}
                 title={copied ? 'Copied' : 'Copy'}
                 onClick={async () => {
@@ -991,7 +991,6 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             </button>
           </span>
           <Collapse docId={active.id} />
-          <TermsToggle docId={active.id} />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>

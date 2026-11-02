@@ -12,13 +12,13 @@ const NONE: Tag[] = [];
 export const tagStyle = (t: Tag) => ({ '--tag': t.color ? `var(--hl-${t.color})` : 'var(--border)' }) as CSSProperties;
 
 /** The tags on a passage or card, by name. */
-export function TagChips({ ids, className = '' }: { ids: string[] | undefined; className?: string }) {
+export function TagChips({ ids }: { ids: string[] | undefined }) {
   const all = useStore((s) => s.project?.tags);
   const tags = known({ tags: all ?? [] }, ids);
   if (!tags.length) return null;
   return (
     // Spans, as chips also sit inside buttons, which may hold only phrasing content.
-    <span className={`tag-chips ${className}`} role="list" aria-label="Tags">
+    <span className="tag-chips" role="list" aria-label="Tags">
       {tags.map((t) => (
         <span key={t.id} role="listitem" className="tag-chip" style={tagStyle(t)}>
           {t.name}

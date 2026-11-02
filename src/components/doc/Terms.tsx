@@ -208,21 +208,19 @@ export function DefinedTerms({
   );
 }
 
-/** Turns the lookup on or off, shown for a document that defines terms. */
+/** Turns the lookup on or off, in the squeeze panel of a document that defines terms. */
 export function TermsToggle({ docId }: { docId: string }) {
   const on = useTerms((s) => s.on);
   const defs = useDefinitions(docId);
   if (!defs.length) return null;
   const Icon = on ? BookOpenCheck : BookOpen;
   return (
-    <button
-      className="icon"
-      aria-pressed={on}
-      aria-label="Defined terms"
-      title={on ? `Defined terms: ${defs.length} found. Point at a term to read its definition. Click to turn off.` : 'Show definitions of defined terms'}
-      onClick={() => setTermsOn(!on)}
-    >
-      <Icon size={17} />
+    <button type="button" className="terms-toggle" role="switch" aria-checked={on} aria-label="Defined terms" onClick={() => setTermsOn(!on)}>
+      <Icon size={16} />
+      <span>
+        Defined terms <small>{defs.length} found; point at one to read its definition</small>
+      </span>
+      <span className="track" aria-hidden="true" />
     </button>
   );
 }
