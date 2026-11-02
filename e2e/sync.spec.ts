@@ -270,3 +270,58 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await a.context.close();
   await b.context.close();
 });
+
+test('a page edit reaches the other device as a new version of the file, and so does its undo', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const a = await device(browser);
+  const b = await device(browser);
+  await openProject(a.page);
+  await a.page.locator('.page[data-page-number="2"]').scrollIntoViewIfNeeded();
+  await select(a.page, 'Mangrove forests protect');
+  await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();
+
+  await a.page.getByRole('button', { name: 'Share' }).click();
+  const sharing = a.page.getByRole('dialog', { name: 'Share this project' });
+  await sharing.getByRole('textbox', { name: 'Your name' }).fill('Ada');
+  await sharing.getByRole('button', { name: 'Create link' }).click();
+  const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
+  const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
+  await shared.getByRole('button', { name: 'Done' }).click();
+  await synced(a.page);
+  await b.page.goto(link);
+  await giveName(b.page, 'Ben');
+  await synced(b.page);
+  const chip = (page: Page) => card(page, 'Mangrove forests').getByRole('button', { name: /Reef essay · p\./ });
+  await expect(chip(b.page)).toHaveText('Reef essay · p. 2');
+
+  // A deletes the first page.
+  await a.page.getByRole('button', { name: 'Contents, pages and highlights' }).first().click();
+  const sidebar = a.page.getByRole('complementary', { name: 'Contents, pages and highlights' });
+  await sidebar.getByRole('tab', { name: 'Pages' }).click();
+  await sidebar.locator('.thumbs > li').first().getByRole('button', { name: 'Page actions' }).click();
+  await a.page.getByRole('menu').getByRole('menuitem', { name: 'Delete page' }).click();
+  await expect(chip(a.page)).toHaveText('Reef essay · p. 1');
+  await synced(a.page);
+
+  // B gets the new file and the moved excerpt together.
+  const firstPage = (page: Page) => page.locator('.pdfViewer > .page[data-page-number="1"] .textLayer');
+  await expect(b.page.locator('.page-no').first()).toHaveText(/\/ 2$/, { timeout: 15_000 });
+  await expect(firstPage(b.page)).toContainText('Mangrove forests protect');
+  await expect(chip(b.page)).toHaveText('Reef essay · p. 1');
+  await expect(b.page.locator('.page[data-page-number="1"] .hl.linked')).toBeVisible();
+  await shot(b.page, 'sync-page-edit');
+
+  // Undone on A, the first page comes back on B.
+  await a.page.keyboard.press('Control+z');
+  await expect(chip(a.page)).toHaveText('Reef essay · p. 2');
+  await expect(b.page.locator('.page-no').first()).toHaveText(/\/ 3$/, { timeout: 15_000 });
+  await expect(firstPage(b.page)).toContainText('The ocean covers');
+  await expect(chip(b.page)).toHaveText('Reef essay · p. 2');
+  await synced(b.page);
+
+  // Each version went up encrypted.
+  expect(a.wire.uploads.length).toBeGreaterThanOrEqual(3);
+  for (const upload of a.wire.uploads) expect(upload.includes('%PDF')).toBe(false);
+  await a.context.close();
+  await b.context.close();
+});

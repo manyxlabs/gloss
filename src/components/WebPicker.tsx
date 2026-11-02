@@ -1,4 +1,4 @@
-import { Globe } from 'lucide-react';
+import { Link2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { ConvertOptions } from '../convert';
 
@@ -13,8 +13,8 @@ const normalized = (raw: string) => {
 };
 
 /**
- * Asks for a web page's address; `add` fetches it, reports how far it has got and its own problems,
- * and stops when the reader cancels.
+ * Asks for a link, to a web page or a file such as a cloud storage share link; `add` fetches it,
+ * reports how far it has got and its own problems, and stops when the reader cancels.
  */
 export function WebPicker({ kind = 'icon', add }: { kind?: 'icon' | 'text' | 'big'; add: (url: string, how: ConvertOptions) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -24,12 +24,12 @@ export function WebPicker({ kind = 'icon', add }: { kind?: 'icon' | 'text' | 'bi
   return (
     <>
       {kind === 'icon' ? (
-        <button className="icon" aria-label="Add from the web" title="Add a web page as a document" disabled={!!stage} onClick={open}>
-          <Globe size={16} />
+        <button className="icon" aria-label="Add from a link" title="Add a web page, or a file from a share link" disabled={!!stage} onClick={open}>
+          <Link2 size={16} />
         </button>
       ) : (
         <button className={kind === 'big' ? 'big' : undefined} disabled={!!stage} onClick={open}>
-          <Globe size={16} /> Add from the web
+          <Link2 size={16} /> Add from a link
         </button>
       )}
       {/* However it closes, Cancel or Escape, the work stops with it. */}
@@ -59,27 +59,34 @@ export function WebPicker({ kind = 'icon', add }: { kind?: 'icon' | 'text' | 'bi
             }
           }}
         >
-          <h2 id="web-h">Add a web page</h2>
+          <h2 id="web-h">Add from a link</h2>
           <input
             name="url"
             type="text"
             inputMode="url"
             required
             placeholder="https://"
-            aria-label="Web page address"
+            aria-label="Link"
             autoComplete="url"
             autoCapitalize="off"
             spellCheck={false}
             readOnly={!!stage}
             onInput={(e) => e.currentTarget.setCustomValidity('')}
           />
-          <p role="status">{stage ?? 'Gloss fetches the page through its server, keeps the article, and saves it in this browser as a PDF.'}</p>
+          {stage ? (
+            <p role="status">{stage}</p>
+          ) : (
+            <p>
+              A web page is kept as its article. A share link from Google Drive, Dropbox, OneDrive or Box, or a link straight to a file, adds the file itself, so share it with{' '}
+              <b>anyone with the link</b>. Gloss fetches links through its server and keeps what it adds in this browser.
+            </p>
+          )}
           <div className="actions">
             <button type="button" onClick={() => dialog.current!.close()}>
               Cancel
             </button>
             <button className="primary" disabled={!!stage}>
-              {stage ? 'Adding…' : 'Add page'}
+              {stage ? 'Adding…' : 'Add'}
             </button>
           </div>
         </form>

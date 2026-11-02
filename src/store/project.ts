@@ -3,11 +3,14 @@ import { create } from 'zustand';
 import { before } from '../pdf/folds';
 import type { ConvertOptions, Input } from '../convert';
 import { migrate, prune } from '../links';
-import { closeDocs, openPdf, PdfPasswordError } from '../pdf/pdfjs';
+import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { passwordAsker } from '../password';
-import { addFiles, emptyTrash, getProject, putProject, trashFile } from './db';
+import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
 
+/** Which version of each document's file a document has, as page edits are undone with the rest. */
+export type Version = Pick<DocMeta, 'file' | 'pages' | 'size'>;
+/** A step of history. Its documents carry the version of each file, so undo brings back a removed document and an earlier version alike. */
 type Snapshot = Pick<Project, 'docs' | 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases' | 'comments' | 'passageLinks' | 'cardLinks'>;
 const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comments, passageLinks, cardLinks }: Project): Snapshot => ({
   docs,
@@ -21,6 +24,12 @@ const snapshot = ({ docs, highlights, cards, links, inks, folds, canvases, comme
   passageLinks,
   cardLinks,
 });
+/** A document at a version. */
+const atVersion = (d: DocMeta, v: Version | undefined): DocMeta => {
+  if (!v || (v.file === d.file && v.pages === d.pages)) return d;
+  const { file: _, ...rest } = d;
+  return { ...rest, ...(v.file ? { file: v.file } : {}), pages: v.pages, size: v.size, ...(d.lastPage ? { lastPage: Math.min(d.lastPage, v.pages) } : {}) };
+};
 
 export type Tool = 'select' | 'pen' | 'eraser';
 /** Documents also take a box drawn around a figure. */
@@ -59,6 +68,8 @@ type State = {
 };
 
 const MAX_UNDO = 200;
+/** Earlier versions of a document's file kept for undo; older page edits drop out of the history. */
+const MAX_VERSIONS = 10;
 export const uid = () => crypto.randomUUID();
 
 const PEN_KEY = 'gloss:pen';
@@ -89,6 +100,11 @@ export const useStore = create<State>(() => ({
 }));
 const { getState: get, setState: set } = useStore;
 
+files.key = (docId) => {
+  const doc = get().project?.docs.find((d) => d.id === docId);
+  return doc ? fileKey(doc) : docId;
+};
+
 /** Where the canvas puts a new card when it was not dropped at a spot: set by the canvas while it is mounted. */
 export const canvasSpot: { next: () => XYPosition } = {
   next: () => ({ x: 0, y: 0 }),
@@ -117,8 +133,11 @@ function travel(from: 'past' | 'future') {
   const target = stack.at(-1);
   if (!state.project || !target) return;
   const to = from === 'past' ? 'future' : 'past';
-  // The place reached in each document is not part of an undo step.
-  const docs = target.docs.map((d) => ({ ...d, lastPage: state.project!.docs.find((x) => x.id === d.id)?.lastPage ?? d.lastPage }));
+  // The place reached in each document is not part of an undo step, though it must be on a page the version has.
+  const docs = target.docs.map((d) => {
+    const lastPage = state.project!.docs.find((x) => x.id === d.id)?.lastPage ?? d.lastPage;
+    return lastPage ? { ...d, lastPage: Math.min(lastPage, d.pages) } : d;
+  });
   const shown = (id: string | null) => id !== null && docs.some((d) => d.id === id);
   set({
     [from]: stack.slice(0, -1),
@@ -142,11 +161,43 @@ useStore.subscribe((s, prev) => {
   if (s.project && s.project !== prev.project && s.project.id === prev.project?.id) {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 300);
-    // A document taken out keeps its file while undo could bring it back; see emptyTrash.
-    if (s.project.docs !== prev.project.docs) for (const d of prev.project.docs) if (!s.project.docs.some((x) => x.id === d.id)) void trashFile(d.id, s.project.id);
   }
 });
 addEventListener('pagehide', save);
+
+/**
+ * Files the project stopped showing: versions a page edit, an undo or another device replaced,
+ * and the files of documents taken out. Each is deleted once neither the project nor its history
+ * uses it, and the history keeps only the last few, as each is a whole PDF. The trash store notes
+ * them too, for when the page closes first; see emptyTrash.
+ */
+const retired = new Set<string>();
+function release(project: Project, past: Snapshot[], future: Snapshot[]) {
+  const used = (s: Snapshot) => new Set(s.docs.map(fileKey));
+  const current = new Set(project.docs.map(fileKey));
+  let kept = past;
+  while (kept.length && new Set([...kept, ...future].flatMap((s) => [...used(s)]).filter((k) => !current.has(k))).size > MAX_VERSIONS) kept = kept.slice(1);
+  if (kept !== past) set({ past: kept });
+  const inUse = new Set([...current, ...[...kept, ...future].flatMap((s) => [...used(s)])]);
+  for (const key of retired)
+    if (!inUse.has(key)) {
+      retired.delete(key);
+      forgetFile(key);
+      void deleteVersion(key);
+    }
+}
+useStore.subscribe((s, prev) => {
+  if (!s.project || s.project.id !== prev.project?.id) return;
+  if (s.project.docs !== prev.project.docs) {
+    const shown = new Set(s.project.docs.map(fileKey));
+    for (const key of prev.project.docs.map(fileKey))
+      if (!shown.has(key)) {
+        retired.add(key);
+        void trashFile(key, s.project.id);
+      }
+  }
+  if (retired.size && (s.project.docs !== prev.project.docs || s.past !== prev.past || s.future !== prev.future)) release(s.project, s.past, s.future);
+});
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && save());
 
 /** What React Flow adds to a card while it is on screen is not worth keeping. */
@@ -161,7 +212,12 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
 });
 
 export async function openProject(id: string) {
-  const stored = await getProject(id);
+  const found = await getProject(id);
+  const stored = found && { ...found, openedAt: Date.now() };
+  if (stored) {
+    void putProject(stored);
+    for (const d of stored.docs) void dropOldVersions(d);
+  }
   // Projects saved before handwriting, squeezing and several canvases existed lack those lists.
   const old = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
   const project = old && migrate(old);
@@ -185,7 +241,8 @@ export async function openProject(id: string) {
 export function closeProject() {
   save();
   const { project } = get();
-  if (project) void emptyTrash(project);
+  if (project) release(project, [], []);
+  retired.clear();
   closeDocs();
   set({ project: null, activeDocId: null, sideDocId: null, past: [], future: [] });
 }
@@ -371,7 +428,7 @@ export const recolor = (id: string, color: Color) =>
   }));
 
 /** Removes cards with their links, and the highlights of excerpts no other card still shows. */
-function without(p: Project, removed: Set<string>, highlightIds = new Set<string>()): Partial<Project> {
+export function without(p: Project, removed: Set<string>, highlightIds = new Set<string>()): Partial<Project> {
   // A group goes with the cards inside it.
   const cardIds = new Set([...removed, ...p.cards.filter((c) => c.parentId && removed.has(c.parentId)).map((c) => c.id)]);
   const cards = p.cards.filter((c) => !cardIds.has(c.id) && !(c.data.kind === 'excerpt' && highlightIds.has(c.data.highlightId)));
@@ -385,6 +442,21 @@ function without(p: Project, removed: Set<string>, highlightIds = new Set<string
     links: p.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
     ...prune({ ...p, cards, highlights }),
   };
+}
+
+/**
+ * Switches a document to a new version of its file, with what is anchored to its pages moved to
+ * match, as one step to undo. False, and nothing changes, when the document is no longer at the
+ * version the edit was made from.
+ */
+export function switchVersion(docId: string, from: string | undefined, to: Version, remap: (p: Project) => Partial<Project>) {
+  const doc = get().project?.docs.find((d) => d.id === docId);
+  if (!doc || doc.file !== from) return false;
+  edit((p) => {
+    const moved = remap(p);
+    return { ...moved, docs: (moved.docs ?? p.docs).map((d) => (d.id === docId ? atVersion(d, to) : d)) };
+  });
+  return true;
 }
 
 export const removeHighlight = (id: string) => edit((p) => without(p, new Set(), new Set([id])));

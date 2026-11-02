@@ -138,7 +138,7 @@ test('however many documents, canvases and panes, the buttons beside the tabs st
   await expect(page.getByRole('tablist', { name: 'Canvases' }).getByRole('tab', { name: 'Canvas 8' })).toBeInViewport();
   await page.getByRole('button', { name: 'Open side by side' }).click();
   await shot(page, 'tabs-overflow');
-  for (const name of ['Contents, pages and highlights', 'Add file', 'Add from the web', 'Close this pane', 'New canvas']) expect(await reachable(page, name), name).toBe(true);
+  for (const name of ['Contents, pages and highlights', 'Add file', 'Add from a link', 'Close this pane', 'New canvas']) expect(await reachable(page, name), name).toBe(true);
   // Only the tab list scrolls, and the pane itself does not.
   expect(
     await page
@@ -211,7 +211,7 @@ test('the project keeps a name, and an empty project takes the name of its first
   await expect(name).toHaveValue('Untitled project');
   // The empty project offers files and web pages once, in its middle.
   await expect(page.getByRole('button', { name: 'Add file' })).toHaveCount(0);
-  await expect(page.locator('.doc-pane .empty').getByRole('button', { name: 'Add from the web' })).toBeVisible();
+  await expect(page.locator('.doc-pane .empty').getByRole('button', { name: 'Add from a link' })).toBeVisible();
   await shot(page, 'empty-project');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose files' }).click()]);
   await chooser.setFiles(await pdf('Reef essay.pdf', ESSAY));

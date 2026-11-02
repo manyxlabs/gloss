@@ -41,32 +41,37 @@ export const isPdf = async (file: Blob) => (await file.slice(0, 1024).text()).in
 
 const MAX_IMAGE_SIDE = 4096;
 
+// Keyed by the version of a document's file, so a document whose pages were edited opens afresh.
 const open = new Map<string, Promise<OpenPdf>>();
 const texts = new Map<string, Promise<string[]>>();
 const images = new Map<string, Promise<string>>();
 
+/** Where a document's current file is kept; the project store, which knows the documents, sets this. */
+export const files = { key: (docId: string) => docId };
+
 /** The open copy of a project document, shared by the viewer and search; `password` opens a protected one. */
 export function loadDoc(docId: string, password?: string) {
-  return opened(docId, password).then((o) => o.doc);
+  return opened(files.key(docId), password).then((o) => o.doc);
 }
 
-function opened(docId: string, password?: string) {
-  let doc = open.get(docId);
+function opened(key: string, password?: string) {
+  let doc = open.get(key);
   if (!doc) {
-    doc = getFile(docId).then((blob) => {
+    doc = getFile(key).then((blob) => {
       if (!blob) throw new Error('This PDF is missing from this browser’s storage.');
       return openPdf(blob, password);
     });
     // A failure must not stay cached, or the document could not be retried without a reload.
-    doc.catch(() => open.delete(docId));
-    open.set(docId, doc);
+    doc.catch(() => open.delete(key));
+    open.set(key, doc);
   }
   return doc;
 }
 
 /** Each page's text, joined the way it reads, for search. */
 export function pageTexts(docId: string, password?: string) {
-  let pages = texts.get(docId);
+  const key = files.key(docId);
+  let pages = texts.get(key);
   if (!pages) {
     pages = loadDoc(docId, password).then(async (doc) => {
       const out: string[] = [];
@@ -78,8 +83,8 @@ export function pageTexts(docId: string, password?: string) {
       }
       return out;
     });
-    pages.catch(() => texts.delete(docId));
-    texts.set(docId, pages);
+    pages.catch(() => texts.delete(key));
+    texts.set(key, pages);
   }
   return pages;
 }
@@ -115,7 +120,7 @@ export async function textIn(docId: string, password: string | undefined, pageNo
  * memory only: images are drawn again from the PDF after a reload rather than stored.
  */
 export function regionImage(docId: string, password: string | undefined, pageNo: number, [x, y, w, h]: Rect, scale: number) {
-  const key = `${docId}:${pageNo}:${x},${y},${w},${h}@${scale}`;
+  const key = `${files.key(docId)}:${pageNo}:${x},${y},${w},${h}@${scale}`;
   let url = images.get(key);
   if (!url) {
     url = loadDoc(docId, password).then(async (doc) => {
@@ -135,6 +140,20 @@ export function regionImage(docId: string, password: string | undefined, pageNo:
     images.set(key, url);
   }
   return url;
+}
+
+/**
+ * Closes a version of a file no longer kept. Its pictures stay: a card can still show one until it
+ * redraws, and they are the same pixels as the current version's where its page did not change.
+ */
+export function forgetFile(key: string) {
+  open.get(key)?.then(
+    (o) => o.close(),
+    () => {},
+  );
+  open.delete(key);
+  texts.delete(key);
+  for (const k of images.keys()) if (k.startsWith(`${key}:`)) images.delete(k);
 }
 
 export function closeDocs() {
