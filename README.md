@@ -20,7 +20,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Page tools** in the sidebar's Pages tab: rotate, move, duplicate and delete pages, and insert pages from any file Gloss opens, before or after a page.
   Pick several pages with Ctrl or Shift, use a page's menu, or drag pages to a new place.
   Highlights, figures, comments, handwriting and excerpts move with their pages, and turn with them; deleting pages that hold any asks first, with counts.
-- **Replace a document with a newer version** from its menu in the list of documents, and keep the markup: highlights, comments, links, excerpts, handwriting, squeezes and bookmarks move to the same words in the new text, through inserted paragraphs, edited sentences and pages that flow differently.
+- **Replace a document with a newer version** from its tab's menu or the list of documents, and keep the markup: highlights, comments, links, excerpts, handwriting, squeezes and bookmarks move to the same words in the new text, through inserted paragraphs, edited sentences and pages that flow differently.
   What cannot be found is listed as unplaced in the sidebar's Highlights tab, with its comments and excerpts, to place on a selection or delete; undo puts the old version back.
 - **Extract pages** from a page's menu: to a new document in the project, with the highlights, comments, links, handwriting and bookmarks on them, or as a PDF to download.
 - **Excerpts that link back.** Select text and press Excerpt, or drag the selection onto the canvas. The card opens the document at the passage, and clicking the passage shows its card.
@@ -38,7 +38,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   The card shows where its passage is, and the passage's marker shows the card.
 - **Contents, pages and highlights** in a sidebar beside each document: your bookmarks and the PDF's table of contents, page thumbnails, and every highlight and comment in page order.
 - **Bookmarks**: press the bookmark in a document's toolbar, or Ctrl+D, to keep the place you are reading, named after its first words.
-  Rename, reorder (drag, or from a bookmark's menu) and delete them in the sidebar; they become outline entries in exported PDFs.
+  Rename, reorder (drag, or from a bookmark's menu), copy a link to and delete them in the sidebar; they become outline entries in exported PDFs.
 - **Scanned PDFs**: pages that are only pictures of text are found when a document opens, and **Make text selectable** (in the banner, or a page's menu in the Pages tab) reads them on the device in English, Hindi or both.
   The words are written into the PDF as invisible text over their pictures, so selecting, excerpting, searching, squeezing and exporting work as on any PDF.
 - **Annotations from other apps**: highlights, underlines, strike-outs, squiggles, sticky notes, text boxes and ink that Acrobat, Preview and others left in a PDF can be brought in as Gloss's own, when the PDF is added or later from the Highlights tab.
