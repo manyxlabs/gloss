@@ -1,5 +1,7 @@
-import { FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
+import { ArchiveRestore, Download, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { backupOf, BackupError, isBackup, restore } from '../backup';
+import { download } from '../download';
 import { deleteProject, listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
 import { Logo } from './Logo';
@@ -63,20 +65,39 @@ export function Library() {
   const [busy, setBusy] = useState(false);
   const [dropping, setDropping] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const restoreInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.title = 'Gloss · Read, excerpt and connect PDFs';
     void listProjects().then(setProjects);
   }, []);
 
-  const start = async (files: File[]) => {
+  const start = async (all: File[]) => {
     setBusy(true);
     try {
+      // Backups come back as the projects they hold; anything else starts a new project.
+      const backups = all.filter(isBackup);
+      const files = all.filter((f) => !isBackup(f));
+      const restored: string[] = [];
+      const failed: string[] = [];
+      for (const b of backups) {
+        try {
+          restored.push((await restore(b)).id);
+        } catch (err) {
+          failed.push(err instanceof BackupError ? err.message : `${b.name} could not be restored.`);
+        }
+      }
+      setProblems(failed);
+      if (backups.length && !files.length) {
+        if (restored.length === 1) location.hash = `#/p/${restored[0]}`;
+        else setProjects(await listProjects());
+        return;
+      }
       const name = files[0]?.name.replace(/\.pdf$/i, '') ?? 'Untitled project';
       // Loaded here rather than imported above, so pdf.js is not part of the start page.
       const { importFiles, newProject } = await import('../store/project');
       const { project, problems } = await importFiles(newProject(name), files);
-      setProblems(problems);
+      setProblems([...failed, ...problems]);
       if (files.length && !project.docs.length) return;
       await putProject(project);
       location.hash = `#/p/${project.id}`;
@@ -126,8 +147,22 @@ export function Library() {
               <button className="big" disabled={busy} onClick={() => void start([])}>
                 New empty project
               </button>
+              <button className="big ghost" disabled={busy} onClick={() => restoreInput.current!.click()}>
+                <ArchiveRestore size={17} /> Restore a backup
+              </button>
             </div>
-            <p className="hint">or drop PDFs anywhere on this page</p>
+            <p className="hint">or drop PDFs or a .gloss backup anywhere on this page</p>
+            <input
+              ref={restoreInput}
+              type="file"
+              accept=".gloss"
+              hidden
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = '';
+                if (files.length) void start(files);
+              }}
+            />
             <input
               ref={input}
               type="file"
@@ -177,6 +212,20 @@ export function Library() {
                       {plural(p.docs.length, 'PDF')} · {plural(p.cards.length, 'card')} · {ago(p.updatedAt)}
                     </span>
                   </a>
+                  <button
+                    className="icon"
+                    aria-label={`Back up ${p.name}`}
+                    title="Download a backup: the project and its PDFs in one file"
+                    onClick={async () => {
+                      try {
+                        download(`${p.name}.gloss`, await backupOf(p));
+                      } catch (err) {
+                        setProblems([(err as Error).message]);
+                      }
+                    }}
+                  >
+                    <Download size={17} />
+                  </button>
                   <button
                     className="ghost"
                     aria-label={`Delete ${p.name}`}
