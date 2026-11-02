@@ -275,7 +275,7 @@ test('a box snipped around a figure becomes a card showing that region, kept, se
   await shot(page, 'snip-on-page');
 
   // Found by the text inside it.
-  await page.getByRole('searchbox').fill('coral cover');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('coral cover');
   await expect(page.getByRole('listbox').getByRole('option', { name: 'Figure 1: coral cover by depth', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
@@ -358,7 +358,7 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   await page.waitForTimeout(300);
   await shot(page, 'comment-sidebar');
 
-  await page.getByRole('searchbox').fill('eastern slope');
+  await page.getByRole('searchbox', { name: 'Search documents and cards' }).fill('eastern slope');
   const hit = page.getByRole('listbox').getByRole('option', { name: /Reef essay: Compare with the eastern slope survey\./ });
   await expect(hit).toBeVisible();
   await page
