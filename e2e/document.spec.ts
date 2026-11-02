@@ -409,3 +409,22 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   await editor.getByRole('button', { name: 'Remove comment' }).click();
   await expect(marker).toHaveCount(1);
 });
+
+test('a snip keeps only the words inside its box, not the whole lines it crosses', async ({ page }) => {
+  await openProject(page);
+  await page.getByRole('toolbar', { name: 'Document tools' }).getByRole('button', { name: 'Snip' }).click();
+  const box = (await page.locator('.page[data-page-number="1"]').boundingBox())!;
+  // Around the start of the first line only, in PDF points from the bottom left.
+  const at = (x: number, y: number) => [box.x + (x / 612) * box.width, box.y + (1 - y / 792) * box.height] as const;
+  const [x0, y0] = at(56, 738);
+  const [x1, y1] = at(200, 712);
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps: 5 });
+  await page.mouse.up();
+  await page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Excerpt' }).click();
+  const alt = await page.locator('.react-flow__node img.snip').getAttribute('alt');
+  expect(alt).toMatch(/^The ocean covers/);
+  expect(alt).not.toContain('Earth');
+  expect(alt).not.toContain('water');
+});

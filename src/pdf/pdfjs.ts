@@ -89,14 +89,23 @@ export async function textIn(docId: string, password: string | undefined, pageNo
   const page = await (await loadDoc(docId, password)).getPage(pageNo);
   const viewport = page.getViewport({ scale: 1 });
   let text = '';
+  const inside = (px: number, py: number) => {
+    const [vx, vy] = viewport.convertToViewportPoint(px, py) as [number, number];
+    const [fx, fy] = [vx / viewport.width, vy / viewport.height];
+    return fx >= x && fx <= x + w && fy >= y && fy <= y + h;
+  };
   for (const item of (await page.getTextContent()).items) {
     if (!('str' in item)) continue;
-    // The run's middle in PDF space: half along its baseline, half up its height, whatever the rotation.
+    // A run is often a whole line, of which the box may hold only part: each word is kept when its
+    // middle is inside. Words are placed along the run by their share of its characters.
     const [a, b, c, d, e, f] = item.transform as number[];
     const along = Math.hypot(a!, b!) || 1;
-    const [vx, vy] = viewport.convertToViewportPoint(e! + ((a! / along) * item.width + c!) / 2, f! + ((b! / along) * item.width + d!) / 2) as [number, number];
-    const [fx, fy] = [vx / viewport.width, vy / viewport.height];
-    if (fx >= x && fx <= x + w && fy >= y && fy <= y + h) text += item.str + (item.hasEOL ? '\n' : ' ');
+    const [ux, uy] = [((a! / along) * item.width) / (item.str.length || 1), ((b! / along) * item.width) / (item.str.length || 1)];
+    const words = [...item.str.matchAll(/\S+/g)].filter((m) => {
+      const mid = m.index + m[0].length / 2;
+      return inside(e! + ux * mid + c! / 2, f! + uy * mid + d! / 2);
+    });
+    if (words.length) text += words.map((m) => m[0]).join(' ') + (item.hasEOL ? '\n' : ' ');
   }
   return cleanText(text);
 }
