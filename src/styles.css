@@ -1409,3 +1409,209 @@ button.big.primary {
     gap: 0;
   }
 }
+
+/* Sharing: status, people, the share and name dialogs, and others' pointers on the canvas. */
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sync-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--edge-green);
+}
+
+.sync-status.syncing i {
+  background: var(--edge-yellow);
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+
+.sync-status.offline i {
+  background: var(--muted);
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
+.peers {
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+}
+
+.avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -6px;
+  padding: 0;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--peer);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  flex: none;
+}
+
+button.avatar:hover:not(:disabled) {
+  background: var(--peer);
+  filter: brightness(1.1);
+}
+
+.avatar .tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: none;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.avatar .tip b {
+  display: block;
+  font-weight: 650;
+}
+
+.avatar:hover .tip,
+.avatar:focus-visible .tip {
+  display: block;
+}
+
+dialog.sheet {
+  width: min(460px, calc(100vw - 32px));
+  padding: 22px;
+  border-radius: 18px;
+  color: var(--text);
+  background: var(--panel);
+}
+
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0.28);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.sheet h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.sheet p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.sheet .fine {
+  font-size: 13px;
+}
+
+.sheet input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel-2);
+}
+
+.sheet footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.sheet footer .ghost {
+  margin-right: auto;
+  padding-left: 0;
+  color: var(--danger);
+}
+
+.share-link {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.share-link input {
+  flex: 1;
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+
+.share-problem {
+  color: var(--danger) !important;
+  font-size: 14px;
+}
+
+.cursor {
+  position: absolute;
+  transform-origin: 0 0;
+  pointer-events: none;
+  z-index: 10;
+  color: var(--peer);
+  transition: transform 0.08s linear;
+}
+
+.cursor svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: #fff;
+  stroke-width: 1.2;
+}
+
+.cursor span {
+  position: absolute;
+  top: 16px;
+  left: 12px;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--peer);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .sync-status {
+    font-size: 0;
+    gap: 0;
+  }
+
+  .workspace .bar > .share {
+    padding: 6px 8px;
+    font-size: 0;
+    gap: 0;
+  }
+
+  .peers .avatar:nth-child(n + 4):not(:last-child) {
+    display: none;
+  }
+}

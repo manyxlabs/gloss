@@ -6,6 +6,7 @@ import { closeProject, openProject, redo, rename, setView, undo, useStore } from
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
 import { Search } from './Search';
+import { Share } from './Share';
 import { ThemeToggle } from './ThemeToggle';
 
 const SPLIT_KEY = 'gloss:split';
@@ -89,11 +90,12 @@ export function Workspace({ id }: { id: string }) {
           className="name"
           aria-label="Project name"
           defaultValue={project.name}
-          key={project.id}
+          key={`${project.id}:${project.name}`}
           onBlur={(e) => e.target.value.trim() && rename(e.target.value.trim())}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
         <Search />
+        <Share />
         <button
           className="export"
           title="Download the canvas and highlights as Markdown notes"
