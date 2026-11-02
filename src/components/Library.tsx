@@ -1,4 +1,4 @@
-import { ArchiveRestore, Download, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
+import { Download, FolderOpen, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { backupOf, BackupError, isBackup, restore } from '../backup';
 import { download } from '../download';
@@ -141,22 +141,32 @@ export function Library() {
               <Sparkles size={14} /> Free, private, in your browser
             </span>
             <h1>
-              Read PDFs next to <em>a canvas for your thinking.</em>
+              Read your documents next to <em>a canvas for your thinking.</em>
             </h1>
             <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
             <div className="actions">
               <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
-                {busy ? 'Opening…' : 'Open files'}
+                <FolderOpen size={18} /> {busy ? 'Opening…' : 'Open files'}
               </button>
               <WebPicker big add={(url) => start([{ url }])} />
-              <button className="big" disabled={busy} onClick={() => void start([])}>
-                New empty project
-              </button>
-              <button className="big ghost" disabled={busy} onClick={() => restoreInput.current!.click()}>
-                <ArchiveRestore size={17} /> Restore a backup
-              </button>
             </div>
-            <p className="hint">or drop PDFs, Word and PowerPoint files, images, text or a .gloss backup anywhere on this page</p>
+            <p className="more">
+              <button className="link" disabled={busy} onClick={() => void start([])}>
+                Start an empty project
+              </button>
+              <span aria-hidden="true">·</span>
+              <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
+                Restore a backup
+              </button>
+            </p>
+            <p className="hint">
+              Or drop files anywhere here:
+              {['PDF', 'Word', 'PowerPoint', 'Images', 'Text', 'Markdown', '.gloss backup'].map((f) => (
+                <span key={f} className="chip">
+                  {f}
+                </span>
+              ))}
+            </p>
             <input
               ref={restoreInput}
               type="file"
