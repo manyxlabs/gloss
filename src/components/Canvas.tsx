@@ -22,6 +22,7 @@ import {
 import type { Card, Point } from '../types';
 import { CardNode } from './CardNode';
 import { EXCERPT_MIME, type ExcerptDrag } from './dnd';
+import { Cursors } from './Presence';
 import { Tools } from './Tools';
 
 const nodeTypes = { card: CardNode };
@@ -246,6 +247,7 @@ export function Canvas() {
         <Background gap={24} size={1.2} />
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />
+        <Cursors />
       </ReactFlow>
       <svg className="ink-live" aria-hidden="true">
         <path ref={live} fill={SCREEN[inkColor]} />
