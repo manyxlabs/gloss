@@ -1,6 +1,8 @@
+import { FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { deleteProject, listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
+import { Logo } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
 
 const ago = (t: number) => {
@@ -15,16 +17,18 @@ const ago = (t: number) => {
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 const FEATURES = [
-  ['Excerpts that remember', 'Every card on the canvas opens the document at the passage it came from, and every passage shows its card.'],
-  ['Many documents, one canvas', 'Read several PDFs side by side in tabs and pull from all of them into the same map of ideas.'],
-  ['Search everything', 'One search box looks through every page of every PDF and every note you wrote.'],
-  ['Private by design', 'Your PDFs and notes are kept in this browser. Nothing is uploaded, and there is no account.'],
-];
+  [Link2, 'Excerpts that remember', 'Every card opens the document at the passage it came from, and every passage shows its card.'],
+  [FoldVertical, 'Squeeze the pages between', 'Pinch two distant passages together, or select what is in between and squeeze it, to read them side by side.'],
+  [PenLine, 'Write by hand', 'Draw on the page or the canvas with a finger, a mouse or a stylus, which writes even without picking the pen.'],
+  [Search, 'Search everything', 'One box searches every page of every PDF and every note you wrote.'],
+  [FileDown, 'Take it with you', 'Export the PDF with your highlights and handwriting as real annotations, or your notes as Markdown.'],
+  [Lock, 'Private by design', 'Your PDFs and notes stay in this browser. Nothing is uploaded, and there is no account.'],
+] as const;
 
 /** A page with highlights on the left, the cards they became on the right. */
 function Illustration() {
   return (
-    <svg className="art" viewBox="0 0 360 220" aria-hidden="true">
+    <svg className="art" viewBox="0 0 360 220" role="img" aria-label="A page with highlighted passages linked to cards beside it">
       <rect x="8" y="8" width="150" height="204" rx="8" fill="var(--panel)" stroke="var(--border)" />
       {[30, 44, 58, 86, 100, 114, 128, 156, 170, 184].map((y, i) => (
         <rect key={y} x="24" y={y} width={i % 3 === 2 ? 80 : 118} height="5" rx="2.5" fill="var(--border)" />
@@ -83,7 +87,7 @@ export function Library() {
 
   return (
     <div
-      className={`library${dropping ? ' dropping' : ''}`}
+      className={`library field${dropping ? ' dropping' : ''}`}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
@@ -99,6 +103,7 @@ export function Library() {
     >
       <header className="bar">
         <span className="brand">
+          <Logo />
           Margin <small>by Manyx Labs</small>
         </span>
         <ThemeToggle />
@@ -106,46 +111,53 @@ export function Library() {
 
       <main className="wrap">
         <section className="hero">
-          <Illustration />
-          <h1>Read PDFs next to a canvas for your thinking.</h1>
-          <p>
-            Pull passages out of your documents, arrange and connect them, add your own notes, and jump back to the exact line any excerpt came from. Free, and your files never
-            leave this device.
-          </p>
-          <div className="actions">
-            <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
-              {busy ? 'Opening…' : 'Open PDFs'}
-            </button>
-            <button className="big" disabled={busy} onClick={() => void start([])}>
-              New empty project
-            </button>
-          </div>
-          <p className="hint">or drop PDFs anywhere on this page</p>
-          <input
-            ref={input}
-            type="file"
-            accept="application/pdf,.pdf"
-            multiple
-            hidden
-            onChange={(e) => {
-              const files = [...(e.target.files ?? [])];
-              e.target.value = '';
-              if (files.length) void start(files);
-            }}
-          />
-          {problems.length > 0 && (
-            <div className="problems" role="alert">
-              {problems.map((p) => (
-                <p key={p}>{p}</p>
-              ))}
+          <div>
+            <span className="eyebrow">
+              <Sparkles size={14} /> Free, private, in your browser
+            </span>
+            <h1>
+              Read PDFs next to <em>a canvas for your thinking.</em>
+            </h1>
+            <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
+            <div className="actions">
+              <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
+                {busy ? 'Opening…' : 'Open PDFs'}
+              </button>
+              <button className="big" disabled={busy} onClick={() => void start([])}>
+                New empty project
+              </button>
             </div>
-          )}
+            <p className="hint">or drop PDFs anywhere on this page</p>
+            <input
+              ref={input}
+              type="file"
+              accept="application/pdf,.pdf"
+              multiple
+              hidden
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = '';
+                if (files.length) void start(files);
+              }}
+            />
+            {problems.length > 0 && (
+              <div className="problems" role="alert">
+                {problems.map((p) => (
+                  <p key={p}>{p}</p>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="art-frame glass">
+            <Illustration />
+          </div>
         </section>
 
         {projects?.length === 0 && (
           <ul className="features">
-            {FEATURES.map(([title, text]) => (
-              <li key={title}>
+            {FEATURES.map(([Icon, title, text]) => (
+              <li key={title} className="glass">
+                <Icon size={20} />
                 <strong>{title}</strong>
                 <span>{text}</span>
               </li>
@@ -158,7 +170,7 @@ export function Library() {
             <h2 id="projects-h">Your projects</h2>
             <ul className="projects">
               {projects.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="glass">
                   <a href={`#/p/${p.id}`}>
                     <strong>{p.name}</strong>
                     <span>

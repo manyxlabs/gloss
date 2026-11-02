@@ -1,41 +1,74 @@
+import { cardText } from './search';
 import type { Card, Project } from './types';
 
-/** A card's first words, to name it where it is linked from. */
-const title = (p: Project, c: Card) => {
-  const text = c.data.kind === 'note' ? c.data.text : (p.highlights.find((h) => h.id === (c.data as { highlightId: string }).highlightId)?.text ?? '');
-  const words = text.trim().split(/\s+/);
-  return words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '');
-};
+const quote = (text: string) =>
+  text
+    .split('\n')
+    .map((l) => `> ${l}`)
+    .join('\n');
 
-const quote = (text: string) => text.split('\n').map((l) => `> ${l}`).join('\n');
-
-/** The canvas as notes to keep: cards in reading order with their sources and links, then highlights left in the documents. */
+/** The canvas as notes to keep: groups as sections, cards in reading order with sources and links, then highlights left in the documents. */
 export function toMarkdown(p: Project) {
   const docName = (id: string) => p.docs.find((d) => d.id === id)?.name ?? 'Document';
-  const out = [`# ${p.name}`, ''];
+  const byId = new Map(p.cards.map((c) => [c.id, c]));
+  const at = (c: Card) => {
+    const parent = c.parentId ? byId.get(c.parentId)?.position : undefined;
+    return {
+      x: c.position.x + (parent?.x ?? 0),
+      y: c.position.y + (parent?.y ?? 0),
+    };
+  };
   // Top to bottom in bands, then left to right, which is how a canvas is usually read.
-  const cards = [...p.cards].sort((a, b) => Math.round(a.position.y / 120) - Math.round(b.position.y / 120) || a.position.x - b.position.x);
+  const reading = (a: Card, b: Card) => Math.round(at(a).y / 120) - Math.round(at(b).y / 120) || at(a).x - at(b).x;
+  const title = (c: Card) => {
+    const words = cardText(p, c).split(/\s+/);
+    return words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '');
+  };
+
+  const out = [`# ${p.name}`, ''];
   const onCanvas = new Set<string>();
-  for (const c of cards) {
-    if (c.data.kind === 'note') {
-      if (!c.data.text.trim()) continue;
-      out.push(c.data.text.trim(), '');
-    } else {
-      const h = p.highlights.find((x) => x.id === (c.data as { highlightId: string }).highlightId);
-      if (!h) continue;
+  const write = (c: Card) => {
+    const d = c.data;
+    if (d.kind === 'note') {
+      if (!d.text.trim()) return;
+      out.push(d.text.trim(), '');
+    } else if (d.kind === 'excerpt') {
+      const h = p.highlights.find((x) => x.id === d.highlightId);
+      if (!h) return;
       onCanvas.add(h.id);
       out.push(quote(h.text), `> (${docName(h.docId)}, p. ${h.parts[0]?.page})`, '');
-      if (c.data.comment?.trim()) out.push(c.data.comment.trim(), '');
-    }
-    const linked = p.links.flatMap((l) => (l.source === c.id ? [l.target] : l.target === c.id ? [l.source] : [])).map((id) => p.cards.find((x) => x.id === id));
-    if (linked.length) out.push(`Linked to: ${linked.flatMap((x) => (x ? [`“${title(p, x)}”`] : [])).join('; ')}`, '');
+      if (d.comment?.trim()) out.push(d.comment.trim(), '');
+    } else return;
+    const linked = p.links
+      .flatMap((l) => (l.source === c.id ? [l.target] : l.target === c.id ? [l.source] : []))
+      .flatMap((id) => {
+        const other = byId.get(id);
+        return other && cardText(p, other) ? [`“${title(other)}”`] : [];
+      });
+    if (linked.length) out.push(`Linked to: ${linked.join('; ')}`, '');
     out.push('---', '');
+  };
+
+  const top = p.cards.filter((c) => !c.parentId).sort(reading);
+  for (const c of top) {
+    if (c.data.kind !== 'group') {
+      write(c);
+      continue;
+    }
+    out.push(`## ${c.data.title.trim() || 'Group'}`, '');
+    p.cards
+      .filter((x) => x.parentId === c.id)
+      .sort(reading)
+      .forEach(write);
   }
+
   const loose = p.highlights.filter((h) => !onCanvas.has(h.id));
   if (loose.length) {
     out.push('## Highlights', '');
     for (const doc of p.docs) {
-      const mine = loose.filter((h) => h.docId === doc.id).sort((a, b) => (a.parts[0]?.page ?? 0) - (b.parts[0]?.page ?? 0) || (a.parts[0]?.rects[0]?.[1] ?? 0) - (b.parts[0]?.rects[0]?.[1] ?? 0));
+      const mine = loose
+        .filter((h) => h.docId === doc.id)
+        .sort((a, b) => (a.parts[0]?.page ?? 0) - (b.parts[0]?.page ?? 0) || (a.parts[0]?.rects[0]?.[1] ?? 0) - (b.parts[0]?.rects[0]?.[1] ?? 0));
       if (!mine.length) continue;
       out.push(`### ${doc.name}`, '');
       for (const h of mine) out.push(`- p. ${h.parts[0]?.page}: ${h.text}`);
@@ -46,10 +79,10 @@ export function toMarkdown(p: Project) {
   return `${out.join('\n')}\n`;
 }
 
-export function download(name: string, text: string) {
+export function download(fileName: string, data: Blob) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
-  a.download = `${name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'notes'}.md`;
+  a.href = URL.createObjectURL(data);
+  a.download = fileName.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'download';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

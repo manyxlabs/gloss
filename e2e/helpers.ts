@@ -1,0 +1,32 @@
+import { mkdirSync } from 'node:fs';
+import { expect, type Page } from '@playwright/test';
+import { ESSAY, makePdf, NOTES } from './pdfs';
+
+export const ARTIFACTS = 'test-results/artifacts';
+mkdirSync(ARTIFACTS, { recursive: true });
+
+export const shot = (page: Page, name: string) => page.screenshot({ path: `${ARTIFACTS}/${name}.png` });
+export const pdf = async (name: string, pages: string[][]) => ({ name, mimeType: 'application/pdf', buffer: await makePdf(pages) });
+
+export async function openProject(page: Page) {
+  await page.goto('/');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open PDFs' }).click()]);
+  await chooser.setFiles([await pdf('Reef essay.pdf', ESSAY), await pdf('Survey notes.pdf', NOTES)]);
+  await expect(page.locator('.textLayer span').first()).toBeVisible();
+}
+
+/** Drags the mouse across the page text from the start of `from` to the end of `to`, as a reader would. */
+export async function select(page: Page, from: string, to = from) {
+  const start = page.locator('.textLayer span', { hasText: from }).first();
+  const end = page.locator('.textLayer span', { hasText: to }).first();
+  await start.scrollIntoViewIfNeeded();
+  const a = (await start.boundingBox())!;
+  const b = (await end.boundingBox())!;
+  await page.mouse.move(a.x + 1, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width - 1, b.y + b.height / 2, { steps: 10 });
+  await page.mouse.up();
+  return a;
+}
+
+export const card = (page: Page, text: string) => page.locator('.react-flow__node').filter({ hasText: text });

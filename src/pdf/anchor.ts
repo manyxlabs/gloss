@@ -1,15 +1,43 @@
 import type { Part, Rect } from '../types';
 
-/** The page divs pdf.js draws, by page number. */
+/**
+ * The pages on screen with the stretch of each that is in view: pdf.js's own page divs, and
+ * the copies that show the rest of a squeezed page. Each box is the whole page, wherever it
+ * sits, so a point's fraction of the box is its place on the page.
+ */
 function pagesOf(root: HTMLElement) {
-  return [...root.querySelectorAll<HTMLElement>('.page[data-page-number]')].map((div) => ({ div, page: Number(div.dataset.pageNumber), box: div.getBoundingClientRect() }));
+  return [...root.querySelectorAll<HTMLElement>('.page[data-page-number]')].map((div) => ({
+    page: Number(div.dataset.pageNumber),
+    box: div.getBoundingClientRect(),
+    from: Number(div.dataset.from ?? 0),
+    to: Number(div.dataset.to ?? 1),
+  }));
+}
+
+/** The page, and its box, under a point, skipping squeezed stretches. */
+export function pageAt(root: HTMLElement, x: number, y: number) {
+  return pagesOf(root).find(({ box, from, to }) => {
+    const fy = (y - box.top) / box.height;
+    return x >= box.left && x <= box.right && fy >= from && fy <= to;
+  });
+}
+
+/** Where on screen a spot on a page is, or null while it is squeezed away. */
+export function locate(root: HTMLElement, page: number, fx: number, fy: number) {
+  const hit = pagesOf(root).find((p) => p.page === page && fy >= p.from && fy <= p.to);
+  return hit
+    ? {
+        x: hit.box.left + fx * hit.box.width,
+        y: hit.box.top + fy * hit.box.height,
+      }
+    : null;
 }
 
 /**
  * The boxes of the selected text only. A range's own client rects also include whole elements
  * it crosses, such as pdf.js's page-sized end-of-content marker, which would paint a page.
  */
-function textBoxes(range: Range) {
+export function textBoxes(range: Range) {
   const root = range.commonAncestorContainer;
   const walker = document.createTreeWalker(root.nodeType === Node.TEXT_NODE ? root.parentNode! : root, NodeFilter.SHOW_TEXT);
   const boxes: DOMRect[] = [];
@@ -54,7 +82,7 @@ export function selectionAnchor(root: HTMLElement): Anchor | null {
   for (const b of textBoxes(range)) {
     const cx = b.left + b.width / 2;
     const cy = b.top + b.height / 2;
-    const p = pages.find(({ box }) => cx >= box.left && cx <= box.right && cy >= box.top && cy <= box.bottom);
+    const p = pages.find(({ box, from, to }) => cx >= box.left && cx <= box.right && (cy - box.top) / box.height >= from && (cy - box.top) / box.height <= to);
     if (!p) continue;
     const rect: Rect = [(b.left - p.box.left) / p.box.width, (b.top - p.box.top) / p.box.height, b.width / p.box.width, b.height / p.box.height];
     byPage.set(p.page, [...(byPage.get(p.page) ?? []), rect.map(round) as Rect]);
@@ -73,9 +101,12 @@ export const cleanText = (s: string) =>
 
 /** The page under a point and where on it, as fractions: pdf.js's text layer sits above the highlights and takes their clicks. */
 export function pointOnPage(root: HTMLElement, x: number, y: number) {
-  for (const { page, box } of pagesOf(root)) {
-    if (x < box.left || x > box.right || y < box.top || y > box.bottom) continue;
-    return { page, fx: (x - box.left) / box.width, fy: (y - box.top) / box.height };
-  }
-  return null;
+  const hit = pageAt(root, x, y);
+  return hit
+    ? {
+        page: hit.page,
+        fx: (x - hit.box.left) / hit.box.width,
+        fy: (y - hit.box.top) / hit.box.height,
+      }
+    : null;
 }

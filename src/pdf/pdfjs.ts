@@ -14,12 +14,12 @@ export type OpenPdf = { doc: PDFDocumentProxy; close: () => Promise<void> };
 export async function openPdf(data: Blob): Promise<OpenPdf> {
   // pdf.js hands the buffer to its worker, so each open gets its own copy.
   const task = getDocument({
-      data: new Uint8Array(await data.arrayBuffer()),
-      cMapUrl: assets('cmaps'),
-      standardFontDataUrl: assets('standard_fonts'),
-      wasmUrl: assets('wasm'),
-      iccUrl: assets('iccs'),
-    });
+    data: new Uint8Array(await data.arrayBuffer()),
+    cMapUrl: assets('cmaps'),
+    standardFontDataUrl: assets('standard_fonts'),
+    wasmUrl: assets('wasm'),
+    iccUrl: assets('iccs'),
+  });
   try {
     return { doc: await task.promise, close: () => task.destroy() };
   } catch (err) {
@@ -74,7 +74,11 @@ export function pageTexts(docId: string) {
 }
 
 export function closeDocs() {
-  for (const doc of open.values()) doc.then((o) => o.close(), () => {});
+  for (const doc of open.values())
+    doc.then(
+      (o) => o.close(),
+      () => {},
+    );
   open.clear();
   texts.clear();
 }

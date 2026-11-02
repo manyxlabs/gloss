@@ -1,35 +1,7 @@
-import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
-import { ESSAY, makePdf, NOTES } from './pdfs';
-
-const ARTIFACTS = 'test-results/artifacts';
-mkdirSync(ARTIFACTS, { recursive: true });
-
-const shot = (page: Page, name: string) => page.screenshot({ path: `${ARTIFACTS}/${name}.png` });
-const pdf = async (name: string, pages: string[][]) => ({ name, mimeType: 'application/pdf', buffer: await makePdf(pages) });
-
-async function openProject(page: Page) {
-  await page.goto('/');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open PDFs' }).click()]);
-  await chooser.setFiles([await pdf('Reef essay.pdf', ESSAY), await pdf('Survey notes.pdf', NOTES)]);
-  await expect(page.locator('.textLayer span').first()).toBeVisible();
-}
-
-/** Drags the mouse across the page text from the start of `from` to the end of `to`, as a reader would. */
-async function select(page: Page, from: string, to = from) {
-  const start = page.locator('.textLayer span', { hasText: from }).first();
-  const end = page.locator('.textLayer span', { hasText: to }).first();
-  await start.scrollIntoViewIfNeeded();
-  const a = (await start.boundingBox())!;
-  const b = (await end.boundingBox())!;
-  await page.mouse.move(a.x + 1, a.y + a.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(b.x + b.width - 1, b.y + b.height / 2, { steps: 10 });
-  await page.mouse.up();
-  return a;
-}
-
-const card = (page: Page, text: string) => page.locator('.react-flow__node').filter({ hasText: text });
+import { copyFileSync, readFileSync } from 'node:fs';
+import { expect, test } from '@playwright/test';
+import { ARTIFACTS, card, openProject, select, shot } from './helpers';
+import { ESSAY } from './pdfs';
 
 test('read, excerpt, connect, find and export', async ({ page }) => {
   await openProject(page);
@@ -89,7 +61,7 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await page.getByRole('searchbox').fill('parrotfish');
   await page.getByRole('option', { name: /p\. 2/ }).click();
   await expect(page.getByRole('tab', { name: 'Survey notes' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByText('Page 2 of 2')).toBeVisible();
+  await expect(page.getByText('Page 2 / 2')).toBeVisible();
   await expect(page.locator('.textLayer .highlight').first()).toBeInViewport();
   await shot(page, 'desktop-search');
 
@@ -131,7 +103,13 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
   const cdp = await context.newCDPSession(page);
   for (let i = 0; i <= 6; i++) {
     const d = 40 + i * 20;
-    await cdp.send('Input.dispatchTouchEvent', { type: i ? 'touchMove' : 'touchStart', touchPoints: [{ x: 195 - d, y: 500 }, { x: 195 + d, y: 500 }] });
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: i ? 'touchMove' : 'touchStart',
+      touchPoints: [
+        { x: 195 - d, y: 500 },
+        { x: 195 + d, y: 500 },
+      ],
+    });
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(async () => parseInt((await scale.textContent())!)).toBeGreaterThan(before * 2);
@@ -152,7 +130,13 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
   await expect(page.getByRole('tab', { name: 'Canvas (1)' })).toBeVisible();
   // The canvas is behind the document until asked for.
   await expect(card(page, 'Coral reefs')).not.toBeInViewport();
-  const centre = () => page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('section')?.getAttribute('aria-label'));
+  const centre = () =>
+    page.evaluate(() =>
+      document
+        .elementFromPoint(innerWidth / 2, innerHeight / 2)
+        ?.closest('section')
+        ?.getAttribute('aria-label'),
+    );
   expect(await centre()).toBe('Documents');
   await page.getByRole('tab', { name: 'Canvas (1)' }).tap();
   await expect(card(page, 'Coral reefs')).toBeInViewport();
@@ -167,14 +151,16 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
   }
 
   // Showing the source switches back to the document.
-  await card(page, 'Coral reefs').getByRole('button', { name: /Reef essay/ }).tap();
+  await card(page, 'Coral reefs')
+    .getByRole('button', { name: /Reef essay/ })
+    .tap();
   expect(await centre()).toBe('Documents');
   await context.close();
 });
 
 test('files that are not PDFs are refused with a reason', async ({ page }) => {
   await openProject(page);
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: '+ Add PDF' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add PDF' }).click()]);
   await chooser.setFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not a pdf') });
   await expect(page.getByRole('alert')).toHaveText(/photo\.jpg is not a PDF\./);
   await expect(page.getByRole('tab')).toHaveCount(2);

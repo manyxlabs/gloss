@@ -1,3 +1,4 @@
+import { Search as SearchIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { search, type CardHit, type DocHit } from '../search';
 import { showCard, showMatch, useStore } from '../store/project';
@@ -6,7 +7,11 @@ export function Search() {
   const project = useStore((s) => s.project);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [results, setResults] = useState<{ query: string; docs: DocHit[]; cards: CardHit[] } | null>(null);
+  const [results, setResults] = useState<{
+    query: string;
+    docs: DocHit[];
+    cards: CardHit[];
+  } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -44,6 +49,7 @@ export function Search() {
 
   return (
     <div className="search" ref={box}>
+      <SearchIcon size={15} />
       <input
         ref={input}
         type="search"
@@ -54,6 +60,7 @@ export function Search() {
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => e.key === 'Escape' && (setOpen(false), input.current?.blur())}
       />
+      {!query && <kbd>Ctrl K</kbd>}
       {open && shown && (
         <div className="results" role="listbox" aria-label="Search results">
           {!shown.docs.length && !shown.cards.length && <p className="none">Nothing matches “{shown.query}”.</p>}

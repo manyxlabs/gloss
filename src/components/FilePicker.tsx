@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { addDocs } from '../store/project';
 
@@ -7,7 +8,13 @@ export function FilePicker({ label, primary, onProblems }: { label: string; prim
   return (
     <>
       <button className={primary ? 'primary' : 'add'} disabled={busy} onClick={() => input.current!.click()}>
-        {busy ? 'Adding…' : `+ ${label}`}
+        {busy ? (
+          'Adding…'
+        ) : (
+          <>
+            <Plus size={15} /> {label}
+          </>
+        )}
       </button>
       <input
         ref={input}

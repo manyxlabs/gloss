@@ -5,6 +5,7 @@ export default defineConfig({
   outputDir: 'test-results/playwright',
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:4340',
+    screenshot: 'only-on-failure',
     // Set CHROMIUM to a system browser where Playwright's own download is unavailable.
     launchOptions: { executablePath: process.env.CHROMIUM || undefined },
   },
