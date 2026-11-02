@@ -2,7 +2,7 @@ import { Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 
 type Theme = 'light' | 'dark';
-const KEY = 'margin:theme';
+const KEY = 'gloss:theme';
 
 export function initialTheme(): Theme {
   try {

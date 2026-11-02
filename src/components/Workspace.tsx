@@ -8,7 +8,7 @@ import { DocPane } from './DocPane';
 import { Search } from './Search';
 import { ThemeToggle } from './ThemeToggle';
 
-const SPLIT_KEY = 'margin:split';
+const SPLIT_KEY = 'gloss:split';
 const readSplit = () => {
   try {
     return Number(localStorage.getItem(SPLIT_KEY)) || 50;
@@ -33,7 +33,7 @@ export function Workspace({ id }: { id: string }) {
   }, [id]);
 
   useEffect(() => {
-    if (project) document.title = `${project.name} · Margin`;
+    if (project) document.title = `${project.name} · Gloss`;
   }, [project?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
