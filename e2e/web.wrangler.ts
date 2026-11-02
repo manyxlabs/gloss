@@ -48,7 +48,7 @@ test('a web page becomes a document with its title, source and article', async (
   await expect(page.getByRole('alert')).toContainText(`${site}/data.json could not be added. That address is not a web page.`);
   await addFromWeb(page, `${site}/to-metadata`);
   await expect(page.getByRole('alert')).toContainText('Addresses given as IP numbers are not fetched.');
-  await expect(page.getByRole('tab')).toHaveCount(1);
+  await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(1);
 });
 
 test('the Worker refuses private, local and oversized addresses', async ({ page, request }) => {
