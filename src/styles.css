@@ -2084,6 +2084,8 @@ dialog.sheet::backdrop {
   padding: 20px;
   border-radius: 16px;
   color: var(--text);
+  /* Solid, as the password dialog: the start page's large type would show through glass. */
+  background: var(--panel);
 }
 
 .web-dialog::backdrop {
@@ -2093,6 +2095,10 @@ dialog.sheet::backdrop {
 .web-dialog h2 {
   margin: 0 0 12px;
   font-size: 17px;
+  /* Not the start page's small capitals for section headings. */
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
 }
 
 .web-dialog input {
