@@ -50,14 +50,16 @@ export function actOnMatches(found: Found[], query: string, act: Act, undoable =
   const { project, canvasId } = useStore.getState();
   if (!project) return [];
   const made: Highlight[] = [];
+  const all = [...project.highlights];
   const ids: string[] = [];
   for (const { docId, matches } of found)
     for (const m of matches) {
-      const h = marking([...project.highlights, ...made], docId, m);
+      const h = marking(all, docId, m);
       if (h) ids.push(h.id);
       else {
         const fresh: Highlight = { id: uid(), docId, parts: [{ page: m.page, rects: m.rects }], text: m.text, color: act.color, ...(act.tag ? { tags: [act.tag] } : {}) };
         made.push(fresh);
+        all.push(fresh);
         ids.push(fresh.id);
       }
     }
@@ -65,7 +67,6 @@ export function actOnMatches(found: Found[], query: string, act: Act, undoable =
   if (!unique.length) return [];
 
   const excerpted = new Set(project.cards.flatMap((c) => (c.data.kind === 'excerpt' && canvasOf(project, c) === canvasId ? [c.data.highlightId] : [])));
-  const all = [...project.highlights, ...made];
   const cards: Card[] = [];
   let focus: string | undefined;
   if (act.excerpt) {
