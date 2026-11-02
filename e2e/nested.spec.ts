@@ -1,11 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { SWATCHES } from '../src/palette';
+import { noteCard } from './cards';
 import { card, openProject, select, shot } from './helpers';
 
 const tabs = (page: Page) => page.getByRole('tablist', { name: 'Canvases' });
 const path = (page: Page) => page.getByRole('navigation', { name: 'Canvas path' });
-/** A note by its text, which is in a field rather than the card's own text. */
-export const noteCard = (page: Page, text: string) => page.locator('.react-flow__node', { has: page.locator(`.grow[data-value="${text}"]`) });
 const canvasCard = (page: Page, name: string) => page.locator('.react-flow__node', { has: page.getByRole('article', { name: `Canvas ${name}` }) });
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 
