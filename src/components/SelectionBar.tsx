@@ -1,7 +1,10 @@
 import { useReactFlow, useStore as useFlow } from '@xyflow/react';
-import { Group, Trash2 } from 'lucide-react';
-import { group } from '../store/project';
+import { Group, Tag, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { group, useStore } from '../store/project';
+import { setTag, tagState } from '../store/tags';
 import type { Card, Link } from '../types';
+import { TagPicker } from './Tags';
 
 /** Room kept between the bar and what it belongs to. */
 const GAP = 10;
@@ -21,6 +24,9 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
   const nodes = cards.filter((c) => c.selected && !c.hidden);
   const edges = links.filter((l) => l.selected);
   const groupable = nodes.filter((c) => !c.parentId && c.data.kind !== 'group');
+  const [tagging, setTagging] = useState(false);
+  const project = useStore((s) => s.project);
+  if (tagging && !nodes.length) setTagging(false);
 
   if ((!nodes.length && !edges.length) || cards.some((c) => c.dragging || c.resizing)) return null;
   // The box around what is chosen, on screen: cards by their own boxes, links by their middles.
@@ -48,6 +54,8 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
   const above = top - HEIGHT - GAP > TOOLS_BOTTOM;
   const at = { left: Math.min(Math.max((left + right) / 2, HALF), width - HALF), top: above ? top - HEIGHT - GAP : bottom + GAP };
 
+  const chosen = { cards: nodes.map((c) => c.id) };
+  const tagged = project && tagging ? tagState(project, chosen) : null;
   const what = nodes.length + edges.length > 1 ? 'selection' : !nodes[0] ? 'link' : nodes[0].data.kind === 'group' ? 'group' : 'card';
   return (
     <div className="selection-bar nodrag nopan" role="toolbar" aria-label="Chosen on the canvas" style={at}>
@@ -56,9 +64,19 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
           <Group size={16} /> Group
         </button>
       )}
+      {nodes.length > 0 && (
+        <button aria-expanded={tagging} onClick={() => setTagging(!tagging)}>
+          <Tag size={16} /> Tag
+        </button>
+      )}
       <button aria-label={`Delete ${what}`} title={`Delete ${what}`} onClick={() => void rf.deleteElements({ nodes, edges })}>
         <Trash2 size={16} /> Delete
       </button>
+      {tagged && (
+        <div className={`popup tag-popup ${above ? 'under' : 'over'}`}>
+          <TagPicker on={tagged.all} some={tagged.some} onToggle={(id, on, fresh) => setTag(chosen, id, on, !fresh)} onClose={() => setTagging(false)} />
+        </div>
+      )}
     </div>
   );
 }

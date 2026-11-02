@@ -12,14 +12,19 @@ function item(i: NoteItem): Block[] {
           ...(i.note ? [para(`Comment: ${i.note}`)] : []),
           ...(i.comment ? [para(i.comment)] : []),
         ];
-  return [...body, ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, true)] : []), ...i.passages.map((l) => para(`Linked passage: ${l}`, true))];
+  return [
+    ...body,
+    ...(i.tags.length ? [para(`Tags: ${i.tags.join(' ')}`, true)] : []),
+    ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, true)] : []),
+    ...i.passages.map((l) => para(`Linked passage: ${l}`, true)),
+  ];
 }
 
 /** The notes typeset as a PDF, in the outline's order. */
 export async function notesPdf(o: Outline) {
   const blocks: Block[] = [{ kind: 'heading', level: 1, runs: [{ text: o.title }] }];
   for (const s of o.sections) {
-    if (s.title !== undefined) blocks.push({ kind: 'heading', level: 2, runs: [{ text: s.title }] });
+    if (s.title !== undefined) blocks.push({ kind: 'heading', level: 2, runs: [{ text: s.title }] }, ...(s.tags?.length ? [para(`Tags: ${s.tags.join(' ')}`, true)] : []));
     s.items.forEach((i, n) => blocks.push(...(n ? [{ kind: 'rule' } as const] : []), ...item(i)));
   }
   if (o.highlights.length) {
@@ -33,6 +38,7 @@ export async function notesPdf(o: Outline) {
           items: d.items.map((h) => [
             para(`p. ${h.page}: ${h.text}`),
             ...(h.note ? [para(`Comment: ${h.note}`)] : []),
+            ...(h.tags.length ? [para(`Tags: ${h.tags.join(' ')}`, true)] : []),
             ...h.passages.map((l) => para(`Linked passage: ${l}`, true)),
           ]),
         },

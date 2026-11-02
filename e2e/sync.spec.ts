@@ -325,3 +325,58 @@ test('a page edit reaches the other device as a new version of the file, and so 
   await a.context.close();
   await b.context.close();
 });
+
+test('tags reach the other device: put on, renamed, recoloured and taken off, and never in the clear', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const a = await device(browser);
+  const b = await device(browser);
+  const chips = (page: Page) => card(page, 'Coral reefs occupy').getByRole('list', { name: 'Tags' }).getByRole('listitem');
+  const picker = (page: Page) => page.getByRole('group', { name: 'Tags' }).filter({ has: page.getByRole('textbox', { name: 'Find or make a tag' }) });
+  await openProject(a.page);
+  await select(a.page, 'Coral reefs occupy');
+  await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Highlight with tag' }).click();
+  await picker(a.page).getByRole('textbox', { name: 'Find or make a tag' }).fill('Seagrass meadows');
+  await a.page.keyboard.press('Enter');
+  await picker(a.page).getByRole('button', { name: 'Done' }).click();
+  const coral = (await a.page.locator('.textLayer span', { hasText: 'Coral reefs occupy' }).first().boundingBox())!;
+  await a.page.mouse.click(coral.x + 30, coral.y + coral.height / 2);
+  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Excerpt' }).click();
+  await expect(chips(a.page)).toHaveText(['Seagrass meadows']);
+
+  await a.page.getByRole('button', { name: 'Share' }).click();
+  const sharing = a.page.getByRole('dialog', { name: 'Share this project' });
+  await sharing.getByRole('textbox', { name: 'Your name' }).fill('Ada');
+  await sharing.getByRole('button', { name: 'Create link' }).click();
+  const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
+  const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
+  await shared.getByRole('button', { name: 'Done' }).click();
+  await synced(a.page);
+  await b.page.goto(link);
+  await giveName(b.page, 'Ben');
+  await synced(b.page);
+  await expect(chips(b.page)).toHaveText(['Seagrass meadows']);
+
+  // B renames and recolours the tag in the manager; A sees both.
+  await b.page.getByRole('button', { name: 'Filter by tag' }).first().click();
+  await b.page.getByRole('menuitem', { name: 'Manage tags…' }).click();
+  const dialog = b.page.getByRole('dialog', { name: 'Tags' });
+  await dialog.getByRole('textbox', { name: 'Name of Seagrass meadows' }).fill('Kelp beds');
+  await dialog.getByRole('textbox', { name: 'Name of Seagrass meadows' }).press('Enter');
+  await dialog.getByRole('radiogroup', { name: 'Colour of Kelp beds' }).getByRole('radio', { name: 'green' }).click();
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(chips(a.page)).toHaveText(['Kelp beds']);
+  await expect(chips(a.page).first()).toHaveAttribute('style', /--hl-green/);
+
+  // A takes it off the passage; it goes from B's card too.
+  await a.page.mouse.click(coral.x + 30, coral.y + coral.height / 2);
+  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Tag' }).click();
+  await picker(a.page).getByRole('menuitemcheckbox', { name: 'Kelp beds' }).click();
+  await expect(chips(b.page)).toHaveCount(0);
+  await synced(a.page);
+  await synced(b.page);
+
+  for (const frame of [...a.wire.sent, ...a.wire.received, ...b.wire.sent, ...b.wire.received])
+    for (const t of ['Seagrass meadows', 'Kelp beds']) expect(frame.includes(t)).toBe(false);
+  await a.context.close();
+  await b.context.close();
+});

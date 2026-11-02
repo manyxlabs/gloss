@@ -4,8 +4,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject }
 import { outline, pathOf, SCREEN } from '../ink';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
-import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
+import type { Card, CardData, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
 import { CardLinks } from './CardLinks';
+import { TagChips } from './Tags';
+import { useDimmed } from './useDimmed';
 
 /** Focuses a field once its new card shows: React Flow keeps a card hidden until it has measured it, and a hidden field cannot take focus. */
 function useAutoFocus(ref: RefObject<HTMLElement | null>, on: boolean | undefined) {
@@ -132,22 +134,24 @@ function Figure({ highlight, password }: { highlight: Highlight; password?: stri
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-function InkCard({ data, selected }: { data: InkData; selected: boolean }) {
+function InkCard({ id, data, selected }: { id: string; data: InkData; selected: boolean }) {
   const d = useMemo(() => pathOf(outline(data.points, data.size, data.pen)), [data]);
+  const dim = useDimmed(id);
   return (
-    <svg className={`ink-card${selected ? ' selected' : ''}`} data-ink-card>
+    <svg className={`ink-card${selected ? ' selected' : ''}${dim ? ' dim' : ''}`} data-ink-card>
       <path d={d} fill={SCREEN[data.color]} />
     </svg>
   );
 }
 
-function GroupCard({ id, data, selected }: { id: string; data: GroupData; selected: boolean }) {
+function GroupCard({ id, data, selected }: { id: string; data: GroupData & Pick<CardData, 'tags'>; selected: boolean }) {
   const count = useStore((s) => s.project?.cards.filter((c) => c.parentId === id).length ?? 0);
   const fresh = useFresh(id, !data.title);
   const name = useRef<HTMLInputElement>(null);
+  const dim = useDimmed(id);
   useAutoFocus(name, fresh);
   return (
-    <section className={`group${selected ? ' selected' : ''}${data.collapsed ? ' collapsed' : ''}`} aria-label={data.title || 'Group'}>
+    <section className={`group${selected ? ' selected' : ''}${data.collapsed ? ' collapsed' : ''}${dim ? ' dim' : ''}`} aria-label={data.title || 'Group'}>
       {!data.collapsed && <NodeResizer isVisible={selected} minWidth={200} minHeight={120} lineClassName="group-edge" handleClassName="group-corner" onResizeStart={checkpoint} />}
       <header>
         <button
@@ -159,6 +163,7 @@ function GroupCard({ id, data, selected }: { id: string; data: GroupData; select
           {data.collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
         <input ref={name} className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
+        <TagChips ids={data.tags} />
         {data.collapsed ? (
           <span className="count">
             {count} card{count === 1 ? '' : 's'}
@@ -184,7 +189,7 @@ export function CardNode(props: NodeProps<Card>) {
     <>
       {data.kind === 'ink' ? (
         <>
-          <InkCard data={data} selected={selected} />
+          <InkCard id={props.id} data={data} selected={selected} />
           <CardLinks cardId={props.id} />
         </>
       ) : (
@@ -204,9 +209,10 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
   // A note just written opens ready to type; one brought back by undo or from another device does not.
   const fresh = useFresh(id, data.kind === 'note' && data.text === '');
   const [commenting, setCommenting] = useState(false);
+  const dim = useDimmed(id);
 
   return (
-    <article className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}`}>
+    <article className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}${dim ? ' dim' : ''}`}>
       <NodeResizeControl
         variant={ResizeControlVariant.Line}
         position={Position.Right}
@@ -252,6 +258,7 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
       ) : (
         <p className="missing">The text this came from is gone.</p>
       )}
+      <TagChips ids={data.kind === 'excerpt' ? highlight?.tags : data.tags} />
       <CardLinks cardId={id} />
     </article>
   );
