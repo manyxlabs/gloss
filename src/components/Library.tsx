@@ -1,4 +1,4 @@
-import { Download, FolderOpen, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
+import { Download, FolderOpen, MonitorDown, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { backupOf, BackupError, isBackup, restore } from '../backup';
 import { download } from '../download';
@@ -9,6 +9,7 @@ import { deleteProject, listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
 import { Logo } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
+import { useInstall } from '../install';
 import { WebPicker } from './WebPicker';
 
 const ago = (t: number) => {
@@ -70,6 +71,7 @@ export function Library() {
   const [dropping, setDropping] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const restoreInput = useRef<HTMLInputElement>(null);
+  const install = useInstall();
 
   useEffect(() => {
     document.title = 'Gloss · Read, excerpt and connect PDFs';
@@ -109,6 +111,17 @@ export function Library() {
       setBusy(false);
     }
   };
+  const startRef = useRef(start);
+  useEffect(() => {
+    startRef.current = start;
+  });
+  // Opened from the file manager by the installed app: the files start a project like any others.
+  useEffect(() => {
+    const queue = (window as { launchQueue?: { setConsumer: (f: (p: { files: FileSystemFileHandle[] }) => void) => void } }).launchQueue;
+    queue?.setConsumer(async ({ files }) => {
+      if (files.length) void startRef.current(await Promise.all(files.map((f) => f.getFile())));
+    });
+  }, []);
 
   return (
     <div
@@ -131,6 +144,11 @@ export function Library() {
           <Logo />
           Gloss <small>by Manyx Labs</small>
         </span>
+        {install && (
+          <button className="ghost install" onClick={() => void install()}>
+            <MonitorDown size={16} /> Install app
+          </button>
+        )}
         <ThemeToggle />
       </header>
 

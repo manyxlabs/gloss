@@ -12,7 +12,7 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "vite-plugin-pwa/react"]
   },
   "include": ["src", "e2e", "*.ts"],
   "exclude": ["worker"]

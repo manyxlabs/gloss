@@ -2114,3 +2114,22 @@ dialog.sheet::backdrop {
   gap: 8px;
   margin: 0;
 }
+
+.toast {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  top: 60px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.library .install {
+  font-size: 14px;
+}
