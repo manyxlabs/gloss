@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint . && prettier --check .",
     "test:e2e": "playwright test",
+    "test:sync": "playwright test -c playwright.sync.config.ts",
     "format": "prettier --write .",
     "check": "tsc && tsc -p worker",
     "worker": "npm run build && wrangler dev --port 8787"
