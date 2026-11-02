@@ -8,6 +8,7 @@ import type { Card, ExcerptData, GroupData, Highlight, InkData, NoteData } from 
 import { CanvasCard, CardInk, inkBottom, SketchCard } from './CanvasCards';
 import { CardLinks } from './CardLinks';
 import { LinkChips } from './LinkChips';
+import { MentionSuggest } from './Mentions';
 
 /** Focuses a field once its new card shows: React Flow keeps a card hidden until it has measured it, and a hidden field cannot take focus. */
 function useAutoFocus(ref: RefObject<HTMLElement | null>, on: boolean | undefined) {
@@ -80,6 +81,7 @@ function Grow({
           onDone?.();
         }}
       />
+      <MentionSuggest field={ref} />
     </div>
   );
 }

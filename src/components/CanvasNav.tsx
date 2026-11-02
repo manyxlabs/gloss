@@ -1,12 +1,14 @@
 import { ArrowUp, ChevronRight, Paintbrush } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { pathTo } from '../canvases';
+import { isLocalCanvas, pathTo } from '../canvases';
+import { setCanvasLocal } from '../store/privacy';
 import { setCanvasStyle } from '../store/cards';
 import { setCanvas, useStore } from '../store/project';
 import type { Background } from '../types';
 import { PaletteGrid } from './ColorPicker';
 import { CopyLink } from './LinkChips';
 import { Menu } from './Menu';
+import { PrivateSwitch } from './Private';
 
 /** Where a nested canvas sits, from the top: each step opens that canvas, and Up the one it is in. */
 export function CanvasPath() {
@@ -49,9 +51,11 @@ const BACKGROUNDS: [Background, string][] = [
 /** How the canvas on show looks, with what else concerns the whole canvas below it. */
 export function CanvasStyleMenu({ children }: { children?: ReactNode }) {
   const canvas = useStore((s) => s.project?.canvases.find((c) => c.id === s.canvasId));
+  const project = useStore((s) => s.project);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   if (!canvas) return null;
   const background = canvas.background ?? 'dots';
+  const inherited = !!project && !canvas.local && isLocalCanvas(project, canvas.id);
   return (
     <>
       <button className="icon" aria-label="Canvas style" title="Canvas style" aria-expanded={!!anchor} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
@@ -78,6 +82,18 @@ export function CanvasStyleMenu({ children }: { children?: ReactNode }) {
               The app’s accent
             </button>
             <PaletteGrid current={canvas.accent} label={(name) => `Accent ${name}`} onPick={(accent) => setCanvasStyle(canvas.id, { accent })} />
+            <h3>Privacy</h3>
+            <PrivateSwitch
+              on={!!canvas.local || inherited}
+              disabled={inherited}
+              what={`the canvas “${canvas.name}”`}
+              onChange={(on) => setCanvasLocal(canvas.id, on)}
+              note={
+                inherited
+                  ? 'Kept on this device with the canvas it is in.'
+                  : 'This canvas, its cards and the canvases in it stay on this device: in a shared project they are never sent, encrypted or not.'
+              }
+            />
             <CopyLink target={{ kind: 'v', id: canvas.id }} className="ghost default" text="Copy link to this canvas" />
             {children}
           </div>

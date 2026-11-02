@@ -50,7 +50,7 @@ export function CanvasTabs() {
                 onDoubleClick={() => setEditing(c.id)}
                 title="Double-click to rename"
               >
-                {c.local && <Lock size={12} aria-label="Only on this device" />}
+                {c.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {c.name}
               </button>
             )}
@@ -83,7 +83,7 @@ export function CanvasTabs() {
               style={{ paddingLeft: 12 + depth * 16 }}
               onClick={() => (setNested(null), setCanvas(canvas.id))}
             >
-              {canvas.local && <Lock size={12} aria-label="Only on this device" />}
+              {canvas.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
               {canvas.name}
             </button>
           ))}

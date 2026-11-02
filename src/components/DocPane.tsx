@@ -1,5 +1,5 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
+import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, Lock, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
@@ -34,6 +34,8 @@ import { commentSelection, detachComment, pick, pickSelection, setComment, start
 import type { Color, Point, Rect } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { CopyLink } from './LinkChips';
+import { PrivateToggle } from './Private';
+import { setDocLocal } from '../store/privacy';
 import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
@@ -709,6 +711,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 onClick={() => setActiveDoc(d.id, pane)}
                 title={d.source ? `${d.name}\n${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}` : d.name}
               >
+                {d.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {d.name}
               </button>
               <button
@@ -940,6 +943,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <Plus size={16} />
             </button>
           </span>
+          <PrivateToggle on={!!active.local} what={`“${active.name}”`} onChange={(on) => setDocLocal(active.id, on)} />
           <CopyLink target={{ kind: 'd', id: active.id }} />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
