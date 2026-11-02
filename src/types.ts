@@ -26,6 +26,12 @@ export type DocMeta = {
   password?: string;
   /** What a document was converted from, when it was not added as a PDF. */
   source?: DocSource;
+  /**
+   * The version of the file once its pages have been edited. Each edit stores a new file beside the
+   * old one, so the switch is one step, undo can switch back, and other devices know to fetch it.
+   * Absent, the file is the one the document was added with.
+   */
+  file?: string;
 };
 
 export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web'; name?: string; url?: string };

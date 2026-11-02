@@ -1,9 +1,9 @@
 import { openDB } from 'idb';
 import * as Y from 'yjs';
 import { frame, MAX_FILE, MAX_FRAME, parse, PROTOCOL, T } from '../../worker/protocol';
-import { addFiles, deleteFile, getFile, getProject } from '../store/db';
+import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db';
 import { useStore } from '../store/project';
-import type { Card, Project } from '../types';
+import type { Card, DocMeta, Project } from '../types';
 import { decrypt, deriveKeys, encrypt, newRoom, type Binding, type Keys } from './crypto';
 import { asPresence, presence, useMe, useSync, type Presence, type Status } from './state';
 
@@ -33,6 +33,8 @@ const withLocal = (list: List, shared: Entity, mine: Entity) => {
   const kept = (LOCAL[list] ?? []).filter((k) => k in mine);
   return kept.length ? { ...shared, ...Object.fromEntries(kept.map((k) => [k, (mine as Record<string, unknown>)[k]])) } : shared;
 };
+/** A document's file in the room: each version under its own name, so a page edit reaches the others as a new file. */
+const remote = (d: Entity) => (d as DocMeta).file ?? d.id;
 // React Flow needs a group listed before the cards inside it, and groups do not nest.
 const parentsFirst = (cards: Card[]) => [...cards.filter((c) => !c.parentId), ...cards.filter((c) => c.parentId)];
 
@@ -51,7 +53,7 @@ const text = new TextEncoder();
 class Session {
   private doc = new Y.Doc();
   private meta = this.doc.getMap<string>('meta');
-  /** Documents whose encrypted file is in the room, so others can fetch it. */
+  /** Files in the room, by their name there (see `remote`), so others can fetch them. */
   private files = this.doc.getMap<true>('files');
   private keys!: Keys;
   /** The project's `updatedAt` the shared state matches; null until the saved state is loaded. */
@@ -196,11 +198,18 @@ class Session {
         for (const e of next[list]) {
           const old = gone.get(e.id);
           gone.delete(e.id);
-          if (old !== e && (!old || canon(list, old) !== canon(list, e))) map.set(e.id, JSON.parse(canon(list, e)));
+          if (old === e || (old && canon(list, old) === canon(list, e))) continue;
+          if (list === 'docs' && old) {
+            const shared = map.get(e.id);
+            // A document still waiting for another device's new version must not send its old one back.
+            if (remote(old) === remote(e) && shared && remote(shared) !== remote(e)) continue;
+            if (remote(old) !== remote(e)) this.unshareFile(remote(old));
+          }
+          map.set(e.id, JSON.parse(canon(list, e)));
         }
-        for (const id of gone.keys()) {
+        for (const [id, e] of gone) {
           map.delete(id);
-          if (list === 'docs') this.unshareFile(id);
+          if (list === 'docs') this.unshareFile(remote(e));
         }
       }
     });
@@ -216,6 +225,7 @@ class Session {
     const name = this.meta.get('name');
     if (name !== undefined && name !== project.name) next.name = name;
     let docGone = false;
+    let versionChanged = false;
     for (const list of LISTS) {
       const map = this.doc.getMap<Entity>(list);
       const out: Entity[] = [];
@@ -224,7 +234,14 @@ class Session {
       for (const e of project[list]) {
         const shared = map.get(e.id);
         if (shared && canon(list, shared) === canon(list, e)) out.push(e);
+        // A new version of a document's file is shown once it is here; until then the old one stays.
+        else if (shared && list === 'docs' && remote(shared) !== remote(e) && !this.downloaded.has(remote(shared))) out.push(e);
         else if (shared) {
+          if (list === 'docs' && remote(shared) !== remote(e)) {
+            versionChanged = true;
+            // Its old file is let go here, so if it comes back, by an undo elsewhere, it is fetched again.
+            this.downloaded.delete(remote(e));
+          }
           out.push(withLocal(list, shared, e));
           changed = true;
         } else {
@@ -238,7 +255,7 @@ class Session {
       const have = new Set(project[list].map((e) => e.id));
       // A new PDF appears once its file is here, so it never opens empty.
       for (const [id, shared] of map) {
-        if (have.has(id) || (list === 'docs' && !this.downloaded.has(id))) continue;
+        if (have.has(id) || (list === 'docs' && !this.downloaded.has(remote(shared)))) continue;
         out.push(shared);
         changed = true;
       }
@@ -257,8 +274,8 @@ class Session {
         activeDocId: shown(state.activeDocId) ? state.activeDocId : (merged.docs[0]?.id ?? null),
         sideDocId: shown(state.sideDocId) ? state.sideDocId : null,
         canvasId: merged.canvases.some((c) => c.id === state.canvasId) ? state.canvasId : (merged.canvases[0]?.id ?? state.canvasId),
-        // As when removing a PDF here: the history refers to its highlights, and its file is gone.
-        ...(docGone ? { past: [], future: [] } : {}),
+        // As when removing a PDF here: the history refers to its highlights, and its file is gone or replaced.
+        ...(docGone || versionChanged ? { past: [], future: [] } : {}),
       });
     } finally {
       this.applying = false;
@@ -269,10 +286,17 @@ class Session {
   private syncFiles() {
     const project = useStore.getState().project;
     if (!this.ready || project?.id !== this.projectId) return;
-    const here = new Set(project.docs.map((d) => d.id));
-    for (const d of project.docs) if (!this.files.has(d.id)) void this.transfer(d.id, `upload “${d.name}”`, () => this.upload(d.id, d.name));
-    for (const [id, d] of this.doc.getMap<Project['docs'][number]>('docs'))
-      if (this.files.has(id) && !here.has(id) && !this.downloaded.has(id)) void this.transfer(id, `download “${d.name}”`, () => this.download(id));
+    const docs = this.doc.getMap<DocMeta>('docs');
+    const here = new Set(project.docs.map(remote));
+    // Only the version the room's document names, so a device that has not caught up does not upload its old one.
+    for (const d of project.docs) {
+      const name = remote(d);
+      if (remote(docs.get(d.id) ?? d) === name && !this.files.has(name)) void this.transfer(name, `upload “${d.name}”`, () => this.upload(fileKey(d), name, d.name));
+    }
+    for (const d of docs.values()) {
+      const name = remote(d);
+      if (this.files.has(name) && !here.has(name) && !this.downloaded.has(name)) void this.transfer(name, `download “${d.name}”`, () => this.download(name, fileKey(d)));
+    }
   }
 
   private async transfer(id: string, what: string, run: () => Promise<void>) {
@@ -294,8 +318,8 @@ class Session {
   private fileUrl = (id: string) => `/api/sync/${this.binding.room}/files/${id}`;
   private auth = () => ({ Authorization: `Bearer ${this.keys.auth}` });
 
-  private async upload(id: string, name: string) {
-    const blob = await getFile(id);
+  private async upload(key: string, id: string, name: string) {
+    const blob = await getFile(key);
     if (!blob) return;
     if (blob.size + 28 > MAX_FILE) return void useSync.setState({ problem: `“${name}” is larger than ${MAX_FILE >> 20} MB, so it stays on this device.` });
     const body = await encrypt(this.keys.key, new Uint8Array(await blob.arrayBuffer()), `file:${id}`);
@@ -304,11 +328,11 @@ class Session {
     if (!this.stopped) this.files.set(id, true);
   }
 
-  private async download(id: string) {
+  private async download(id: string, key: string) {
     const res = await fetch(this.fileUrl(id), { headers: this.auth() });
     if (!res.ok) throw new Error(res.statusText);
     const data = await decrypt(this.keys.key, new Uint8Array(await res.arrayBuffer()), `file:${id}`);
-    await addFiles([[id, new Blob([data], { type: 'application/pdf' })]]);
+    await addFiles([[key, new Blob([data], { type: 'application/pdf' })]]);
     this.downloaded.add(id);
   }
 
