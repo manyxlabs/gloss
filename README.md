@@ -46,7 +46,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them, and your bookmarks in its outline.
   **Documents as one PDF**, from Export notes, puts the documents you choose, in the order you choose, into one annotated PDF with an outline entry for each, and the canvas on show as a last page if you like.
   Linked passages in the same document become links that go to each other; links to another document are named in the passage's note. A password protected PDF cannot be exported this way; save a copy without the password first.
-- **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one), or three on a screen at least 1280 pixels wide, with dividers to drag between them.
+- **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one), or three on a screen at least 1440 pixels wide, with dividers to drag between them.
   Jumps open in the pane already showing a document, and a link's other end opens in another pane.
 - **A list of all the documents** from the tab bar: put them in folders, pin them to come first, and reorder them by dragging their tabs or rows.
 - **Zotero**: connect your library with a key of your own, search it, and add items' PDFs with their title, authors, year and citation key; send a document's highlights and comments back to its item as a note.
