@@ -5,17 +5,24 @@ import { closeDocs, isPdf, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { addFiles, deleteFile, getProject, putProject } from './db';
 
-type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds'>;
-const snapshot = ({ highlights, cards, links, inks, folds }: Project): Snapshot => ({ highlights, cards, links, inks, folds });
+type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds' | 'canvases'>;
+const snapshot = ({ highlights, cards, links, inks, folds, canvases }: Project): Snapshot => ({ highlights, cards, links, inks, folds, canvases });
 
 export type Tool = 'select' | 'pen' | 'eraser';
+export type Pane = 0 | 1;
+export const MAIN_CANVAS = 'main';
 
 type State = {
   project: Project | null;
+  /** The document in the main pane, and in the second pane while two are open side by side. */
   activeDocId: string | null;
-  /** A request for the document pane to scroll to a highlight or a search match; `at` makes a repeat request distinct. */
+  sideDocId: string | null;
+  /** The canvas on show, of the project's canvases. */
+  canvasId: string;
+  /** A request for a document pane to scroll to a highlight or a search match; `at` makes a repeat request distinct. */
   jump:
     | (({ highlightId: string } | { page: number; query: string }) & {
+        pane: Pane;
         at: number;
       })
     | null;
@@ -37,6 +44,8 @@ export const uid = () => crypto.randomUUID();
 export const useStore = create<State>(() => ({
   project: null,
   activeDocId: null,
+  sideDocId: null,
+  canvasId: MAIN_CANVAS,
   jump: null,
   focus: null,
   view: 'doc',
@@ -114,11 +123,13 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
 
 export async function openProject(id: string) {
   const stored = await getProject(id);
-  // Projects saved before handwriting and squeezing existed have neither list.
-  const project = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [] } : null;
+  // Projects saved before handwriting, squeezing and several canvases existed lack those lists.
+  const project = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [], canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }] } : null;
   set({
     project,
     activeDocId: project?.docs[0]?.id ?? null,
+    sideDocId: null,
+    canvasId: project?.canvases[0]?.id ?? MAIN_CANVAS,
     past: [],
     future: [],
     jump: null,
@@ -131,7 +142,7 @@ export async function openProject(id: string) {
 export function closeProject() {
   save();
   closeDocs();
-  set({ project: null, activeDocId: null, past: [], future: [] });
+  set({ project: null, activeDocId: null, sideDocId: null, past: [], future: [] });
 }
 
 export const newProject = (name: string): Project => ({
@@ -145,10 +156,15 @@ export const newProject = (name: string): Project => ({
   links: [],
   inks: [],
   folds: [],
+  canvases: [{ id: MAIN_CANVAS, name: 'Canvas' }],
 });
 
 export const rename = (name: string) => edit(() => ({ name }), false);
-export const setActiveDoc = (activeDocId: string) => set({ activeDocId });
+export const setActiveDoc = (docId: string, pane: Pane = 0) => set(pane ? { sideDocId: docId } : { activeDocId: docId });
+/** Opens a second document pane beside the first, or closes it. */
+export const setSideBySide = (on: boolean) => set((s) => ({ sideDocId: on ? (s.project?.docs.find((d) => d.id !== s.activeDocId)?.id ?? s.activeDocId) : null }));
+/** The pane showing a document, preferring the main one. */
+const paneOf = (docId: string): Pane => (get().activeDocId !== docId && get().sideDocId === docId ? 1 : 0);
 export const rememberPage = (docId: string, lastPage: number) =>
   edit(
     (p) => ({
@@ -205,7 +221,7 @@ export async function addDocs(files: File[]) {
 }
 
 export function removeDoc(docId: string) {
-  const { project, activeDocId } = get();
+  const { project, activeDocId, sideDocId } = get();
   if (!project) return;
   const gone = new Set(project.highlights.filter((h) => h.docId === docId).map((h) => h.id));
   const cards = project.cards.filter((c) => !(c.data.kind === 'excerpt' && gone.has(c.data.highlightId)));
@@ -225,6 +241,7 @@ export function removeDoc(docId: string) {
     false,
   );
   if (activeDocId === docId) set({ activeDocId: docs[0]?.id ?? null });
+  if (sideDocId === docId) set({ sideDocId: null });
   void deleteFile(docId);
 }
 
@@ -239,7 +256,7 @@ const newCard = (data: CardData, position: XYPosition): Card => ({
   id: uid(),
   type: 'card',
   position,
-  data,
+  data: { ...data, canvasId: get().canvasId },
   width: CARD_WIDTH,
   selected: true,
 });
@@ -325,24 +342,54 @@ export const showSource = (highlightId: string) => {
   if (!h || !part) return;
   const spot = { page: part.page, y: part.rects[0]?.[1] ?? 0 };
   unfold((f) => f.docId === h.docId && before(f.from, spot) && before(spot, f.to));
+  const pane = paneOf(h.docId);
   set({
-    activeDocId: h.docId,
-    jump: { highlightId, at: Date.now() },
+    ...(pane ? {} : { activeDocId: h.docId }),
+    jump: { highlightId, pane, at: Date.now() },
     view: 'doc',
   });
 };
 
 export const showMatch = (docId: string, page: number, query: string) => {
   unfold((f) => f.docId === docId && f.from.page <= page && f.to.page >= page);
+  const pane = paneOf(docId);
   set({
-    activeDocId: docId,
-    jump: { page, query, at: Date.now() },
+    ...(pane ? {} : { activeDocId: docId }),
+    jump: { page, query, pane, at: Date.now() },
     view: 'doc',
   });
 };
 export const jumped = () => set({ jump: null });
 
-export const showCard = (cardId: string) => set({ focus: { cardId, at: Date.now() }, view: 'canvas' });
+/** The canvas a card is on; cards from before there were several are on the first. */
+export const canvasOf = (p: Project, card: Card) => card.data.canvasId ?? p.canvases[0]?.id ?? MAIN_CANVAS;
+
+export const showCard = (cardId: string) => {
+  const { project } = get();
+  const card = project?.cards.find((c) => c.id === cardId);
+  if (project && card) set({ canvasId: canvasOf(project, card), focus: { cardId, at: Date.now() }, view: 'canvas' });
+};
+
+export const setCanvas = (canvasId: string) => set({ canvasId });
+
+export function addCanvas() {
+  const { project } = get();
+  if (!project) return;
+  const id = uid();
+  edit((p) => ({ canvases: [...p.canvases, { id, name: `Canvas ${p.canvases.length + 1}` }] }), false);
+  set({ canvasId: id });
+}
+
+export const renameCanvas = (id: string, name: string) => edit((p) => ({ canvases: p.canvases.map((c) => (c.id === id ? { ...c, name } : c)) }), false);
+
+/** Removes a canvas with its cards; the last canvas stays. */
+export function removeCanvas(id: string) {
+  const { project, canvasId } = get();
+  if (!project || project.canvases.length < 2) return;
+  const onIt = new Set(project.cards.filter((c) => canvasOf(project, c) === id).map((c) => c.id));
+  edit((p) => ({ ...without(p, onIt), canvases: p.canvases.filter((c) => c.id !== id) }));
+  if (canvasId === id) set({ canvasId: get().project!.canvases[0]!.id });
+}
 export const setView = (view: State['view']) => set({ view });
 
 export const setTools = (tools: Partial<Pick<State, 'docTool' | 'canvasTool' | 'inkColor'>>) => set(tools);
@@ -376,6 +423,7 @@ export function addCanvasInk(points: Point[], size: number, pen: boolean) {
     height: Math.max(...ys) - y + pad,
     data: {
       kind: 'ink',
+      canvasId: get().canvasId,
       points: points.map(([px, py, pr]) => [px - x, py - y, pr]),
       color: get().inkColor,
       size,
@@ -429,7 +477,7 @@ export function group(ids: string[]) {
     position: { x: left, y: top },
     width: right - left,
     height: bottom - top,
-    data: { kind: 'group', title: '' },
+    data: { kind: 'group', title: '', canvasId: get().canvasId },
     selected: true,
   };
   const inside = new Set(members.map((c) => c.id));

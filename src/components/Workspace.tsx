@@ -25,6 +25,7 @@ export function Workspace({ id }: { id: string }) {
   const [problems, setProblems] = useState<string[]>([]);
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
+  const side = useStore((s) => s.sideDocId !== null);
   const body = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,7 +126,10 @@ export function Workspace({ id }: { id: string }) {
       )}
 
       <div className={`panes show-${view}`} ref={body} style={{ '--split': `${split}%` } as React.CSSProperties}>
-        <DocPane onProblems={setProblems} />
+        <div className={`docs${side ? ' split' : ''}`}>
+          <DocPane pane={0} onProblems={setProblems} />
+          {side && <DocPane pane={1} onProblems={setProblems} />}
+        </div>
         <div className="divider" role="separator" aria-orientation="vertical" aria-label="Resize" onPointerDown={drag} />
         <ReactFlowProvider>
           <Canvas />

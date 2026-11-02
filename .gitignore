@@ -3,3 +3,4 @@ dist/
 test-results/
 .wrangler/
 public/pdfjs/
+.wrangler/

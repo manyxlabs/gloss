@@ -7,13 +7,11 @@ export type Color = (typeof COLORS)[number];
 export type Rect = [number, number, number, number];
 export type Part = { page: number; rects: Rect[] };
 
-export type Highlight = {
-  id: string;
-  docId: string;
-  parts: Part[];
-  text: string;
-  color: Color;
-};
+/**
+ * Marked text, or with `area` a box drawn around a figure or table. `note` is a comment pinned
+ * beside it in the document's margin.
+ */
+export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; note?: string };
 
 export type DocMeta = {
   id: string;
@@ -58,7 +56,9 @@ export type InkData = {
   pen: boolean;
 };
 export type GroupData = { kind: 'group'; title: string };
-export type CardData = ExcerptData | NoteData | InkData | GroupData;
+/** Every card sits on one of the project's canvases; cards from before there were several have none and sit on the first. */
+export type CardData = (ExcerptData | NoteData | InkData | GroupData) & { canvasId?: string };
+export type CanvasMeta = { id: string; name: string };
 export type Card = Node<CardData, 'card'>;
 export type Link = Edge;
 
@@ -73,4 +73,5 @@ export type Project = {
   links: Link[];
   inks: Ink[];
   folds: Fold[];
+  canvases: CanvasMeta[];
 };

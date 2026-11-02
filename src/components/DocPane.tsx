@@ -1,5 +1,5 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Copy, FileDown, FoldVertical, Minus, Plus, Trash2 } from 'lucide-react';
+import { Columns2, Copy, FileDown, FoldVertical, Minus, Plus, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
@@ -23,8 +23,10 @@ import {
   removeHighlight,
   removeInk,
   setActiveDoc,
+  setSideBySide,
   showCard,
   useStore,
+  type Pane,
 } from '../store/project';
 import { COLORS, type Color, type Highlight, type Point } from '../types';
 import { paint, type PageView } from './doc/paint';
@@ -57,8 +59,7 @@ function inScroller(c: HTMLElement, clientX: number, clientY: number) {
  * The toolbar for the current selection: above its first line, or below its last where there is
  * no room above, and always below on a touch screen, where the system's own menu is above.
  */
-function selectionPopup(c: HTMLElement, touch: boolean): Popup | null {
-  const docId = useStore.getState().activeDocId;
+function selectionPopup(c: HTMLElement, touch: boolean, docId: string | null): Popup | null {
   const anchor = selectionAnchor(c);
   if (!docId || !anchor) return null;
   const boxes = textBoxes(getSelection()!.getRangeAt(0));
@@ -76,18 +77,29 @@ function highlightAt(highlights: Highlight[], docId: string, page: number, fx: n
   );
 }
 
+/** Repaints every page; only page divs that exist get marks, so this is cheap. */
+function paintPages(viewer: PDFViewer | undefined, flashId: string | null, docId: string | null) {
+  if (!viewer?.pdfDocument) return;
+  for (let i = 0; i < viewer.pagesCount; i++) {
+    paint(viewer.getPageView(i), flashId, docId);
+    refreshTails(viewer as never, i + 1);
+  }
+}
+
 const foldsOf = (docId: string | null) => useStore.getState().project?.folds.filter((f) => f.docId === docId) ?? [];
-const relayout = (viewer: PDFViewer) => {
-  if (viewer.pdfDocument) layoutFolds(viewer as never, foldsOf(useStore.getState().activeDocId), removeFolds);
+const relayout = (viewer: PDFViewer, docId: string | null) => {
+  if (viewer.pdfDocument) layoutFolds(viewer as never, foldsOf(docId), removeFolds);
 };
 
-export function DocPane({ onProblems }: { onProblems: (problems: string[]) => void }) {
+/** One document pane; a second one can sit beside it, showing another document or another place in the same one. */
+export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problems: string[]) => void }) {
   const docs = useStore((s) => s.project?.docs ?? []);
   const highlights = useStore((s) => s.project?.highlights ?? []);
   const cards = useStore((s) => s.project?.cards ?? []);
   const inks = useStore((s) => s.project?.inks);
   const folds = useStore((s) => s.project?.folds);
-  const activeDocId = useStore((s) => s.activeDocId);
+  const activeDocId = useStore((s) => (pane ? s.sideDocId : s.activeDocId));
+  const split = useStore((s) => s.sideDocId !== null);
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
   const inkColor = useStore((s) => s.inkColor);
@@ -115,15 +127,6 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
   } | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const paintAll = () => {
-    const viewer = pdf.current?.viewer;
-    if (!viewer?.pdfDocument) return;
-    for (let i = 0; i < viewer.pagesCount; i++) {
-      paint(viewer.getPageView(i), flash.current);
-      refreshTails(viewer as never, i + 1);
-    }
-  };
-
   useEffect(() => {
     const container = scroller.current!;
     const bus = new EventBus();
@@ -141,23 +144,25 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
     });
     links.setViewer(viewer);
     pdf.current = { viewer, bus, links };
+    const docNow = () => (pane ? useStore.getState().sideDocId : useStore.getState().activeDocId);
 
     bus.on('pagerendered', ({ source }: { source: PageView }) => {
-      paint(source, flash.current);
+      paint(source, flash.current, docNow());
       refreshTails(viewer as never, source.id);
     });
     let frame = 0;
     bus.on('scalechanging', ({ scale }: { scale: number }) => {
       setStatus((s) => ({ ...s, scale }));
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => relayout(viewer));
+      frame = requestAnimationFrame(() => relayout(viewer, docNow()));
     });
     let remember: ReturnType<typeof setTimeout> | undefined;
     bus.on('pagechanging', ({ pageNumber }: { pageNumber: number }) => {
       setStatus((s) => ({ ...s, page: pageNumber }));
-      const docId = useStore.getState().activeDocId;
+      const docId = docNow();
       clearTimeout(remember);
-      if (docId) remember = setTimeout(() => rememberPage(docId, pageNumber), 800);
+      // Only the main pane's place is remembered for the next visit.
+      if (docId && !pane) remember = setTimeout(() => rememberPage(docId, pageNumber), 800);
     });
 
     // Ctrl or a trackpad pinch zooms the page, not the whole app.
@@ -226,7 +231,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
       pinch = null;
       if (mode !== 'squeeze') return;
       setBand(null);
-      const docId = useStore.getState().activeDocId;
+      const docId = docNow();
       const from = pointOnPage(container, x, ys[0]);
       const to = pointOnPage(container, x, ys[1]);
       if (docId && from && to && last / start < SQUEEZE_AT) addFold(docId, { page: from.page, y: from.fy }, { page: to.page, y: to.fy });
@@ -250,7 +255,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
       if (!touching || useStore.getState().docTool !== 'select') return;
       clearTimeout(settle);
       settle = setTimeout(() => {
-        const popup = selectionPopup(container, true);
+        const popup = selectionPopup(container, true, docNow());
         if (popup) setPopup(popup);
       }, 300);
     };
@@ -275,7 +280,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
       viewer.setDocument(null as never);
       pdf.current = null;
     };
-  }, []);
+  }, [pane]);
 
   useEffect(() => {
     const p = pdf.current!;
@@ -292,7 +297,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
           () => {
             if (stale) return;
             p.viewer.currentScaleValue = 'page-width';
-            relayout(p.viewer);
+            relayout(p.viewer, activeDocId);
             const last = useStore.getState().project?.docs.find((d) => d.id === activeDocId)?.lastPage;
             if (last) p.viewer.currentPageNumber = last;
             setStatus({
@@ -315,15 +320,14 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
 
   // Before the jump below, so a squeeze opened for a jump is laid out when the jump measures.
   useEffect(() => {
-    if (pdf.current) relayout(pdf.current.viewer);
-  }, [folds, loaded]);
+    if (pdf.current) relayout(pdf.current.viewer, activeDocId);
+  }, [folds, loaded, activeDocId]);
 
-  // Only page divs that exist get marks, so repainting every page on a change is cheap.
-  useEffect(paintAll, [highlights, cards, inks, loaded]);
+  useEffect(() => paintPages(pdf.current?.viewer, flash.current, activeDocId), [highlights, cards, inks, loaded, activeDocId]);
 
   useEffect(() => {
     const p = pdf.current;
-    if (!jump || !p || loaded !== activeDocId) return;
+    if (!jump || jump.pane !== pane || !p || loaded !== activeDocId) return;
     jumped();
     if ('query' in jump) {
       p.viewer.currentPageNumber = jump.page;
@@ -352,14 +356,14 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
       behavior: 'smooth',
     });
     flash.current = h.id;
-    paintAll();
+    paintPages(p.viewer, flash.current, activeDocId);
     // Not cleared when this effect re-runs: clearing the request above re-runs it straight away.
     setTimeout(() => {
       if (flash.current !== h.id) return;
       flash.current = null;
-      paintAll();
+      paintPages(p.viewer, flash.current, activeDocId);
     }, FLASH_MS);
-  }, [jump, loaded, activeDocId]);
+  }, [jump, loaded, activeDocId, pane]);
 
   /** Draws the stroke so far over the pane, in screen pixels, until it is kept on its page. */
   const drawLive = (s: Stroke | null) => {
@@ -428,7 +432,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
     const touch = e.pointerType === 'touch';
     // The selection settles after the pointer is released.
     setTimeout(() => {
-      const selected = selectionPopup(c, touch);
+      const selected = selectionPopup(c, touch, docId);
       if (selected) return setPopup(selected);
       const at = pointOnPage(c, e.clientX, e.clientY);
       const hit = at && highlightAt(useStore.getState().project?.highlights ?? [], docId, at.page, at.fx, at.fy);
@@ -509,7 +513,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
   return (
     <section
       className={`doc-pane${dropping ? ' dropping' : ''}`}
-      aria-label="Documents"
+      aria-label={pane ? 'Second document' : 'Documents'}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
@@ -521,7 +525,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
       <div className="tabs" role="tablist" aria-label="Open documents">
         {docs.map((d) => (
           <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
-            <button role="tab" aria-selected={d.id === activeDocId} onClick={() => setActiveDoc(d.id)} title={d.name}>
+            <button role="tab" aria-selected={d.id === activeDocId} onClick={() => setActiveDoc(d.id, pane)} title={d.name}>
               {d.name}
             </button>
             <button
@@ -533,7 +537,25 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
             </button>
           </div>
         ))}
-        <FilePicker label="Add PDF" onProblems={onProblems} />
+        {pane ? (
+          <button className="icon side" aria-label="Close this pane" title="Close this pane" onClick={() => setSideBySide(false)}>
+            <X size={16} />
+          </button>
+        ) : (
+          <>
+            <FilePicker label="Add PDF" onProblems={onProblems} />
+            {!split && docs.length > 0 && (
+              <button
+                className="icon side"
+                aria-label="Open side by side"
+                title="Open a second document, or another place in this one, side by side"
+                onClick={() => setSideBySide(true)}
+              >
+                <Columns2 size={16} />
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       <div className="doc-body" ref={body}>
@@ -610,7 +632,7 @@ export function DocPane({ onProblems }: { onProblems: (problems: string[]) => vo
           </div>
         )}
 
-        {!docs.length && (
+        {!docs.length && !pane && (
           <div className="empty">
             <p>Drop PDFs here to start reading.</p>
             <FilePicker label="Choose PDFs" primary onProblems={onProblems} />
