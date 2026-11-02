@@ -1,13 +1,14 @@
 import '@xyflow/react/dist/style.css';
 import { Background, ConnectionMode, Controls, MiniMap, Position, ReactFlow, useReactFlow, type FinalConnectionState, type Node as FlowNode, type XYPosition } from '@xyflow/react';
 import { Group, StickyNote } from 'lucide-react';
-import { useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { outline, pathOf, SCREEN } from '../ink';
 import {
   addCanvasInk,
   addHighlight,
   addNote,
+  canvasOf,
   CARD_WIDTH,
   canvasSpot,
   checkpoint,
@@ -20,6 +21,7 @@ import {
   useStore,
 } from '../store/project';
 import type { Card, Point } from '../types';
+import { CanvasTabs } from './CanvasTabs';
 import { CardNode } from './CardNode';
 import { EXCERPT_MIME, type ExcerptDrag } from './dnd';
 import { Tools } from './Tools';
@@ -29,15 +31,22 @@ const nodeTypes = { card: CardNode };
 const INK_SIZE = 3.5;
 
 export function Canvas() {
-  const cards = useStore((s) => s.project?.cards ?? []);
-  const links = useStore((s) => s.project?.links ?? []);
+  const project = useStore((s) => s.project);
+  const canvasId = useStore((s) => s.canvasId);
+  // Only the canvas on show is drawn; links go with the cards they join.
+  const [cards, links] = useMemo(() => {
+    if (!project) return [[], []];
+    const shown = project.cards.filter((c) => canvasOf(project, c) === canvasId);
+    const ids = new Set(shown.map((c) => c.id));
+    return [shown, project.links.filter((l) => ids.has(l.source) && ids.has(l.target))];
+  }, [project, canvasId]);
   const focus = useStore((s) => s.focus);
   const tool = useStore((s) => s.canvasTool);
   const inkColor = useStore((s) => s.inkColor);
   const rf = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const live = useRef<SVGPathElement>(null);
-  const stroke = useRef<{ points: Point[]; pen: boolean } | null>(null);
+  const stroke = useRef<{ points: Point[]; pen: boolean; from?: string } | null>(null);
   const [over, setOver] = useState(false);
   // Fitting an empty canvas would happen when its first card appears, moving everything under the reader's pointer.
   const [fit] = useState(() => cards.length > 0);
@@ -57,6 +66,15 @@ export function Canvas() {
       return at;
     };
   }, [rf]);
+
+  // Another canvas has its own layout: show all of it, or the origin when it is empty.
+  const seen = useRef(canvasId);
+  useEffect(() => {
+    if (seen.current === canvasId) return;
+    seen.current = canvasId;
+    const frame = requestAnimationFrame(() => (rf.getNodes().length ? void rf.fitView({ maxZoom: 1 }) : void rf.setViewport({ x: 40, y: 40, zoom: 1 })));
+    return () => cancelAnimationFrame(frame);
+  }, [canvasId, rf]);
 
   useEffect(() => {
     if (!focus) return;
@@ -84,27 +102,31 @@ export function Canvas() {
     );
   }, [focus, rf]);
 
+  /** The side of card `to` that faces card `from`. */
+  const facing = (from: string, to: string) => {
+    const center = (id: string) => {
+      const n = rf.getInternalNode(id)!;
+      return { x: n.internals.positionAbsolute.x + (n.measured.width ?? 0) / 2, y: n.internals.positionAbsolute.y + (n.measured.height ?? 0) / 2 };
+    };
+    const [a, b] = [center(from), center(to)];
+    const [dx, dy] = [a.x - b.x, a.y - b.y];
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? Position.Right : Position.Left) : dy > 0 ? Position.Bottom : Position.Top;
+  };
+  /** The card under a point, if it is one a link can join: not a group. */
+  const linkableAt = (x: number, y: number) => {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('.react-flow__node');
+    const id = el?.dataset.id;
+    return id && (rf.getNode(id)?.data as Card['data'] | undefined)?.kind !== 'group' ? id : undefined;
+  };
+
   // A link dropped anywhere on a card connects to the side of it facing where the link came from,
   // rather than only when it lands on one of the small handles.
   const onConnectEnd = (e: MouseEvent | TouchEvent, state: FinalConnectionState) => {
     if (state.isValid || !state.fromNode) return;
     const point = 'changedTouches' in e ? e.changedTouches[0]! : e;
-    const id = (document.elementFromPoint(point.clientX, point.clientY)?.closest('.react-flow__node') as HTMLElement | null)?.dataset.id;
-    const to = id && id !== state.fromNode.id ? rf.getInternalNode(id) : undefined;
-    if (!to) return;
-    const center = (n: typeof to) => ({
-      x: n.internals.positionAbsolute.x + (n.measured.width ?? 0) / 2,
-      y: n.internals.positionAbsolute.y + (n.measured.height ?? 0) / 2,
-    });
-    const [a, b] = [center(state.fromNode), center(to)];
-    const [dx, dy] = [a.x - b.x, a.y - b.y];
-    const side = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? Position.Right : Position.Left) : dy > 0 ? Position.Bottom : Position.Top;
-    connect({
-      source: state.fromNode.id,
-      sourceHandle: state.fromHandle?.id ?? null,
-      target: to.id,
-      targetHandle: side,
-    });
+    const to = linkableAt(point.clientX, point.clientY);
+    if (!to || to === state.fromNode.id) return;
+    connect({ source: state.fromNode.id, sourceHandle: state.fromHandle?.id ?? null, target: to, targetHandle: facing(state.fromNode.id, to) });
   };
 
   /** A card dropped with its middle inside a group joins it; one dragged out of its group leaves it. */
@@ -181,7 +203,7 @@ export function Canvas() {
     e.currentTarget.setPointerCapture(e.pointerId);
     eraser.current = null;
     if (!writing) return erase(e.clientX, e.clientY);
-    stroke.current = { points: [at(e)], pen: e.pointerType === 'pen' };
+    stroke.current = { points: [at(e)], pen: e.pointerType === 'pen', from: linkableAt(e.clientX, e.clientY) };
     drawLive();
   };
   const onPointerMoveCapture = (e: ReactPointerEvent) => {
@@ -191,83 +213,88 @@ export function Canvas() {
     for (const m of e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]) stroke.current.points.push(at(m));
     drawLive();
   };
-  const onPointerUpCapture = () => {
+  const onPointerUpCapture = (e: ReactPointerEvent) => {
     const s = stroke.current;
     if (!s) return;
     stroke.current = null;
     drawLive();
+    // A line drawn from one card to another links them, as a hand-drawn arrow would.
+    const to = linkableAt(e.clientX, e.clientY);
+    if (s.from && to && to !== s.from) return connect({ source: s.from, sourceHandle: facing(to, s.from), target: to, targetHandle: facing(s.from, to) });
     addCanvasInk(s.points, INK_SIZE, s.pen);
   };
 
   const chosen = cards.filter((c) => c.selected && !c.parentId && c.data.kind !== 'group');
 
   return (
-    <section
-      className={`canvas tool-${tool}${over ? ' over' : ''}`}
-      aria-label="Canvas"
-      ref={wrapper}
-      onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(EXCERPT_MIME)) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-        setOver(true);
-      }}
-      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOver(false)}
-      onDrop={onDrop}
-      onDoubleClick={(e) => {
-        if (tool !== 'select' || !(e.target as HTMLElement).classList.contains('react-flow__pane')) return;
-        const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-        addNote({ x: p.x - 20, y: p.y - 20 });
-      }}
-      onPointerDownCapture={onPointerDownCapture}
-      onPointerMoveCapture={onPointerMoveCapture}
-      onPointerUpCapture={onPointerUpCapture}
-      onPointerCancelCapture={onPointerUpCapture}
-    >
-      <ReactFlow
-        nodes={cards}
-        edges={links}
-        nodeTypes={nodeTypes}
-        onNodesChange={onCardsChange}
-        onEdgesChange={onLinksChange}
-        onConnect={connect}
-        onConnectEnd={onConnectEnd}
-        onNodeDragStart={checkpoint}
-        onNodeDragStop={onNodeDragStop}
-        onSelectionDragStart={checkpoint}
-        connectionMode={ConnectionMode.Loose}
-        zoomOnDoubleClick={false}
-        deleteKeyCode={['Backspace', 'Delete']}
-        minZoom={0.1}
-        maxZoom={2.5}
-        fitView={fit}
-        fitViewOptions={{ maxZoom: 1 }}
+    <section className={`canvas tool-${tool}${over ? ' over' : ''}`} aria-label="Canvas">
+      <CanvasTabs />
+      <div
+        className="flow"
+        ref={wrapper}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes(EXCERPT_MIME)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          setOver(true);
+        }}
+        onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOver(false)}
+        onDrop={onDrop}
+        onDoubleClick={(e) => {
+          if (tool !== 'select' || !(e.target as HTMLElement).classList.contains('react-flow__pane')) return;
+          const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+          addNote({ x: p.x - 20, y: p.y - 20 });
+        }}
+        onPointerDownCapture={onPointerDownCapture}
+        onPointerMoveCapture={onPointerMoveCapture}
+        onPointerUpCapture={onPointerUpCapture}
+        onPointerCancelCapture={onPointerUpCapture}
       >
-        <Background gap={24} size={1.2} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />
-      </ReactFlow>
-      <svg className="ink-live" aria-hidden="true">
-        <path ref={live} fill={SCREEN[inkColor]} />
-      </svg>
-      <div className="canvas-tools">
-        <button onClick={() => addNote()}>
-          <StickyNote size={16} /> Note
-        </button>
-        <Tools side="canvasTool" />
-        {chosen.length > 1 && (
-          <button onClick={() => group(chosen.map((c) => c.id))}>
-            <Group size={16} /> Group
+        <ReactFlow
+          nodes={cards}
+          edges={links}
+          nodeTypes={nodeTypes}
+          onNodesChange={onCardsChange}
+          onEdgesChange={onLinksChange}
+          onConnect={connect}
+          onConnectEnd={onConnectEnd}
+          onNodeDragStart={checkpoint}
+          onNodeDragStop={onNodeDragStop}
+          onSelectionDragStart={checkpoint}
+          connectionMode={ConnectionMode.Loose}
+          zoomOnDoubleClick={false}
+          deleteKeyCode={['Backspace', 'Delete']}
+          minZoom={0.1}
+          maxZoom={2.5}
+          fitView={fit}
+          fitViewOptions={{ maxZoom: 1 }}
+        >
+          <Background gap={24} size={1.2} />
+          <Controls showInteractive={false} />
+          <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />
+        </ReactFlow>
+        <svg className="ink-live" aria-hidden="true">
+          <path ref={live} fill={SCREEN[inkColor]} />
+        </svg>
+        <div className="canvas-tools">
+          <button onClick={() => addNote()}>
+            <StickyNote size={16} /> Note
           </button>
+          <Tools side="canvasTool" />
+          {chosen.length > 1 && (
+            <button onClick={() => group(chosen.map((c) => c.id))}>
+              <Group size={16} /> Group
+            </button>
+          )}
+        </div>
+        {!cards.length && (
+          <p className="canvas-hint">
+            Select text in a document and press <b>Excerpt</b>, or drag it here.
+            <br />
+            Double-click anywhere to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them.
+          </p>
         )}
       </div>
-      {!cards.length && (
-        <p className="canvas-hint">
-          Select text in a document and press <b>Excerpt</b>, or drag it here.
-          <br />
-          Double-click anywhere to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them.
-        </p>
-      )}
     </section>
   );
 }
