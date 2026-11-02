@@ -55,7 +55,9 @@ import {
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
 import { COLORS, type Color, type Point, type Rect } from '../types';
 import { LinkPopover } from './doc/LinkPopover';
+import { AnnotsBanner } from './doc/AnnotsBanner';
 import { NoteEditor } from './doc/NoteEditor';
+import { OcrBanner } from './doc/OcrBanner';
 import { paint, type PageView } from './doc/paint';
 import { Sidebar, type Tab } from './doc/Sidebar';
 import { addBookmark } from '../store/bookmarks';
@@ -232,6 +234,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       eventBus: bus,
       linkService: links,
       findController,
+      imageResourcesPath: `${import.meta.env.BASE_URL}pdfjs/images/`,
     });
     links.setViewer(viewer);
     pdf.current = { viewer, bus, links };
@@ -572,7 +575,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const rect = snipRect(s, x, y);
     if (rect[2] * s.box.width < MIN_SNIP || rect[3] * s.box.height < MIN_SNIP) return setPopup(null);
     const docId = activeDocId;
-    const text = await textIn(docId, active?.password, s.page, rect).catch(() => '');
+    const text = await textIn(docId, active?.password, s.page, [rect]).catch(() => '');
     const h = addHighlight(docId, [{ page: s.page, rects: [rect] }], text, color, { area: true });
     const c = scroller.current!;
     const top = Math.min(s.y, y);
@@ -701,7 +704,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const box = c.getBoundingClientRect();
     const at = pointOnPage(c, box.left + box.width / 2, box.top + 12) ?? { page: status.page, fy: 0 };
     const y = Math.max(0, Math.round((at.fy - 0.01) * 1e4) / 1e4);
-    const words = (await textIn(activeDocId, active?.password, at.page, [0, y, 1, 0.05]).catch(() => '')).split(' ').filter(Boolean);
+    const words = (await textIn(activeDocId, active?.password, at.page, [[0, y, 1, 0.05]]).catch(() => '')).split(' ').filter(Boolean);
     const name = words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : `Page ${at.page}`;
     const mark = addBookmark(activeDocId, at.page, y, name);
     setMarked(true);
@@ -999,6 +1002,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           )}
         </div>
 
+        {ready && (
+          <div className="doc-banners">
+            <AnnotsBanner doc={active} onProblems={onProblems} />
+            <OcrBanner doc={active} onProblems={onProblems} />
+          </div>
+        )}
         <div className="snip-live" ref={snipLive} style={{ display: 'none' }} />
         <svg className="ink-live" aria-hidden="true">
           <path ref={live} fill={PAPER[inkColor]} />

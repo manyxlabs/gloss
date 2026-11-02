@@ -9,7 +9,8 @@ import { openProtected, switchVersion, uid, useStore } from '../store/project';
 import type { Highlight, Ink, Part, Point, Project, Rect } from '../types';
 import { cleanText, mergeLines } from './anchor';
 import { before as earlier } from './folds';
-import { loadDoc } from './pdfjs';
+import { rewrite } from './pages';
+import { loadDoc, pageWords } from './pdfjs';
 
 type Box = { page: number; rect: Rect };
 /** A word of a document, folded for comparing (lower case, letters and digits), with where it is; a word hyphenated across lines has a box on each. */
@@ -27,44 +28,25 @@ const clamp = (n: number) => Math.min(1, Math.max(0, n));
 /** Every word of a document in reading order, with its box in page fractions. */
 export async function wordsOf(doc: PDFDocumentProxy): Promise<Word[]> {
   const out: Word[] = [];
-  // A word ending in a hyphen at the end of a run may continue on the next line.
+  // A word ending in a hyphen at the end of a line may go on at the start of the next.
   let broken: Word | null = null;
   for (let n = 1; n <= doc.numPages; n++) {
     const page = await doc.getPage(n);
-    const viewport = page.getViewport({ scale: 1 });
-    const at = (x: number, y: number) => {
-      const [vx, vy] = viewport.convertToViewportPoint(x, y) as [number, number];
-      return [vx / viewport.width, vy / viewport.height] as const;
-    };
-    for (const item of (await page.getTextContent()).items) {
-      if (!('str' in item) || !item.str.trim()) continue;
-      const [a, b, c, d, e, f] = item.transform as number[];
-      const along = Math.hypot(a!, b!) || 1;
-      const size = Math.hypot(c!, d!) || along;
-      const per = item.width / item.str.length;
-      // Words are placed along the run by their share of its characters, as in textIn; the box
-      // reaches from below the baseline to about the top of capitals.
-      const [ux, uy, vx, vy] = [(a! / along) * per, (b! / along) * per, c! / size, d! / size];
-      const matches = [...item.str.matchAll(/\S+/g)];
-      for (const [k, m] of matches.entries()) {
-        const corners = [m.index, m.index + m[0].length].flatMap((i) => [-0.22, 0.85].map((up) => at(e! + ux * i + vx * up * size, f! + uy * i + vy * up * size)));
-        const xs = corners.map((p) => p[0]);
-        const ys = corners.map((p) => p[1]);
-        const box: Box = { page: n, rect: [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)].map(round) as Rect };
-        const t = fold(m[0]);
-        if (broken && /^\p{Ll}/u.test(m[0])) {
-          broken.t += t;
-          broken.raw = broken.raw.slice(0, -1) + m[0];
-          broken.boxes.push(box);
-          broken = null;
-          continue;
-        }
+    for (const w of await pageWords(page)) {
+      const box: Box = { page: n, rect: w.box.map(round) as Rect };
+      const t = fold(w.text);
+      if (broken && /^\p{Ll}/u.test(w.text)) {
+        broken.t += t;
+        broken.raw = broken.raw.slice(0, -1) + w.text;
+        broken.boxes.push(box);
         broken = null;
-        if (!t) continue;
-        const word = { t, raw: m[0], boxes: [box] };
-        out.push(word);
-        if (k === matches.length - 1 && /\p{L}-$/u.test(m[0])) broken = word;
+        continue;
       }
+      broken = null;
+      if (!t) continue;
+      const word = { t, raw: w.text, boxes: [box] };
+      out.push(word);
+      if (w.eol && /\p{L}-$/u.test(w.text)) broken = word;
     }
     page.cleanup();
   }
@@ -307,25 +289,28 @@ export type Replaced = { problems: string[]; placed: number; unplaced: Highlight
  * file is stored as a version of the document, as a page edit is, so other devices fetch it.
  */
 export async function replaceDoc(docId: string, input: Input): Promise<Replaced> {
-  const doc = useStore.getState().project?.docs.find((d) => d.id === docId);
-  if (!doc) return { problems: [] };
+  const name = useStore.getState().project?.docs.find((d) => d.id === docId)?.name;
+  if (!name) return { problems: [] };
   const { convert } = await import('../convert');
   const { converted, problems } = await convert([input]);
   const data = converted[0]?.data;
   if (!data) return { problems };
-  const opened = await openProtected(data, 'name' in input ? input.name : doc.name).catch(() => undefined);
+  const opened = await openProtected(data, 'name' in input ? input.name : name).catch(() => undefined);
   if (opened === null) return { problems };
   if (!opened) return { problems: [...problems, 'The new version could not be read as a PDF.'] };
-  try {
+  let done: Replaced = { problems };
+  // In turn with page edits, as each starts from the version the last one made.
+  const failed = await rewrite('The document could not be replaced.', async () => {
+    const doc = useStore.getState().project?.docs.find((d) => d.id === docId);
+    if (!doc) return [];
     const [old, next] = await Promise.all([loadDoc(docId, doc.password).then(wordsOf), wordsOf(opened.doc)]);
     const pages = opened.doc.numPages;
-    const project = useStore.getState().project!;
-    const placed = place(project, docId, old, next, pages);
+    const placed = place(useStore.getState().project!, docId, old, next, pages);
     const file = uid();
     const key = fileKey({ id: docId, file });
     await addFiles([[key, data]]);
     const { password } = opened;
-    const ok = switchVersion(docId, doc.file, { file, pages, size: data.size }, (p) => ({
+    const switched = switchVersion(docId, doc.file, { file, pages, size: data.size }, (p) => ({
       ...remapped(p, docId, placed),
       docs: p.docs.map((d) => {
         if (d.id !== docId) return d;
@@ -333,18 +318,13 @@ export async function replaceDoc(docId: string, input: Input): Promise<Replaced>
         return password === undefined ? rest : { ...rest, password };
       }),
     }));
-    if (!ok) {
+    if (!switched) {
       await deleteVersion(key);
-      return { problems: [...problems, 'The document changed while it was being replaced. Try again.'] };
+      return ['The document changed while it was being replaced. Try again.'];
     }
-    return {
-      problems,
-      placed: placed.highlights.size - [...placed.highlights.values()].filter((h) => h.area).length,
-      unplaced: placed.unplaced,
-      byPage: placed.byPage,
-      opened: placed.opened,
-    };
-  } finally {
-    await opened.close();
-  }
+    const text = [...placed.highlights.values()].filter((h) => !h.area);
+    done = { problems, placed: text.length, unplaced: placed.unplaced, byPage: placed.byPage, opened: placed.opened };
+    return [];
+  }).finally(() => opened.close());
+  return { ...done, problems: [...done.problems, ...failed] };
 }

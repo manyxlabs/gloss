@@ -4,7 +4,7 @@ import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRef, PDFStream, 
 import type { Input } from '../convert';
 import { addFiles, deleteVersion, fileKey, getFile } from '../store/db';
 import { switchVersion, uid, useStore, without } from '../store/project';
-import type { Fold, Point, Project, Rect } from '../types';
+import type { DocMeta, Fold, Point, Project, Rect } from '../types';
 import { openPdf } from './pdfjs';
 
 /** A page of the edited document: one of its own, turned clockwise by a multiple of 90 degrees, or the nth page added from other files. */
@@ -187,20 +187,49 @@ export function arrange(pdf: PDFDocument, sheets: Sheet[], added: PDFRef[]) {
   const tree = ctx.lookup(root, PDFDict);
   tree.set(PDFName.of('Kids'), ctx.obj(kids));
   tree.set(PDFName.of('Count'), PDFNumber.of(kids.length));
-  prune(pdf);
 }
 
 const unchanged = (sheets: Sheet[], pages: number) => sheets.length === pages && sheets.every((s, i) => 'page' in s && s.page === i + 1 && !s.turn);
 
-async function apply(docId: string, plan: Plan, add: Input[]): Promise<string[]> {
+/** A document's current file, loaded to be rewritten, or why it cannot be: `locked` says so for a protected PDF. */
+export async function editable(docId: string, locked: string): Promise<{ doc: DocMeta; pdf: PDFDocument } | string> {
   const doc = useStore.getState().project?.docs.find((d) => d.id === docId);
-  if (!doc) return [];
-  if (doc.password) return [PROTECTED];
+  if (!doc) return 'The document is no longer in this project.';
+  if (doc.password) return locked;
   const blob = await getFile(fileKey(doc));
-  if (!blob) return ['This PDF is missing from this browser’s storage.'];
+  if (!blob) return 'This PDF is missing from this browser’s storage.';
   const pdf = await PDFDocument.load(await blob.arrayBuffer(), { ignoreEncryption: true, updateMetadata: false });
   // pdf-lib cannot decrypt, and what it wrote into a still encrypted file would be unreadable.
-  if (pdf.isEncrypted) return [PROTECTED];
+  return pdf.isEncrypted ? locked : { doc, pdf };
+}
+
+/**
+ * Saves a rewritten file as a new version of the document and switches to it, moving what is
+ * anchored to its pages with `remap`, as one step to undo. Returns a problem, or null.
+ */
+export async function saveVersion(doc: DocMeta, pdf: PDFDocument, remap: (p: Project) => Partial<Project>): Promise<string | null> {
+  prune(pdf);
+  const out = new Blob([(await pdf.save({ addDefaultPage: false, updateFieldAppearances: false })) as BlobPart], { type: 'application/pdf' });
+  // Checked with the reader that will show it before anything switches to it.
+  const check = await openPdf(out);
+  const count = check.doc.numPages;
+  await check.close();
+  // pdf-lib's own page count is not updated when the page tree is rewritten in place.
+  if (count !== pdf.catalog.Pages().Count().asNumber()) throw new Error('The rewritten PDF did not come out whole.');
+
+  // Stored beside the current version, which stays until neither the project nor undo needs it.
+  const file = uid();
+  const key = fileKey({ id: doc.id, file });
+  await addFiles([[key, out]]);
+  if (switchVersion(doc.id, doc.file, { file, pages: count, size: out.size }, remap)) return null;
+  await deleteVersion(key);
+  return 'The document changed while it was being rewritten. Try again.';
+}
+
+async function apply(docId: string, plan: Plan, add: Input[]): Promise<string[]> {
+  const open = await editable(docId, PROTECTED);
+  if (typeof open === 'string') return [open];
+  const { pdf } = open;
 
   const problems: string[] = [];
   const added: PDFRef[] = [];
@@ -226,33 +255,25 @@ async function apply(docId: string, plan: Plan, add: Input[]): Promise<string[]>
     return page.getRotation().angle % 180 ? height / width : width / height;
   });
   arrange(pdf, sheets, added);
-  const out = new Blob([(await pdf.save({ addDefaultPage: false, updateFieldAppearances: false })) as BlobPart], { type: 'application/pdf' });
-  // Checked with the reader that will show it before anything switches to it.
-  const check = await openPdf(out);
-  const count = check.doc.numPages;
-  await check.close();
-  if (count !== sheets.length) throw new Error('The edited PDF did not come out whole.');
-
-  // Stored beside the current version, which stays until neither the project nor undo needs it.
-  const file = uid();
-  const key = fileKey({ id: docId, file });
-  await addFiles([[key, out]]);
-  if (!switchVersion(docId, doc.file, { file, pages: count, size: out.size }, (p) => remap(p, docId, sheets, ratios))) {
-    await deleteVersion(key);
-    return [...problems, 'The document changed while its pages were being edited. Try again.'];
-  }
-  return problems;
+  const failed = await saveVersion(open.doc, pdf, (p) => remap(p, docId, sheets, ratios));
+  return failed ? [...problems, failed] : problems;
 }
 
 let queue = Promise.resolve();
 
-/** Edits a document's pages, one edit at a time. Resolves with the problems to show, if any. */
-export function editPages(docId: string, plan: Plan, add: Input[] = []): Promise<string[]> {
+/**
+ * Runs rewrites of documents' files one at a time, as each starts from the version the last one
+ * made. Resolves with the problems to show, if any; `failure` begins the message for an error.
+ */
+export function rewrite(failure: string, edit: () => Promise<string[]>): Promise<string[]> {
   const run = queue.then(() =>
-    apply(docId, plan, add).catch((err: unknown) => [
-      `The pages could not be edited. ${err instanceof Error && /^[A-Z].*\.$/.test(err.message) ? err.message : 'The PDF may be damaged, or in a form Gloss cannot rewrite.'}`,
+    edit().catch((err: unknown) => [
+      `${failure} ${err instanceof Error && /^[A-Z].*\.$/.test(err.message) ? err.message : 'The PDF may be damaged, or in a form Gloss cannot rewrite.'}`,
     ]),
   );
   queue = run.then(() => {});
   return run;
 }
+
+/** Edits a document's pages. Resolves with the problems to show, if any. */
+export const editPages = (docId: string, plan: Plan, add: Input[] = []) => rewrite('The pages could not be edited.', () => apply(docId, plan, add));
