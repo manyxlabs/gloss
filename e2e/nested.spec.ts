@@ -130,3 +130,57 @@ test('each canvas has its own background, note colour and accent, kept and undoa
   await page.getByRole('button', { name: 'Canvas style' }).click();
   await shot(page, 'canvas-style-dark');
 });
+
+test('a backup keeps the tree of canvases, their looks and the handwriting in them', async ({ page }) => {
+  await openProject(page);
+  await nest(page, 'Ideas');
+  await page.getByRole('button', { name: 'Canvas style' }).click();
+  await page.getByRole('dialog', { name: 'Canvas style' }).getByRole('button', { name: 'Grid' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Ink box' }).click();
+  await page.getByRole('toolbar', { name: 'Canvas tools' }).getByRole('button', { name: 'Pen' }).click();
+  const box = (await page.locator('.card.sketch').boundingBox())!;
+  await page.mouse.move(box.x + 40, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 200, box.y + 110, { steps: 12 });
+  await page.mouse.up();
+  await expect(page.locator('.card.sketch .card-ink path')).toHaveCount(1);
+  await page.waitForTimeout(500);
+
+  await page.getByRole('link', { name: 'All projects' }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Back up Reef essay' }).click()]);
+  page.on('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Delete Reef essay' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Restore a backup' }).click()]);
+  await chooser.setFiles(await download.path());
+  await tabs(page).getByRole('button', { name: 'Canvases in Canvas 1' }).click();
+  await page.getByRole('menu', { name: 'Canvases in Canvas 1' }).getByRole('menuitemradio', { name: 'Ideas' }).click();
+  await expect(path(page).getByRole('listitem')).toHaveText(['Canvas 1', 'Ideas']);
+  await expect(page.locator('.react-flow__background pattern path')).toHaveCount(1);
+  await expect(page.locator('.card.sketch .card-ink path')).toHaveCount(1);
+});
+
+test('nested canvases, their path and their style on a phone, light and dark', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await openProject(page);
+  await page
+    .getByRole('tablist', { name: 'Show' })
+    .getByRole('tab', { name: /^Canvas/ })
+    .click();
+  await nest(page, 'A canvas with a long name');
+  await nest(page, 'Deeper still');
+  const bar = (await path(page).boundingBox())!;
+  expect(bar.width).toBeLessThanOrEqual(390);
+  for (const b of await path(page).getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(30);
+  await shot(page, 'nested-phone');
+  await page.getByRole('button', { name: 'Canvas style' }).click();
+  const style = (await page.getByRole('dialog', { name: 'Canvas style' }).boundingBox())!;
+  expect(style.x).toBeGreaterThanOrEqual(0);
+  expect(style.x + style.width).toBeLessThanOrEqual(390);
+  await shot(page, 'canvas-style-phone');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await shot(page, 'nested-phone-dark');
+  await context.close();
+});

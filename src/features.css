@@ -534,3 +534,16 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+@media (pointer: coarse) {
+  .canvas-path li button,
+  .canvas-path .icon,
+  .canvas-card footer button,
+  .notices a {
+    min-height: 34px;
+  }
+
+  .palette-grid {
+    gap: 10px;
+  }
+}

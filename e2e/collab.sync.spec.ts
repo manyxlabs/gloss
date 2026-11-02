@@ -246,6 +246,17 @@ test('mentions and replies reach the person named, with what the others did sinc
 
   // Ben's own bell has nothing for him: unread counts are each person's and each device's.
   await expect(bell(b.page)).toHaveAccessibleName('Notifications');
+
+  // On a phone, in the dark, Ben sees what Ada did.
+  await b.page.setViewportSize({ width: 390, height: 844 });
+  await b.page.getByRole('button', { name: 'Use dark theme' }).click();
+  await bell(b.page).click();
+  const his = b.page.getByRole('dialog', { name: 'Notifications' });
+  await expect(his).toContainText('Ada Lovelace added a comment');
+  const box = (await his.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await shot(b.page, 'notifications-phone-dark');
   await a.context.close();
   await b.context.close();
 });
