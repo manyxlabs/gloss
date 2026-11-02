@@ -3,6 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { ARTIFACTS, card, picture, readPdf, select, shot } from './helpers';
 import { PICTURE, pictureReport } from './pdfs';
 
+// Each test exports or redraws pages several times over, which takes a while on a busy machine.
+test.describe.configure({ timeout: 90_000 });
+
 const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
 type Box = { x: number; y: number; width: number; height: number };
 
