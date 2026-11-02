@@ -29,7 +29,7 @@ const FACES = { r: 'NotoSans-Regular', b: 'NotoSans-Bold', i: 'NotoSans-Italic',
 // List markers use a font of their own, or pdf.js would join them to the item's text and every excerpt of an item would start with its bullet.
 type Face = keyof typeof FACES | 'marker';
 const fontFiles = new Map<Face, Promise<ArrayBuffer>>();
-function fontFile(face: keyof typeof FACES) {
+export function fontFile(face: keyof typeof FACES) {
   let file = fontFiles.get(face);
   if (!file) {
     file = fetch(`${import.meta.env.BASE_URL}fonts/${FACES[face]}.ttf`).then((r) => {
@@ -61,7 +61,7 @@ const clean = (s: string) =>
     .replace(/\t/g, '    ')
     .replace(/(?!\n)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '');
 const covers = new WeakMap<PDFFont, Set<number>>();
-const covered = (font: PDFFont, text: string) => {
+export const covered = (font: PDFFont, text: string) => {
   let set = covers.get(font);
   if (!set) covers.set(font, (set = new Set(font.getCharacterSet())));
   for (const ch of text) if (!/\s/.test(ch) && !set.has(ch.codePointAt(0)!)) return false;
