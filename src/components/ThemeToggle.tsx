@@ -1,3 +1,4 @@
+import { Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 
 type Theme = 'light' | 'dark';
@@ -27,7 +28,7 @@ export function ThemeToggle() {
   };
   return (
     <button className="icon" onClick={flip} aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'} title={theme === 'dark' ? 'Light theme' : 'Dark theme'}>
-      {theme === 'dark' ? '☀' : '☾'}
+      {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   );
 }

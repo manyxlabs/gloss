@@ -10,11 +10,15 @@ PDFs and notes are kept in the browser's own storage (IndexedDB), nothing is upl
 
 - **Excerpts that link back.** Select text and press Excerpt, or drag the selection onto the canvas. The card opens the document at the passage, and clicking the passage shows its card.
 - **Highlights** in five colours, kept apart from excerpts until you want them on the canvas.
+- **Squeeze** the text between two passages out of view to read them side by side: pinch two fingers held one above the other, or select what is in between and press Squeeze. A bar marks each squeeze and opens it again.
+- **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen.
+- **Groups**: select cards and group them under a name; drag a card in or out, and move the group to move them all.
+- **Export the PDF** with your highlights, excerpt comments and handwriting as standard PDF annotations, so any reader shows them and can edit them.
 - **Several documents in one project**, in tabs, all feeding the same canvas.
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them.
 - **Search everything**: every page of every PDF and every card, with Ctrl+K.
 - **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z.
-- **Export notes** as Markdown, with each excerpt's source and page.
+- **Export notes** as Markdown, with groups as sections and each excerpt's source and page.
 - **Phones**: one side at a time, touch selection, and pinch to zoom the page.
 
 ## Develop

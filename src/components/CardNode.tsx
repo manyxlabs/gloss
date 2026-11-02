@@ -1,7 +1,8 @@
-import { Handle, NodeResizeControl, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
-import { useEffect, useRef, useState } from 'react';
-import { showSource, updateCard, useStore } from '../store/project';
-import type { Card } from '../types';
+import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { outline, pathOf, SCREEN } from '../ink';
+import { checkpoint, showSource, ungroup, updateCard, useStore } from '../store/project';
+import type { Card, ExcerptData, GroupData, InkData, NoteData } from '../types';
 
 /**
  * A textarea that grows with its text. A hidden copy of the text sizes the box in CSS, so the
@@ -30,7 +31,44 @@ function Grow({ value, onChange, placeholder, autoFocus, label }: { value: strin
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-export function CardNode({ id, data, selected }: NodeProps<Card>) {
+function InkCard({ data, selected }: { data: InkData; selected: boolean }) {
+  const d = useMemo(() => pathOf(outline(data.points, data.size, data.pen)), [data]);
+  return (
+    <svg className={`ink-card${selected ? ' selected' : ''}`} data-ink-card>
+      <path d={d} fill={SCREEN[data.color]} />
+    </svg>
+  );
+}
+
+function GroupCard({ id, data, selected }: { id: string; data: GroupData; selected: boolean }) {
+  return (
+    <section className={`group${selected ? ' selected' : ''}`} aria-label={data.title || 'Group'}>
+      <NodeResizer isVisible={selected} minWidth={200} minHeight={120} lineClassName="group-edge" handleClassName="group-corner" onResizeStart={checkpoint} />
+      <header>
+        <input className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
+        <button className="nodrag ghost" onClick={() => ungroup(id)} title="Keep the cards, remove the group">
+          Ungroup
+        </button>
+      </header>
+    </section>
+  );
+}
+
+export function CardNode(props: NodeProps<Card>) {
+  const { data, selected } = props;
+  if (data.kind === 'group') return <GroupCard id={props.id} data={data} selected={selected} />;
+  return (
+    <>
+      {data.kind === 'ink' ? <InkCard data={data} selected={selected} /> : <TextCard {...props} data={data} />}
+      {/* After the card, so they sit above it and can be grabbed. */}
+      {SIDES.map((side) => (
+        <Handle key={side} id={side} type="source" position={side} />
+      ))}
+    </>
+  );
+}
+
+function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData | NoteData }) {
   const highlight = useStore((s) => (data.kind === 'excerpt' ? s.project?.highlights.find((h) => h.id === data.highlightId) : undefined));
   const doc = useStore((s) => (highlight ? s.project?.docs.find((d) => d.id === highlight.docId) : undefined));
   // A new, empty note opens ready to type; the flag is read once, so later edits do not steal focus.
@@ -39,10 +77,15 @@ export function CardNode({ id, data, selected }: NodeProps<Card>) {
 
   return (
     <article className={`card ${data.kind}${selected ? ' selected' : ''}${highlight ? ` hl-${highlight.color}` : ''}`}>
-      {SIDES.map((side) => (
-        <Handle key={side} id={side} type="source" position={side} />
-      ))}
-      <NodeResizeControl variant={ResizeControlVariant.Line} position={Position.Right} resizeDirection="horizontal" minWidth={160} maxWidth={720} className="resize" />
+      <NodeResizeControl
+        variant={ResizeControlVariant.Line}
+        position={Position.Right}
+        resizeDirection="horizontal"
+        minWidth={160}
+        maxWidth={720}
+        className="resize"
+        onResizeStart={checkpoint}
+      />
 
       {data.kind === 'note' ? (
         <Grow value={data.text} onChange={(text) => updateCard(id, { text })} placeholder="Write a note" autoFocus={fresh} label="Note" />

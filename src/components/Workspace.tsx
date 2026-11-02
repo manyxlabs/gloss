@@ -1,4 +1,5 @@
 import { ReactFlowProvider } from '@xyflow/react';
+import { ArrowLeft, NotebookText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { download, toMarkdown } from '../export';
 import { closeProject, openProject, redo, rename, setView, undo, useStore } from '../store/project';
@@ -78,15 +79,27 @@ export function Workspace({ id }: { id: string }) {
   if (!project) return null;
 
   return (
-    <div className="workspace">
+    <div className="workspace field">
       <header className="bar">
-        <a className="home" href="#/" aria-label="All projects">
-          ←
+        <a className="home" href="#/" aria-label="All projects" title="All projects">
+          <ArrowLeft size={18} />
         </a>
-        <input className="name" aria-label="Project name" defaultValue={project.name} key={project.id} onBlur={(e) => e.target.value.trim() && rename(e.target.value.trim())} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+        <input
+          className="name"
+          aria-label="Project name"
+          defaultValue={project.name}
+          key={project.id}
+          onBlur={(e) => e.target.value.trim() && rename(e.target.value.trim())}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
         <Search />
-        <button onClick={() => download(project.name, toMarkdown(project))} disabled={!project.cards.length && !project.highlights.length}>
-          Export notes
+        <button
+          className="export"
+          title="Download the canvas and highlights as Markdown notes"
+          onClick={() => download(`${project.name}.md`, new Blob([toMarkdown(project)], { type: 'text/markdown' }))}
+          disabled={!project.cards.length && !project.highlights.length}
+        >
+          <NotebookText size={16} /> Export notes
         </button>
         <ThemeToggle />
       </header>

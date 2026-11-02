@@ -1,7 +1,13 @@
 import { pageTexts } from './pdf/pdfjs';
-import type { Project } from './types';
+import type { Card, Project } from './types';
 
-export type DocHit = { docId: string; page: number; before: string; match: string; after: string };
+export type DocHit = {
+  docId: string;
+  page: number;
+  before: string;
+  match: string;
+  after: string;
+};
 export type CardHit = { cardId: string; text: string };
 
 const PER_DOC = 30;
@@ -11,7 +17,11 @@ function snippets(text: string, query: string) {
   const out: Omit<DocHit, 'docId' | 'page'>[] = [];
   const lower = text.toLowerCase();
   for (let i = lower.indexOf(query); i >= 0 && out.length < PER_DOC; i = lower.indexOf(query, i + query.length)) {
-    out.push({ before: text.slice(Math.max(0, i - CONTEXT), i), match: text.slice(i, i + query.length), after: text.slice(i + query.length, i + query.length + CONTEXT) });
+    out.push({
+      before: text.slice(Math.max(0, i - CONTEXT), i),
+      match: text.slice(i, i + query.length),
+      after: text.slice(i + query.length, i + query.length + CONTEXT),
+    });
   }
   return out;
 }
@@ -22,12 +32,27 @@ export async function search(project: Project, raw: string) {
   const docs: DocHit[] = [];
   for (const doc of project.docs) {
     const pages = await pageTexts(doc.id).catch(() => [] as string[]);
-    const hits = pages.flatMap((text, i) => snippets(text.replace(/\s+/g, ' '), query).map((s) => ({ docId: doc.id, page: i + 1, ...s })));
+    const hits = pages.flatMap((text, i) =>
+      snippets(text.replace(/\s+/g, ' '), query).map((s) => ({
+        docId: doc.id,
+        page: i + 1,
+        ...s,
+      })),
+    );
     docs.push(...hits.slice(0, PER_DOC));
   }
   const cards: CardHit[] = project.cards.flatMap((c) => {
-    const text = c.data.kind === 'note' ? c.data.text : `${project.highlights.find((h) => h.id === (c.data as { highlightId: string }).highlightId)?.text ?? ''} ${c.data.comment ?? ''}`;
-    return text.toLowerCase().includes(query) ? [{ cardId: c.id, text: text.trim() }] : [];
+    const text = cardText(project, c);
+    return text.toLowerCase().includes(query) ? [{ cardId: c.id, text }] : [];
   });
   return { docs, cards };
+}
+
+/** The words on a card: a note, a group's name, or an excerpt with the comment on it. Handwriting has none. */
+export function cardText(p: Project, c: Card) {
+  const d = c.data;
+  if (d.kind === 'note') return d.text.trim();
+  if (d.kind === 'group') return d.title.trim();
+  if (d.kind === 'ink') return '';
+  return `${p.highlights.find((h) => h.id === d.highlightId)?.text ?? ''} ${d.comment ?? ''}`.trim();
 }

@@ -1,32 +1,57 @@
 import { addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, type NodeChange, type XYPosition } from '@xyflow/react';
 import { create } from 'zustand';
+import { before } from '../pdf/folds';
 import { closeDocs, isPdf, openPdf, PdfPasswordError } from '../pdf/pdfjs';
-import type { Card, CardData, Color, DocMeta, Highlight, Link, Part, Project } from '../types';
+import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { addFiles, deleteFile, getProject, putProject } from './db';
 
-type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links'>;
+type Snapshot = Pick<Project, 'highlights' | 'cards' | 'links' | 'inks' | 'folds'>;
+const snapshot = ({ highlights, cards, links, inks, folds }: Project): Snapshot => ({ highlights, cards, links, inks, folds });
+
+export type Tool = 'select' | 'pen' | 'eraser';
 
 type State = {
   project: Project | null;
   activeDocId: string | null;
   /** A request for the document pane to scroll to a highlight or a search match; `at` makes a repeat request distinct. */
-  jump: ({ highlightId: string } | { page: number; query: string }) & { at: number } | null;
+  jump:
+    | (({ highlightId: string } | { page: number; query: string }) & {
+        at: number;
+      })
+    | null;
   /** A request for the canvas to bring a card into view. */
   focus: { cardId: string; at: number } | null;
   /** Which side a phone shows; a request to show a card or a source switches it. */
   view: 'doc' | 'canvas';
   past: Snapshot[];
   future: Snapshot[];
+  /** What a pointer does on the documents and on the canvas. A stylus always writes, whatever is chosen. */
+  docTool: Tool;
+  canvasTool: Tool;
+  inkColor: InkColor;
 };
 
 const MAX_UNDO = 200;
 export const uid = () => crypto.randomUUID();
 
-export const useStore = create<State>(() => ({ project: null, activeDocId: null, jump: null, focus: null, view: 'doc', past: [], future: [] }));
+export const useStore = create<State>(() => ({
+  project: null,
+  activeDocId: null,
+  jump: null,
+  focus: null,
+  view: 'doc',
+  past: [],
+  future: [],
+  docTool: 'select',
+  canvasTool: 'select',
+  inkColor: 'ink',
+}));
 const { getState: get, setState: set } = useStore;
 
 /** Where the canvas puts a new card when it was not dropped at a spot: set by the canvas while it is mounted. */
-export const canvasSpot: { next: () => XYPosition } = { next: () => ({ x: 0, y: 0 }) };
+export const canvasSpot: { next: () => XYPosition } = {
+  next: () => ({ x: 0, y: 0 }),
+};
 
 function edit(change: (p: Project) => Partial<Project>, undoable = true) {
   const { project } = get();
@@ -42,8 +67,7 @@ export function checkpoint() {
   if (!project || checkpointed) return;
   checkpointed = true;
   queueMicrotask(() => (checkpointed = false));
-  const { highlights, cards, links } = project;
-  set({ past: [...past.slice(-MAX_UNDO + 1), { highlights, cards, links }], future: [] });
+  set({ past: [...past.slice(-MAX_UNDO + 1), snapshot(project)], future: [] });
 }
 
 function travel(from: 'past' | 'future') {
@@ -51,9 +75,12 @@ function travel(from: 'past' | 'future') {
   const stack = state[from];
   const target = stack.at(-1);
   if (!state.project || !target) return;
-  const { highlights, cards, links } = state.project;
   const to = from === 'past' ? 'future' : 'past';
-  set({ [from]: stack.slice(0, -1), [to]: [...state[to], { highlights, cards, links }], project: { ...state.project, ...target, updatedAt: Date.now() } });
+  set({
+    [from]: stack.slice(0, -1),
+    [to]: [...state[to], snapshot(state.project)],
+    project: { ...state.project, ...target, updatedAt: Date.now() },
+  });
 }
 export const undo = () => travel('past');
 export const redo = () => travel('future');
@@ -75,11 +102,29 @@ addEventListener('pagehide', save);
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && save());
 
 /** What React Flow adds to a card while it is on screen is not worth keeping. */
-const storedCard = ({ id, type, position, data, width, height }: Card): Card => ({ id, type, position, data, ...(width ? { width } : {}), ...(height ? { height } : {}) });
+const storedCard = ({ id, type, position, data, width, height, parentId }: Card): Card => ({
+  id,
+  type,
+  position,
+  data,
+  ...(width ? { width } : {}),
+  ...(height ? { height } : {}),
+  ...(parentId ? { parentId, expandParent: true } : {}),
+});
 
 export async function openProject(id: string) {
-  const project = (await getProject(id)) ?? null;
-  set({ project, activeDocId: project?.docs[0]?.id ?? null, past: [], future: [], jump: null, focus: null, view: 'doc' });
+  const stored = await getProject(id);
+  // Projects saved before handwriting and squeezing existed have neither list.
+  const project = stored ? { ...stored, inks: stored.inks ?? [], folds: stored.folds ?? [] } : null;
+  set({
+    project,
+    activeDocId: project?.docs[0]?.id ?? null,
+    past: [],
+    future: [],
+    jump: null,
+    focus: null,
+    view: 'doc',
+  });
   return project;
 }
 
@@ -89,12 +134,28 @@ export function closeProject() {
   set({ project: null, activeDocId: null, past: [], future: [] });
 }
 
-export const newProject = (name: string): Project => ({ id: uid(), name, createdAt: Date.now(), updatedAt: Date.now(), docs: [], highlights: [], cards: [], links: [] });
+export const newProject = (name: string): Project => ({
+  id: uid(),
+  name,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  docs: [],
+  highlights: [],
+  cards: [],
+  links: [],
+  inks: [],
+  folds: [],
+});
 
 export const rename = (name: string) => edit(() => ({ name }), false);
 export const setActiveDoc = (activeDocId: string) => set({ activeDocId });
 export const rememberPage = (docId: string, lastPage: number) =>
-  edit((p) => ({ docs: p.docs.map((d) => (d.id === docId ? { ...d, lastPage } : d)) }), false);
+  edit(
+    (p) => ({
+      docs: p.docs.map((d) => (d.id === docId ? { ...d, lastPage } : d)),
+    }),
+    false,
+  );
 
 /** Reads and stores PDFs. Returns a message for each file that could not be added. */
 export async function importFiles(project: Project, files: File[]): Promise<{ project: Project; problems: string[] }> {
@@ -107,14 +168,28 @@ export async function importFiles(project: Project, files: File[]): Promise<{ pr
     }
     try {
       const { doc, close } = await openPdf(file);
-      added.push([{ id: uid(), name: file.name.replace(/\.pdf$/i, ''), pages: doc.numPages, size: file.size }, file]);
+      added.push([
+        {
+          id: uid(),
+          name: file.name.replace(/\.pdf$/i, ''),
+          pages: doc.numPages,
+          size: file.size,
+        },
+        file,
+      ]);
       await close();
     } catch (err) {
-      problems.push(err instanceof PdfPasswordError ? `${file.name} is password protected. Save a copy without the password and add that.` : `${file.name} could not be read as a PDF.`);
+      problems.push(
+        err instanceof PdfPasswordError ? `${file.name} is password protected. Save a copy without the password and add that.` : `${file.name} could not be read as a PDF.`,
+      );
     }
   }
   if (added.length) await addFiles(added.map(([meta, file]) => [meta.id, file]));
-  const next = { ...project, docs: [...project.docs, ...added.map(([meta]) => meta)], updatedAt: Date.now() };
+  const next = {
+    ...project,
+    docs: [...project.docs, ...added.map(([meta]) => meta)],
+    updatedAt: Date.now(),
+  };
   return { project: next, problems };
 }
 
@@ -138,7 +213,17 @@ export function removeDoc(docId: string) {
   const docs = project.docs.filter((d) => d.id !== docId);
   // Undo history refers to the removed highlights, and the file itself is deleted, so it starts over.
   set({ past: [], future: [] });
-  edit(() => ({ docs, highlights: project.highlights.filter((h) => !gone.has(h.id)), cards, links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)) }), false);
+  edit(
+    () => ({
+      docs,
+      highlights: project.highlights.filter((h) => !gone.has(h.id)),
+      cards,
+      links: project.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
+      inks: project.inks.filter((i) => i.docId !== docId),
+      folds: project.folds.filter((f) => f.docId !== docId),
+    }),
+    false,
+  );
   if (activeDocId === docId) set({ activeDocId: docs[0]?.id ?? null });
   void deleteFile(docId);
 }
@@ -150,29 +235,50 @@ export function addHighlight(docId: string, parts: Part[], text: string, color: 
 }
 
 export const CARD_WIDTH = 280;
-const newCard = (data: CardData, position: XYPosition): Card => ({ id: uid(), type: 'card', position, data, width: CARD_WIDTH, selected: true });
+const newCard = (data: CardData, position: XYPosition): Card => ({
+  id: uid(),
+  type: 'card',
+  position,
+  data,
+  width: CARD_WIDTH,
+  selected: true,
+});
 
 /** Puts a highlight on the canvas as an excerpt card. */
 export function excerpt(highlightId: string, position = canvasSpot.next()) {
   const card = newCard({ kind: 'excerpt', highlightId }, position);
-  edit((p) => ({ cards: [...p.cards.map((c) => ({ ...c, selected: false })), card] }));
+  edit((p) => ({
+    cards: [...p.cards.map((c) => ({ ...c, selected: false })), card],
+  }));
   set({ focus: { cardId: card.id, at: Date.now() } });
   return card;
 }
 
 export function addNote(position = canvasSpot.next(), text = '') {
   const card = newCard({ kind: 'note', text }, position);
-  edit((p) => ({ cards: [...p.cards.map((c) => ({ ...c, selected: false })), card] }));
+  edit((p) => ({
+    cards: [...p.cards.map((c) => ({ ...c, selected: false })), card],
+  }));
   return card;
 }
 
 export const updateCard = (id: string, data: Partial<CardData>) =>
-  edit((p) => ({ cards: p.cards.map((c) => (c.id === id ? ({ ...c, data: { ...c.data, ...data } } as Card) : c)) }), false);
+  edit(
+    (p) => ({
+      cards: p.cards.map((c) => (c.id === id ? ({ ...c, data: { ...c.data, ...data } } as Card) : c)),
+    }),
+    false,
+  );
 
-export const recolor = (id: string, color: Color) => edit((p) => ({ highlights: p.highlights.map((h) => (h.id === id ? { ...h, color } : h)) }));
+export const recolor = (id: string, color: Color) =>
+  edit((p) => ({
+    highlights: p.highlights.map((h) => (h.id === id ? { ...h, color } : h)),
+  }));
 
 /** Removes cards with their links, and the highlights of excerpts no other card still shows. */
-function without(p: Project, cardIds: Set<string>, highlightIds = new Set<string>()): Partial<Project> {
+function without(p: Project, removed: Set<string>, highlightIds = new Set<string>()): Partial<Project> {
+  // A group goes with the cards inside it.
+  const cardIds = new Set([...removed, ...p.cards.filter((c) => c.parentId && removed.has(c.parentId)).map((c) => c.id)]);
   const cards = p.cards.filter((c) => !cardIds.has(c.id) && !(c.data.kind === 'excerpt' && highlightIds.has(c.data.highlightId)));
   const shown = new Set(cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
   const orphaned = new Set(p.cards.filter((c) => cardIds.has(c.id) && c.data.kind === 'excerpt').map((c) => (c.data as { highlightId: string }).highlightId));
@@ -190,24 +296,214 @@ export function onCardsChange(changes: NodeChange<Card>[]) {
   const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])));
   // Drags and resizes take their undo step when they start (see the canvas), not on every frame.
   edit((p) => {
-    const cards = applyNodeChanges(changes.filter((c) => c.type !== 'remove'), p.cards);
+    const cards = applyNodeChanges(
+      changes.filter((c) => c.type !== 'remove'),
+      p.cards,
+    );
     return removed.size ? without({ ...p, cards }, removed) : { cards };
   }, removed.size > 0);
 }
 
 export function onLinksChange(changes: EdgeChange<Link>[]) {
-  edit((p) => ({ links: applyEdgeChanges(changes, p.links) }), changes.some((c) => c.type === 'remove'));
+  edit(
+    (p) => ({ links: applyEdgeChanges(changes, p.links) }),
+    changes.some((c) => c.type === 'remove'),
+  );
 }
 
 export const connect = (connection: Connection) => edit((p) => ({ links: addEdge({ ...connection, id: uid() }, p.links) }));
 
-export const showSource = (highlightId: string) => {
-  const h = get().project?.highlights.find((x) => x.id === highlightId);
-  if (h) set({ activeDocId: h.docId, jump: { highlightId, at: Date.now() }, view: 'doc' });
+/** Opens any squeeze that hides what is about to be shown. */
+const unfold = (hides: (f: Fold) => boolean) => {
+  const hidden = get().project?.folds.filter(hides) ?? [];
+  if (hidden.length) edit((p) => ({ folds: p.folds.filter((f) => !hidden.includes(f)) }), false);
 };
 
-export const showMatch = (docId: string, page: number, query: string) => set({ activeDocId: docId, jump: { page, query, at: Date.now() }, view: 'doc' });
+export const showSource = (highlightId: string) => {
+  const h = get().project?.highlights.find((x) => x.id === highlightId);
+  const part = h?.parts[0];
+  if (!h || !part) return;
+  const spot = { page: part.page, y: part.rects[0]?.[1] ?? 0 };
+  unfold((f) => f.docId === h.docId && before(f.from, spot) && before(spot, f.to));
+  set({
+    activeDocId: h.docId,
+    jump: { highlightId, at: Date.now() },
+    view: 'doc',
+  });
+};
+
+export const showMatch = (docId: string, page: number, query: string) => {
+  unfold((f) => f.docId === docId && f.from.page <= page && f.to.page >= page);
+  set({
+    activeDocId: docId,
+    jump: { page, query, at: Date.now() },
+    view: 'doc',
+  });
+};
 export const jumped = () => set({ jump: null });
 
 export const showCard = (cardId: string) => set({ focus: { cardId, at: Date.now() }, view: 'canvas' });
 export const setView = (view: State['view']) => set({ view });
+
+export const setTools = (tools: Partial<Pick<State, 'docTool' | 'canvasTool' | 'inkColor'>>) => set(tools);
+
+export function addInk(docId: string, page: number, points: Point[], size: number, pen: boolean) {
+  const ink: Ink = {
+    id: uid(),
+    docId,
+    page,
+    points,
+    size,
+    pen,
+    color: get().inkColor,
+  };
+  edit((p) => ({ inks: [...p.inks, ink] }));
+}
+
+export const removeInk = (id: string) => edit((p) => ({ inks: p.inks.filter((i) => i.id !== id) }));
+
+/** A handwritten stroke on the canvas becomes a card the size of the stroke, so it can be moved, linked and grouped. */
+export function addCanvasInk(points: Point[], size: number, pen: boolean) {
+  const pad = size;
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const [x, y] = [Math.min(...xs) - pad, Math.min(...ys) - pad];
+  const card: Card = {
+    id: uid(),
+    type: 'card',
+    position: { x, y },
+    width: Math.max(...xs) - x + pad,
+    height: Math.max(...ys) - y + pad,
+    data: {
+      kind: 'ink',
+      points: points.map(([px, py, pr]) => [px - x, py - y, pr]),
+      color: get().inkColor,
+      size,
+      pen,
+    },
+  };
+  edit((p) => ({ cards: [...p.cards, card] }));
+}
+
+/** Squeezes a stretch of a document out of view, merging it with any squeeze it touches. */
+export function addFold(docId: string, from: Spot, to: Spot) {
+  if (!before(from, to)) return;
+  edit((p) => {
+    let fold: Fold = { id: uid(), docId, from, to };
+    const others: Fold[] = [];
+    for (const f of p.folds) {
+      if (f.docId === docId && !before(f.to, fold.from) && !before(fold.to, f.from)) {
+        fold = {
+          ...fold,
+          from: before(f.from, fold.from) ? f.from : fold.from,
+          to: before(fold.to, f.to) ? f.to : fold.to,
+        };
+      } else others.push(f);
+    }
+    return { folds: [...others, fold] };
+  });
+}
+
+export const removeFolds = (ids: string[]) => edit((p) => ({ folds: p.folds.filter((f) => !ids.includes(f.id)) }));
+
+const GROUP_PAD = 20;
+const GROUP_HEADER = 40;
+
+/** Puts the chosen cards in a new group around them. Cards already in a group stay where they are. */
+export function group(ids: string[]) {
+  const project = get().project;
+  if (!project) return;
+  const members = project.cards.filter((c) => ids.includes(c.id) && !c.parentId && c.data.kind !== 'group');
+  if (!members.length) return;
+  const size = (c: Card) => ({
+    w: c.measured?.width ?? c.width ?? CARD_WIDTH,
+    h: c.measured?.height ?? c.height ?? 100,
+  });
+  const left = Math.min(...members.map((c) => c.position.x)) - GROUP_PAD;
+  const top = Math.min(...members.map((c) => c.position.y)) - GROUP_HEADER;
+  const right = Math.max(...members.map((c) => c.position.x + size(c).w)) + GROUP_PAD;
+  const bottom = Math.max(...members.map((c) => c.position.y + size(c).h)) + GROUP_PAD;
+  const box: Card = {
+    id: uid(),
+    type: 'card',
+    position: { x: left, y: top },
+    width: right - left,
+    height: bottom - top,
+    data: { kind: 'group', title: '' },
+    selected: true,
+  };
+  const inside = new Set(members.map((c) => c.id));
+  // React Flow needs a group listed before the cards inside it.
+  edit((p) => ({
+    cards: [
+      box,
+      ...p.cards.map((c) =>
+        inside.has(c.id)
+          ? {
+              ...c,
+              parentId: box.id,
+              expandParent: true,
+              selected: false,
+              position: { x: c.position.x - left, y: c.position.y - top },
+            }
+          : { ...c, selected: false },
+      ),
+    ],
+  }));
+  return box;
+}
+
+export function ungroup(groupId: string) {
+  edit((p) => {
+    const box = p.cards.find((c) => c.id === groupId);
+    if (!box) return {};
+    return {
+      cards: p.cards.flatMap((c) => {
+        if (c.id === groupId) return [];
+        if (c.parentId !== groupId) return [c];
+        const { parentId, ...rest } = c;
+        return [
+          {
+            ...rest,
+            position: {
+              x: c.position.x + box.position.x,
+              y: c.position.y + box.position.y,
+            },
+          },
+        ];
+      }),
+    };
+  });
+}
+
+/** Moves a card into a group, or out of one, keeping where it sits on screen. A group grows to hold a card that joins it. */
+export function regroup(cardId: string, groupId: string | null) {
+  edit((p) => {
+    const card = p.cards.find((c) => c.id === cardId);
+    if (!card || (card.parentId ?? null) === groupId) return {};
+    const at = (id?: string) => p.cards.find((c) => c.id === id)?.position ?? { x: 0, y: 0 };
+    const from = card.parentId ? at(card.parentId) : { x: 0, y: 0 };
+    const to = groupId ? at(groupId) : { x: 0, y: 0 };
+    const { parentId, ...rest } = card;
+    const moved: Card = {
+      ...rest,
+      ...(groupId ? { parentId: groupId, expandParent: true } : { expandParent: false }),
+      position: { x: card.position.x + from.x - to.x, y: card.position.y + from.y - to.y },
+    };
+    const w = card.measured?.width ?? card.width ?? CARD_WIDTH;
+    const h = card.measured?.height ?? card.height ?? 100;
+    const cards = p.cards
+      .filter((c) => c.id !== cardId)
+      .map((c) =>
+        c.id === groupId
+          ? {
+              ...c,
+              width: Math.max(c.width ?? 0, moved.position.x + w + GROUP_PAD),
+              height: Math.max(c.height ?? 0, moved.position.y + h + GROUP_PAD),
+            }
+          : c,
+      );
+    // Kept after its group in the list, as React Flow requires.
+    return { cards: [...cards, moved] };
+  });
+}
