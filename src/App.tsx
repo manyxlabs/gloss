@@ -11,9 +11,9 @@ import { parseLink } from './sync/crypto';
 const Workspace = lazy(() => import('./components/Workspace').then((m) => ({ default: m.Workspace })));
 
 /** The project to open, and maybe something in it to show; see targets.ts. */
-const route = () => /^#\/p\/([\w-]+)(?:\/[hcmvd]\/[\w-]+)?$/.exec(location.hash)?.[1] ?? null;
+const route = () => /^#\/p\/([\w-]+)(?:\/[hcmvdb]\/[\w-]+)?$/.exec(location.hash)?.[1] ?? null;
 /** A link to something in a shared project, named by its room. */
-const sharedRoute = () => /^#\/s\/([\w-]+)\/[hcmvd]\/[\w-]+$/.exec(location.hash)?.[1] ?? null;
+const sharedRoute = () => /^#\/s\/([\w-]+)\/[hcmvdb]\/[\w-]+$/.exec(location.hash)?.[1] ?? null;
 /** A share link with its key cut short or mangled, as happens when one is copied in part. */
 const badLink = () => location.hash.startsWith('#/join/') && !parseLink(location.hash);
 

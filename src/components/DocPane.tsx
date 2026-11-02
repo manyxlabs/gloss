@@ -1,7 +1,27 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, Lock, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Tag, Trash2, X } from 'lucide-react';
+import {
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  Columns2,
+  Columns3,
+  Copy,
+  FileDown,
+  FoldVertical,
+  Link2,
+  Lock,
+  MessageSquare,
+  MessageSquarePlus,
+  Minus,
+  PanelLeft,
+  Pin,
+  Plus,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
 import { outline, PAPER, pathOf } from '../ink';
@@ -25,9 +45,13 @@ import {
   removeFolds,
   removeHighlight,
   removeInk,
+  closePane,
+  openPane,
+  paneCount,
+  PANES,
   setActiveDoc,
-  setSideBySide,
   showCard,
+  shownPanes,
   useStore,
   type Pane,
 } from '../store/project';
@@ -44,7 +68,10 @@ import { PageLookMenu } from './doc/PageLookMenu';
 import { NoteEditor } from './doc/NoteEditor';
 import { OcrBanner } from './doc/OcrBanner';
 import { paint, type PageView } from './doc/paint';
-import { Sidebar } from './doc/Sidebar';
+import { Sidebar, type Tab } from './doc/Sidebar';
+import { addBookmark } from '../store/bookmarks';
+import { moveDoc, orderedDocs } from '../store/docs';
+import { confirmRemove, DOC_MIME, DocList } from './DocList';
 import { DefinedTerms } from './doc/Terms';
 import { TagPicker, TagRow } from './Tags';
 import { EXCERPT_MIME } from './dnd';
@@ -52,6 +79,7 @@ import { FilePicker } from './FilePicker';
 import { onTabKeys, revealTab } from './tabs';
 import { WebPicker } from './WebPicker';
 import { Tools } from './Tools';
+import { usePaneRoom } from '../panes';
 
 // pdf.js tidies its text layers on every keyup and selection change in the document, and that
 // change to the page ends the browser's undo step for typing in any field after one letter.
@@ -79,6 +107,11 @@ const POPUP_HALF_WIDTH = 240;
 const MIN_SNIP = 8;
 /** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
 const SIDEBAR_BESIDE = 560;
+/** Narrower still, as one of two or three panes, the toolbar leaves out the zoom percentage; the steps either side of it stay. */
+const TIGHT = 360;
+
+/** The pane last pressed in, which Ctrl+D bookmarks. */
+let lastPane: Pane = 0;
 
 /** A position inside the scrolling content, so a popup scrolls with the page it belongs to, kept clear of the pane's sides. */
 function inScroller(c: HTMLElement, clientX: number, clientY: number) {
@@ -131,10 +164,11 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const linking = useLinking((s) => s.linking);
   const inks = useStore((s) => s.project?.inks);
   const folds = useStore((s) => s.project?.folds);
-  const activeDocId = useStore((s) => (pane ? s.sideDocId : s.activeDocId));
+  const activeDocId = useStore((s) => s[PANES[pane]]);
   // A page edit, or its undo, gives the document a new file to show.
-  const file = useStore((s) => s.project?.docs.find((d) => d.id === (pane ? s.sideDocId : s.activeDocId))?.file);
-  const split = useStore((s) => s.sideDocId !== null);
+  const file = useStore((s) => s.project?.docs.find((d) => d.id === s[PANES[pane]])?.file);
+  const room = usePaneRoom();
+  const last = useStore((s) => Math.min(paneCount(s), room) === pane + 1);
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
   const inkColor = useStore((s) => s.inkColor);
@@ -165,6 +199,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const [exporting, setExporting] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  const [tight, setTight] = useState(false);
   const section = useRef<HTMLElement>(null);
   const snipLive = useRef<HTMLDivElement>(null);
   const snip = useRef<Snip | null>(null);
@@ -172,6 +207,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const [copied, setCopied] = useState(false);
   /** Tags chosen while writing a comment on a selection, put on its highlight when it is saved. */
   const [draftTags, setDraftTags] = useState<string[]>([]);
+  const [sideTab, setSideTab] = useState<Tab>('contents');
+  const [freshMark, setFreshMark] = useState<string | null>(null);
+  const [marked, setMarked] = useState(false);
+  const [tabDrop, setTabDrop] = useState<{ id: string; after: boolean } | null>(null);
 
   useEffect(() => revealTab(tabList.current), [activeDocId, docs.length]);
 
@@ -194,7 +233,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   }, [toolbar]);
 
   useEffect(() => {
-    const resize = new ResizeObserver(([entry]) => setNarrow(entry!.contentRect.width < SIDEBAR_BESIDE));
+    const resize = new ResizeObserver(([entry]) => {
+      setNarrow(entry!.contentRect.width < SIDEBAR_BESIDE);
+      setTight(entry!.contentRect.width < TIGHT);
+    });
     resize.observe(section.current!);
     return () => resize.disconnect();
   }, []);
@@ -217,7 +259,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     });
     links.setViewer(viewer);
     pdf.current = { viewer, bus, links };
-    const docNow = () => (pane ? useStore.getState().sideDocId : useStore.getState().activeDocId);
+    const docNow = () => useStore.getState()[PANES[pane]];
 
     bus.on('pagerendered', ({ source }: { source: PageView }) => {
       paint(source, flash.current, docNow());
@@ -410,6 +452,9 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if ('page' in jump) {
       if (jump.dest) void p.links.goToDestination(jump.dest);
       else p.viewer.currentPageNumber = jump.page;
+      const c = scroller.current!;
+      const spot = jump.y !== undefined && locate(c, jump.page, 0, jump.y);
+      if (spot) c.scrollTop += spot.y - c.getBoundingClientRect().top - 8;
       if (jump.query)
         p.bus.dispatch('find', {
           source: null,
@@ -676,6 +721,45 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const active = docs.find((d) => d.id === activeDocId);
   const ready = !!active && loaded === activeDocId;
   const error = failed && failed.docId === activeDocId ? failed.message : null;
+  /**
+   * Bookmarks the place at the top of the view, named after the words from there on, to be
+   * renamed in the sidebar if it is open. Scrolled to the end, where the last pages cannot reach
+   * the top, it is the top of the last page in view; between pages, the top of the next.
+   */
+  const bookmarkHere = async () => {
+    const c = scroller.current!;
+    if (!activeDocId || !ready) return;
+    const box = c.getBoundingClientRect();
+    const top = pointOnPage(c, box.left + box.width / 2, box.top + 12);
+    const tops = [...c.querySelectorAll<HTMLElement>('.page[data-page-number]:not([data-copy])')].filter((p) => p.getBoundingClientRect().top >= box.top);
+    const end = c.scrollTop + c.clientHeight >= c.scrollHeight - 2;
+    const next = (end ? tops.at(-1) : top ? undefined : tops[0])?.dataset.pageNumber;
+    const at = next ? { page: Number(next), fy: 0 } : (top ?? { page: status.page, fy: 0 });
+    const y = Math.max(0, Math.round((at.fy - 0.01) * 1e4) / 1e4);
+    const words = (await textIn(activeDocId, active?.password, at.page, [[0, y, 1, 1 - y]]).catch(() => '')).split(' ').filter(Boolean);
+    const name = words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : `Page ${at.page}`;
+    const mark = addBookmark(activeDocId, at.page, y, name);
+    setMarked(true);
+    setTimeout(() => setMarked(false), 1200);
+    if (sidebar) {
+      setSideTab('contents');
+      setFreshMark(mark.id);
+    }
+  };
+  const onBookmarkKey = useEffectEvent((e: KeyboardEvent) => {
+    const t = e.target as HTMLElement;
+    const at = lastPane < shownPanes(useStore.getState()) ? lastPane : 0;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'd' || at !== pane || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+      return;
+    // The browser's own Ctrl+D bookmarks the whole app, which is never what is meant here.
+    e.preventDefault();
+    void bookmarkHere();
+  });
+  useEffect(() => {
+    addEventListener('keydown', onBookmarkKey);
+    return () => removeEventListener('keydown', onBookmarkKey);
+  }, []);
+
   const shown = popup?.docId === activeDocId ? popup : null;
   const highlight = shown && 'highlightId' in shown ? highlights.find((h) => h.id === shown.highlightId) : undefined;
   const card = highlight && cards.find((c) => c.data.kind === 'excerpt' && c.data.highlightId === highlight.id);
@@ -701,8 +785,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   return (
     <section
       ref={section}
-      className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
-      aria-label={pane ? 'Second document' : 'Documents'}
+      className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${tight ? ' tight' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
+      aria-label={['Documents', 'Second document', 'Third document'][pane]}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
@@ -710,6 +794,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       }}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropping(false)}
       onDrop={onDrop}
+      onPointerDownCapture={() => (lastPane = pane)}
     >
       <div className="tabs">
         {active && (
@@ -724,55 +809,85 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             <PanelLeft size={16} />
           </button>
         )}
+        {docs.length > 0 && <DocList pane={pane} />}
         {/* Only the tabs scroll; the buttons around them stay in reach however many documents there are. */}
-        <div className="tab-list" role="tablist" aria-label="Open documents" ref={tabList} onKeyDown={onTabKeys}>
-          {docs.map((d) => (
-            <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
+        <div
+          className="tab-list"
+          role="tablist"
+          aria-label="Open documents"
+          ref={tabList}
+          onKeyDown={onTabKeys}
+          onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setTabDrop(null)}
+        >
+          {orderedDocs({ docs }).map((d, i, all) => (
+            <div
+              key={d.id}
+              className={`tab${d.id === activeDocId ? ' active' : ''}${d.pinned ? ' pinned' : ''}${tabDrop?.id === d.id ? (tabDrop.after ? ' drop-after' : ' drop-before') : ''}`}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DOC_MIME, d.id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(DOC_MIME)) return;
+                e.preventDefault();
+                const box = e.currentTarget.getBoundingClientRect();
+                setTabDrop({ id: d.id, after: e.clientX > box.left + box.width / 2 });
+              }}
+              onDrop={(e) => {
+                const id = e.dataTransfer.getData(DOC_MIME);
+                if (!id || !tabDrop) return;
+                e.preventDefault();
+                setTabDrop(null);
+                // Dropped among the pinned tabs, a tab is pinned too, and among the others it is not.
+                if (id !== d.id) moveDoc(id, tabDrop.after ? (all.slice(i + 1).find((x) => x.id !== id)?.id ?? null) : d.id, { pinned: !!d.pinned });
+              }}
+              onDragEnd={() => setTabDrop(null)}
+            >
               <button
                 role="tab"
                 aria-selected={d.id === activeDocId}
                 tabIndex={d.id === activeDocId ? 0 : -1}
                 onClick={() => setActiveDoc(d.id, pane)}
-                title={d.source ? `${d.name}\n${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}` : d.name}
+                title={[
+                  d.name,
+                  d.zotero && `${d.zotero.title}${d.zotero.citationKey ? ` (@${d.zotero.citationKey})` : ''}`,
+                  d.source && `${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}`,
+                ]
+                  .filter(Boolean)
+                  .join('\n')}
               >
+                {d.pinned && <Pin size={12} className="tab-pin" aria-label="Pinned" />}
                 {d.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {d.name}
               </button>
               {d.id === activeDocId && <DocMenu doc={d} />}
-              <button
-                className="close"
-                aria-label={`Remove ${d.name}`}
-                tabIndex={d.id === activeDocId ? 0 : -1}
-                onClick={() =>
-                  confirm(`Remove “${d.name}” from this project, with its highlights, comments and the excerpts made from it? Undo brings it all back.`) && removeDoc(d.id)
-                }
-              >
+              <button className="close" aria-label={`Remove ${d.name}`} tabIndex={d.id === activeDocId ? 0 : -1} onClick={() => confirmRemove(d)}>
                 ×
               </button>
             </div>
           ))}
         </div>
-        {pane ? (
-          <button className="icon side" aria-label="Close this pane" title="Close this pane" onClick={() => setSideBySide(false)}>
+        {!pane && docs.length > 0 && (
+          <>
+            <FilePicker label="Add file" onProblems={onProblems} />
+            <WebPicker add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
+          </>
+        )}
+        {last && pane + 1 < room && docs.length > 0 && (
+          <button
+            className="icon side"
+            aria-label={pane ? 'Open a third pane' : 'Open side by side'}
+            title={pane ? 'Open a third document, or another place, beside these' : 'Open a second document, or another place in this one, side by side'}
+            onClick={openPane}
+          >
+            {pane ? <Columns3 size={16} /> : <Columns2 size={16} />}
+          </button>
+        )}
+        {pane > 0 && (
+          <button className={`icon${last && pane + 1 < room ? '' : ' side'}`} aria-label="Close this pane" title="Close this pane" onClick={() => closePane(pane as 1 | 2)}>
             <X size={16} />
           </button>
-        ) : (
-          docs.length > 0 && (
-            <>
-              <FilePicker label="Add file" onProblems={onProblems} />
-              <WebPicker add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
-              {!split && docs.length > 0 && (
-                <button
-                  className="icon side"
-                  aria-label="Open side by side"
-                  title="Open a second document, or another place in this one, side by side"
-                  onClick={() => setSideBySide(true)}
-                >
-                  <Columns2 size={16} />
-                </button>
-              )}
-            </>
-          )
         )}
       </div>
 
@@ -786,7 +901,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                   <X size={16} />
                 </button>
               )}
-              <Sidebar pane={pane} docId={active.id} page={status.page} onJump={() => narrow && setSidebar(false)} />
+              <Sidebar pane={pane} docId={active.id} page={status.page} tab={sideTab} onTab={setSideTab} fresh={freshMark} onJump={() => narrow && setSidebar(false)} />
             </aside>
           </>
         )}
@@ -1002,6 +1117,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             </button>
           </span>
           <Collapse docId={active.id} />
+          <button
+            className="icon"
+            aria-label={marked ? 'Bookmarked' : 'Bookmark this place'}
+            title={marked ? 'Bookmarked' : 'Bookmark this place (Ctrl+D)'}
+            onClick={() => void bookmarkHere()}
+          >
+            {marked ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
+          </button>
           <PageLookMenu />
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />

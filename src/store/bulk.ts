@@ -2,7 +2,7 @@ import { findMatches, pageLines, type Match } from '../pdf/matches';
 import { before } from '../pdf/folds';
 import type { Card, CardLink, Color, Fold, Highlight, Project, Rect, Spot } from '../types';
 import { create } from 'zustand';
-import { canvasOf, canvasSpot, CARD_WIDTH, edit, newCard, uid, useStore } from './project';
+import { canvasOf, canvasSpot, CARD_WIDTH, edit, newCard, PANES, uid, useStore } from './project';
 
 /** The words last searched for in the project, offered when squeezing a document to search matches. */
 export const useLastSearch = create<{ query: string }>(() => ({ query: '' }));
@@ -207,9 +207,9 @@ export async function collapseAround(docIds: string[], around: Around, context: 
   const touched = new Set(plans.map(([id]) => id));
   edit((p) => ({ folds: [...p.folds.filter((f) => !touched.has(f.docId)), ...plans.flatMap(([, folds]) => folds)] }));
   // What was kept starts the document now, so the panes showing it go back to its top.
-  const { activeDocId, sideDocId } = useStore.getState();
+  const state = useStore.getState();
   const scrollers = document.querySelectorAll<HTMLElement>('.doc-pane .doc-scroll');
-  [activeDocId, sideDocId].forEach((id, i) => id && touched.has(id) && scrollers[i]?.scrollTo({ top: 0 }));
+  PANES.forEach((k, i) => state[k] && touched.has(state[k]) && scrollers[i]?.scrollTo({ top: 0 }));
   return plans.reduce((n, [, , k]) => n + k, 0);
 }
 

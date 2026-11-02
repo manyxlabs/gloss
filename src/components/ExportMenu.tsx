@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { download, outline, toMarkdown } from '../export';
 import { useStore } from '../store/project';
 import { openCanvasExport } from './CanvasExport';
+import { CombinedExport } from './CombinedExport';
 
 const FORMATS = [
   ['Markdown (.md)', 'md', async () => new Blob([toMarkdown(useStore.getState().project!)], { type: 'text/markdown' })],
@@ -14,6 +15,7 @@ const FORMATS = [
 export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProblems: (problems: string[]) => void }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [combining, setCombining] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const noCards = useStore((s) => !s.project?.cards.length);
 
@@ -65,8 +67,12 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
           <button role="menuitem" disabled={noCards} onClick={() => (setOpen(false), openCanvasExport())}>
             Canvas as a picture…
           </button>
+          <button role="menuitem" onClick={() => (setOpen(false), setCombining(true))}>
+            Documents as one PDF…
+          </button>
         </div>
       )}
+      {combining && <CombinedExport onClose={() => setCombining(false)} />}
     </div>
   );
 }

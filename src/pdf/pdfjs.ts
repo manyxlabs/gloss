@@ -1,4 +1,4 @@
-import { getDocument, GlobalWorkerOptions, PasswordException, PasswordResponses, type PDFDocumentProxy } from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions, PasswordException, PasswordResponses, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { getFile } from '../store/db';
 import type { Rect } from '../types';
@@ -109,15 +109,14 @@ export function runShare(str: string, upTo: number, family = 'sans-serif') {
 }
 
 /**
- * Each word on a page with its middle as fractions of the page, in reading order, and whether a
- * line ends after it. pdf.js gives runs of text with their width; where each word of a run lies is
- * estimated from the widths of its letters in a similar font.
+ * Each word on a page with its middle and its box as fractions of the page, in reading order, and
+ * whether a line ends after it. pdf.js gives runs of text with their width; where each word of a
+ * run lies is estimated from the widths of its letters in a similar font.
  */
-async function wordsOn(docId: string, password: string | undefined, pageNo: number) {
-  const page = await (await loadDoc(docId, password)).getPage(pageNo);
+export async function pageWords(page: PDFPageProxy) {
   const viewport = page.getViewport({ scale: 1 });
   const { items, styles } = await page.getTextContent();
-  const words: { text: string; x: number; y: number; eol: boolean }[] = [];
+  const words: { text: string; x: number; y: number; box: Rect; eol: boolean }[] = [];
   for (const item of items) {
     if (!('str' in item) || !item.str.trim()) continue;
     const family = styles[item.fontName]?.fontFamily;
@@ -125,14 +124,24 @@ async function wordsOn(docId: string, password: string | undefined, pageNo: numb
     const along = Math.hypot(a!, b!) || 1;
     const found = [...item.str.matchAll(/\S+/g)];
     for (const [i, m] of found.entries()) {
-      // Halfway along the word on its baseline, then half up its height, whatever the rotation.
-      const mid = ((runShare(item.str, m.index, family) + runShare(item.str, m.index + m[0].length, family)) / 2) * item.width;
-      const [vx, vy] = viewport.convertToViewportPoint(e! + (a! / along) * mid + c! / 2, f! + (b! / along) * mid + d! / 2) as [number, number];
-      words.push({ text: m[0], x: vx / viewport.width, y: vy / viewport.height, eol: i === found.length - 1 && item.hasEOL });
+      const [from, to] = [m.index, m.index + m[0].length].map((k) => runShare(item.str, k, family) * item.width) as [number, number];
+      // A place `along` the baseline and `up` a share of the text's height, whatever the rotation.
+      const at = (along_: number, up: number) => {
+        const [vx, vy] = viewport.convertToViewportPoint(e! + (a! / along) * along_ + c! * up, f! + (b! / along) * along_ + d! * up) as [number, number];
+        return [vx / viewport.width, vy / viewport.height] as const;
+      };
+      const [x, y] = at((from + to) / 2, 0.5);
+      // From below the baseline to the top of capitals, about where pdf.js's text layer puts a selection.
+      const corners = [from, to].flatMap((k) => [at(k, -0.22), at(k, 0.85)]);
+      const [xs, ys] = [corners.map((p) => p[0]), corners.map((p) => p[1])];
+      const box: Rect = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+      words.push({ text: m[0], x, y, box, eol: i === found.length - 1 && item.hasEOL });
     }
   }
   return words;
 }
+
+const wordsOn = async (docId: string, password: string | undefined, pageNo: number) => pageWords(await (await loadDoc(docId, password)).getPage(pageNo));
 
 /** The words whose middles lie inside any of the boxes on a page, in reading order. */
 export async function textIn(docId: string, password: string | undefined, pageNo: number, rects: Rect[]) {

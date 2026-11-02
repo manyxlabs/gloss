@@ -2,7 +2,7 @@ import { Image, Link2, StickyNote } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useEffect, useState } from 'react';
 import { loadDoc } from '../../pdf/pdfjs';
-import { commentOf, docName, endsOf, quoted } from '../../links';
+import { commentOf, docName, endsOf, quoted, where } from '../../links';
 import { cardText } from '../../search';
 import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
@@ -10,11 +10,14 @@ import { useTagView } from '../../store/tags';
 import { passes } from '../../tags';
 import { TagChips, TagFilter } from '../Tags';
 import type { Highlight } from '../../types';
+import { byline } from '../../zotero';
 import { AnnotsAction } from './AnnotsAction';
+import { Bookmarks } from './Bookmarks';
 import { Pages } from './Pages';
+import { Unplaced } from './Unplaced';
 
 type OutlineItem = Awaited<ReturnType<PDFDocumentProxy['getOutline']>>[number];
-type Tab = 'contents' | 'pages' | 'highlights';
+export type Tab = 'contents' | 'pages' | 'highlights';
 const TABS: [Tab, string][] = [
   ['contents', 'Contents'],
   ['pages', 'Pages'],
@@ -35,14 +38,40 @@ function useDoc(docId: string, password?: string, file?: string) {
   return doc?.docId === docId ? doc.doc : null;
 }
 
-/** The PDF's table of contents, the pages as thumbnails, and the reader's highlights, beside one pane's document. */
-export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: string; page: number; onJump: () => void }) {
-  const [tab, setTab] = useState<Tab>('contents');
+/**
+ * The reader's bookmarks with the PDF's table of contents, the pages as thumbnails, and the
+ * reader's highlights, beside one pane's document; `fresh` is a bookmark just made, to name.
+ */
+export function Sidebar({
+  pane,
+  docId,
+  page,
+  tab,
+  onTab: setTab,
+  fresh,
+  onJump,
+}: {
+  pane: Pane;
+  docId: string;
+  page: number;
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+  fresh: string | null;
+  onJump: () => void;
+}) {
   const password = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.password);
   const file = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.file);
+  const zotero = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.zotero);
   const doc = useDoc(docId, password, file);
   return (
     <>
+      {zotero && (
+        <div className="doc-cite" aria-label="From Zotero">
+          <span className="title">{zotero.title}</span>
+          {byline(zotero) && <span className="by">{byline(zotero)}</span>}
+          {zotero.citationKey && <span className="cite-key">@{zotero.citationKey}</span>}
+        </div>
+      )}
       <div className="side-tabs" role="tablist" aria-label="Sidebar">
         {TABS.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
@@ -52,11 +81,17 @@ export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: stri
       </div>
       <div className="side-list" role="tabpanel" aria-label={TABS.find(([id]) => id === tab)![1]}>
         {!doc ? null : tab === 'contents' ? (
-          <Contents doc={doc} docId={docId} pane={pane} onJump={onJump} />
+          <>
+            <h3 className="side-head">Bookmarks</h3>
+            <Bookmarks docId={docId} pane={pane} fresh={fresh} onJump={onJump} />
+            <h3 className="side-head">Contents</h3>
+            <Contents doc={doc} docId={docId} pane={pane} onJump={onJump} />
+          </>
         ) : tab === 'pages' ? (
           <Pages key={docId} doc={doc} docId={docId} password={password} pane={pane} current={page} onJump={onJump} />
         ) : (
           <>
+            <Unplaced docId={docId} />
             <AnnotsAction docId={docId} />
             <Highlights docId={docId} pane={pane} onJump={onJump} />
           </>
@@ -123,7 +158,7 @@ const byPlace = (a: Highlight, b: Highlight) =>
 function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump: () => void }) {
   const project = useStore((s) => s.project);
   const filter = useTagView((s) => s.filter);
-  const all = (project?.highlights ?? []).filter((h) => h.docId === docId);
+  const all = (project?.highlights ?? []).filter((h) => h.docId === docId && h.parts.length);
   const mine = all.filter((h) => passes(h.tags, filter)).sort(byPlace);
   if (!project || !all.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
   return (
@@ -165,7 +200,8 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
                   <Link2 size={13} aria-label="Linked passage" />
                   <span className="text">{quoted(end.highlight) || 'Figure'}</span>
                   <span className="page">
-                    {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}p. {end.highlight.parts[0]?.page}
+                    {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}
+                    {where(end.highlight)}
                   </span>
                 </button>
               ) : (

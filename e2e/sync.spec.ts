@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { ARTIFACTS, card, openProject, select, shot } from './helpers';
-import { encryptedPdf, ESSAY } from './pdfs';
+import { encryptedPdf, ESSAY, makePdf } from './pdfs';
 
 // Everything the server saw from or sent to one device.
 type Wire = { sent: Buffer[]; received: Buffer[]; uploads: Buffer[] };
@@ -321,6 +321,62 @@ test('a page edit reaches the other device as a new version of the file, and so 
 
   // Each version went up encrypted.
   expect(a.wire.uploads.length).toBeGreaterThanOrEqual(3);
+  for (const upload of a.wire.uploads) expect(upload.includes('%PDF')).toBe(false);
+  await a.context.close();
+  await b.context.close();
+});
+
+test('a bookmark and a document replaced with a new version reach the other device, and so does the undo', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const a = await device(browser);
+  const b = await device(browser);
+  await openProject(a.page);
+  await select(a.page, 'Coral reefs occupy');
+  await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();
+
+  await a.page.getByRole('button', { name: 'Share' }).click();
+  const sharing = a.page.getByRole('dialog', { name: 'Share this project' });
+  await sharing.getByRole('textbox', { name: 'Your name' }).fill('Ada');
+  await sharing.getByRole('button', { name: 'Create link' }).click();
+  const shared = a.page.getByRole('dialog', { name: 'This project is shared' });
+  const link = await shared.getByRole('textbox', { name: 'Share link' }).inputValue();
+  await shared.getByRole('button', { name: 'Done' }).click();
+  await synced(a.page);
+  await b.page.goto(link);
+  await giveName(b.page, 'Ben');
+  await synced(b.page);
+
+  // A bookmark made on A is listed on B.
+  await a.page.getByRole('button', { name: 'Bookmark this place' }).click();
+  await b.page.getByRole('button', { name: 'Contents, pages and highlights' }).first().click();
+  const marks = b.page.getByRole('list', { name: 'Bookmarks' }).getByRole('listitem');
+  await expect(marks).toHaveText([/^The ocean covers.*p\. 1$/]);
+
+  // A replaces the essay with a version that has a new first page.
+  await a.page.getByRole('button', { name: 'All documents' }).first().click();
+  await a.page.getByRole('dialog', { name: 'All documents' }).getByRole('button', { name: 'Actions for Reef essay' }).click();
+  await a.page.getByRole('menuitem', { name: 'Replace with a newer version…' }).click();
+  const replace = a.page.getByRole('dialog', { name: 'Replace “Reef essay”' });
+  const [chooser] = await Promise.all([a.page.waitForEvent('filechooser'), replace.getByRole('button', { name: 'Choose the new version' }).click()]);
+  await chooser.setFiles({ name: 'Reef essay 2.pdf', mimeType: 'application/pdf', buffer: await makePdf([['A new preface comes first in this edition.'], ...ESSAY]) });
+  await expect(replace.getByRole('status')).toContainText('1 highlight is on the same words');
+  await replace.getByRole('button', { name: 'Done' }).click();
+  await synced(a.page);
+
+  // B gets the new file, the excerpt and the bookmark on their new pages, together.
+  const chip = (page: Page) => card(page, 'Coral reefs occupy').getByRole('button', { name: /Reef essay · p\./ });
+  await expect(b.page.locator('.page-no').first()).toHaveText(/\/ 4$/, { timeout: 15_000 });
+  await expect(b.page.locator('.pdfViewer > .page[data-page-number="1"] .textLayer')).toContainText('A new preface');
+  await expect(chip(b.page)).toHaveText('Reef essay · p. 2');
+  await expect(marks).toHaveText([/^The ocean covers.*p\. 2$/]);
+  await expect(b.page.locator('.page[data-page-number="2"] .hl.linked')).toBeVisible();
+  await shot(b.page, 'sync-replace');
+
+  // Undone on A, B goes back to the first version.
+  await a.page.keyboard.press('Control+z');
+  await expect(b.page.locator('.page-no').first()).toHaveText(/\/ 3$/, { timeout: 15_000 });
+  await expect(chip(b.page)).toHaveText('Reef essay · p. 1');
+  await expect(marks).toHaveText([/^The ocean covers.*p\. 1$/]);
   for (const upload of a.wire.uploads) expect(upload.includes('%PDF')).toBe(false);
   await a.context.close();
   await b.context.close();

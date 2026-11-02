@@ -2,12 +2,13 @@ import { ConnectionMode, ReactFlow, ReactFlowProvider, useNodesInitialized, useR
 import { ImageDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { create } from 'zustand';
 import { fitScale, MARGIN, type Paper } from '../canvasPicture';
 import { canvasView } from '../canvasView';
 import { download } from '../export';
 import { useStore } from '../store/project';
-import type { Card, Link } from '../types';
+import type { Card, Link, Project } from '../types';
 import { CardNode } from './CardNode';
 
 const nodeTypes = { card: CardNode };
@@ -130,6 +131,20 @@ async function capture(root: HTMLElement, bounds: Rect, format: Format, scale: n
   const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/png'));
   if (!blob) throw new Error('The picture could not be encoded.');
   return { width, height, blob };
+}
+
+/** A whole canvas drawn as the Export menu draws it, as a PNG for another export to hold; null for a canvas with no cards. */
+export async function canvasPng(project: Project, canvasId: string) {
+  const [cards, links] = canvasView(project, canvasId);
+  if (!cards.some((c) => !c.hidden)) return null;
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  try {
+    const [stage, bounds] = await new Promise<[HTMLElement, Rect]>((done) => root.render(<Stage cards={cards} links={links} match={false} onReady={(r, b) => done([r, b])} />));
+    return await capture(stage, bounds, 'png', fitScale(bounds.width + 2 * MARGIN, bounds.height + 2 * MARGIN, PDF_SCALE));
+  } finally {
+    root.unmount();
+  }
 }
 
 type Job = { cards: Card[]; links: Link[]; options: Options };

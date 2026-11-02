@@ -5,10 +5,9 @@ import { take } from '../notices';
 import { takeArrival } from '../arrive';
 import { closeProject, openProject, redo, rename, setView, showCard, showPage, showSource, undo, useStore } from '../store/project';
 import { Canvas } from './Canvas';
-import { DocPane } from './DocPane';
+import { DocPanes } from './DocPanes';
 import { ExportMenu } from './ExportMenu';
 import { InkLink } from './InkLink';
-import { LinkBanner } from './LinkBanner';
 import { Lost } from './Lost';
 import { useLinkTarget } from './OpenLink';
 import { Search } from './Search';
@@ -34,7 +33,6 @@ export function Workspace({ id }: { id: string }) {
   const [problems, setProblems] = useState<string[]>(take);
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
-  const side = useStore((s) => s.sideDocId !== null);
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const body = useRef<HTMLDivElement>(null);
@@ -50,6 +48,15 @@ export function Workspace({ id }: { id: string }) {
     });
     return closeProject;
   }, [id]);
+
+  // Three documents need more room than the canvas's half: they take two thirds, until the divider is moved.
+  useEffect(
+    () =>
+      useStore.subscribe((s, prev) => {
+        if (s.thirdDocId !== null && prev.thirdDocId === null) setSplit((x) => Math.max(x, 66));
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (project) document.title = `${project.name} · Gloss`;
@@ -153,11 +160,7 @@ export function Workspace({ id }: { id: string }) {
       )}
 
       <div className={`panes show-${view}`} ref={body} style={{ '--split': `${split}%` } as React.CSSProperties}>
-        <div className={`docs${side ? ' split' : ''}`}>
-          <DocPane pane={0} onProblems={setProblems} />
-          {side && <DocPane pane={1} onProblems={setProblems} />}
-          <LinkBanner />
-        </div>
+        <DocPanes onProblems={setProblems} />
         <div className="divider" role="separator" aria-orientation="vertical" aria-label="Resize" onPointerDown={drag} />
         <ReactFlowProvider>
           <Canvas />

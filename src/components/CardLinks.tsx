@@ -1,5 +1,5 @@
 import { Link2, SquareStack } from 'lucide-react';
-import { docName } from '../links';
+import { docName, where } from '../links';
 import { setCanvas, showSource, useStore } from '../store/project';
 
 /**
@@ -22,7 +22,7 @@ export function CardLinks({ cardId }: { cardId: string }) {
         <button key={id} className={`hl-${h.color}`} data-card-link={id} onClick={() => showSource(h.id)} title="Show the linked passage">
           <Link2 size={12} aria-hidden="true" />
           <span>
-            Linked to {docName(project, h.docId)} p. {h.parts[0]?.page}
+            Linked to {docName(project, h.docId)} {where(h)}
           </span>
         </button>
       ))}

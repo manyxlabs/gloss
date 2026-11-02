@@ -2,8 +2,8 @@ import { quoted } from './links';
 import { cardText } from './search';
 import type { Project } from './types';
 
-/** What a copied link leads to: a passage, a card, a comment, a canvas or a document. */
-export const KINDS = { h: 'passage', c: 'card', m: 'comment', v: 'canvas', d: 'document' } as const;
+/** What a copied link leads to: a passage, a card, a comment, a canvas, a document or a bookmark. */
+export const KINDS = { h: 'passage', c: 'card', m: 'comment', v: 'canvas', d: 'document', b: 'bookmark' } as const;
 export type Kind = keyof typeof KINDS;
 export type Target = { kind: Kind; id: string };
 
@@ -14,9 +14,9 @@ export type Target = { kind: Kind; id: string };
  */
 export type GlossLink = Target & ({ project: string } | { room: string });
 
-const PATH = /#\/(p|s)\/([\w-]+)\/([hcmvd])\/([\w-]+)/;
+const PATH = /#\/(p|s)\/([\w-]+)\/([hcmvdb])\/([\w-]+)/;
 /** Links in text, from any copy of Gloss: the address before the `#` may be another host's. */
-export const IN_TEXT = /\bhttps?:\/\/[^\s#]+#\/[ps]\/[\w-]+\/[hcmvd]\/[\w-]+/g;
+export const IN_TEXT = /\bhttps?:\/\/[^\s#]+#\/[ps]\/[\w-]+\/[hcmvdb]\/[\w-]+/g;
 
 export const hashOf = (l: GlossLink) => `#/${'room' in l ? `s/${l.room}` : `p/${l.project}`}/${l.kind}/${l.id}`;
 export const linkTo = (p: Pick<Project, 'id' | 'sync'>, t: Target) =>
@@ -48,5 +48,6 @@ export function snippetOf(p: Project, { kind, id }: Target): string | null {
     return c ? clip(c.text) : null;
   }
   if (kind === 'v') return p.canvases.find((x) => x.id === id)?.name ?? null;
+  if (kind === 'b') return p.bookmarks.find((x) => x.id === id)?.name ?? null;
   return p.docs.find((x) => x.id === id)?.name ?? null;
 }

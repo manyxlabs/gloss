@@ -16,12 +16,15 @@ export function Menu({
   onClose,
   children,
   role = 'menu',
+  className,
 }: {
   anchor: HTMLElement;
   label: string;
   onClose: () => void;
   children: ReactNode;
   role?: 'menu' | 'dialog';
+  /** Sets a dialog's own look, such as the list of documents' width. */
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
@@ -41,20 +44,24 @@ export function Menu({
       });
     };
     place();
-    ref.current!.querySelector<HTMLElement>('[role^="menuitem"]:not(:disabled)')?.focus({ preventScroll: true });
+    ref
+      .current!.querySelector<HTMLElement>(role === 'dialog' ? '[aria-current="page"], button:not(:disabled)' : '[role^="menuitem"]:not(:disabled)')
+      ?.focus({ preventScroll: true });
     addEventListener('scroll', place, { capture: true, passive: true });
     addEventListener('resize', place);
     return () => {
       removeEventListener('scroll', place, { capture: true });
       removeEventListener('resize', place);
     };
-  }, [anchor]);
+  }, [anchor, role]);
 
   useEffect(() => {
-    const inside = (t: EventTarget | null) => t instanceof Node && (ref.current?.contains(t) || anchor.contains(t));
+    // A menu opened from inside a dialog is drawn apart from it, yet belongs to it.
+    const nested = (t: EventTarget | null) => role === 'dialog' && t instanceof Element && !!t.closest('.menu.floating');
+    const inside = (t: EventTarget | null) => t instanceof Node && (ref.current?.contains(t) || anchor.contains(t) || nested(t));
     const down = (e: PointerEvent) => !inside(e.target) && close.current();
     const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || (role === 'dialog' && document.querySelectorAll('.menu.floating').length > 1)) return;
       close.current();
       anchor.focus();
     };
@@ -64,7 +71,7 @@ export function Menu({
       removeEventListener('pointerdown', down);
       removeEventListener('keydown', key);
     };
-  }, [anchor]);
+  }, [anchor, role]);
 
   const step = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -77,7 +84,7 @@ export function Menu({
   return createPortal(
     <div
       ref={ref}
-      className={`menu glass floating${role === 'dialog' ? ' panel' : ''}`}
+      className={`menu glass floating${role === 'dialog' ? ' panel' : ''}${className ? ` ${className}` : ''}`}
       role={role}
       aria-label={label}
       onKeyDown={step}

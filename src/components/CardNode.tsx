@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { outline, pathOf, SCREEN } from '../ink';
+import { where } from '../links';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
 import type { Card, CardData, ExcerptData, GroupData, Highlight, InkData, NoteData } from '../types';
@@ -241,7 +242,7 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
           {highlight.area ? <Figure highlight={highlight} password={doc?.password} /> : <Quote text={highlight.text} />}
           <footer>
             <button className="source nodrag" onClick={() => showSource(highlight.id)} title="Show it in the document">
-              {doc?.name ?? 'Document'} · p. {highlight.parts[0]?.page}
+              {doc?.name ?? 'Document'} · {where(highlight)}
             </button>
             {data.comment === undefined && !commenting && (
               <button className="nodrag ghost" onClick={() => setCommenting(true)}>

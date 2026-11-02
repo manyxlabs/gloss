@@ -1,9 +1,11 @@
-import { BookOpen, Columns2, FileText, Hash, LayoutDashboard, ListTree, Redo2, Settings2, StickyNote, Undo2, Zap, type LucideIcon } from 'lucide-react';
+import { BookOpen, Bookmark, Columns2, FileText, Hash, LayoutDashboard, ListTree, Redo2, Settings2, StickyNote, Undo2, Zap, type LucideIcon } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { loadDoc } from '../pdf/pdfjs';
 import { collapseAround, expandAll } from '../store/bulk';
-import { addNote, redo, setActiveDoc, setCanvas, setSideBySide, setView, showPage, undo, useStore, type Pane } from '../store/project';
+import { addNote, closePane, openPane, paneCount, PANES, redo, setActiveDoc, setCanvas, setView, showPage, shownPanes, undo, useStore, type Pane } from '../store/project';
+import { bookmarksOf } from '../store/bookmarks';
+import { paneRoom } from '../panes';
 import { manageTags, toggleFilter, useTagView } from '../store/tags';
 import { setTermsOn, useTerms } from '../terms';
 import { showEntry } from './doc/Sidebar';
@@ -15,7 +17,7 @@ type Entry = { title: string; depth: number; dest: Parameters<typeof showEntry>[
 let lastPane: Pane = 0;
 const notePane = (e: Event) => {
   const pane = (e.target as Element | null)?.closest?.('.doc-pane');
-  if (pane) lastPane = pane.getAttribute('aria-label') === 'Second document' ? 1 : 0;
+  if (pane) lastPane = Math.max(0, ['Documents', 'Second document', 'Third document'].indexOf(pane.getAttribute('aria-label') ?? '')) as Pane;
 };
 
 /** The PDF's contents, flattened in reading order with their depth. */
@@ -45,7 +47,7 @@ export function Palette() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pane, setPane] = useState<Pane>(0);
   const project = useStore((s) => s.project);
-  const docId = useStore((s) => (pane && s.sideDocId ? s.sideDocId : s.activeDocId));
+  const docId = useStore((s) => s[PANES[pane]] ?? s.activeDocId);
   const terms = useTerms((s) => s.on);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -57,7 +59,7 @@ export function Palette() {
       if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || (key !== 'p' && key !== 'g')) return;
       e.preventDefault();
       opener.current = document.activeElement;
-      setPane(useStore.getState().sideDocId === null ? 0 : lastPane);
+      setPane(lastPane < shownPanes(useStore.getState()) ? lastPane : 0);
       setQuery('');
       setActive(0);
       setOpen(true);
@@ -117,6 +119,7 @@ export function Palette() {
     return c.parentId && !seen.has(c.parentId) ? `${trail(c.parentId, seen.add(id))} › ${c.name}` : c.name;
   };
   const filter = useTagView.getState().filter;
+  const panes = paneCount(useStore.getState());
   const tagFilter = project.tags.map((t) => ({
     id: `tag-${t.id}`,
     kind: 'Tag',
@@ -133,18 +136,20 @@ export function Palette() {
       icon: ListTree,
       run: () => void loadDoc(docId!, password).then((d) => showEntry(d, docId!, e.dest, pane)),
     })),
+    ...(docId ? bookmarksOf(project, docId) : []).map((b) => ({
+      id: `bookmark-${b.id}`,
+      kind: 'Bookmark',
+      label: `${b.name} (p. ${b.page})`,
+      icon: Bookmark,
+      run: () => showPage(b.docId, b.page, { pane, y: b.y }),
+    })),
     ...project.canvases.map((c) => ({ id: `canvas-${c.id}`, kind: 'Canvas', label: trail(c.id), icon: LayoutDashboard, run: () => (setCanvas(c.id), setView('canvas')) })),
     ...tagFilter,
     { id: 'undo', kind: 'Action', label: 'Undo', icon: Undo2, run: undo },
     { id: 'redo', kind: 'Action', label: 'Redo', icon: Redo2, run: redo },
     { id: 'note', kind: 'Action', label: 'New note on the canvas', icon: StickyNote, run: () => (setView('canvas'), addNote()) },
-    {
-      id: 'split',
-      kind: 'Action',
-      label: useStore.getState().sideDocId === null ? 'Open side by side' : 'Close the second pane',
-      icon: Columns2,
-      run: () => setSideBySide(useStore.getState().sideDocId === null),
-    },
+    ...(panes < paneRoom() ? [{ id: 'open-pane', kind: 'Action', label: panes === 1 ? 'Open side by side' : 'Open a third pane', icon: Columns2, run: openPane }] : []),
+    ...(panes > 1 ? [{ id: 'close-pane', kind: 'Action', label: 'Close the last pane', icon: Columns2, run: () => closePane((panes - 1) as 1 | 2) }] : []),
     ...(doc
       ? [
           { id: 'squeeze', kind: 'Action', label: 'Squeeze to highlights', icon: Zap, run: () => void collapseAround([doc.id], {}, 2) },
