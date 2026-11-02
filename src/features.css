@@ -68,3 +68,228 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* The steps down to a nested canvas, between its tabs and its cards. */
+.canvas-path {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  min-height: 40px;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.canvas-path ol {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+
+.canvas-path li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+}
+
+.canvas-path li button {
+  padding: 4px 8px;
+  font-size: 13.5px;
+}
+
+.canvas-path [aria-current='page'] {
+  padding: 4px 8px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab button.nested {
+  opacity: 1;
+}
+
+.tab button svg {
+  flex: none;
+}
+
+/* A nested canvas's card: its name, how many cards it holds, and the way in. */
+.card.canvas-card {
+  display: grid;
+  gap: 10px;
+  border-top: 4px solid var(--accent);
+  cursor: zoom-in;
+}
+
+.canvas-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.canvas-card input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+}
+
+.canvas-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.canvas-card .count {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.canvas-card footer button {
+  padding: 3px 10px;
+  font-size: 13px;
+}
+
+/* An ink box fills the size it was given, and its writing is cut to it. */
+.card.sketch {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background-image: radial-gradient(color-mix(in srgb, var(--muted) 35%, transparent) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.sketch-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.react-flow__node .sketch-edge {
+  border-color: var(--accent);
+}
+
+.react-flow__node .sketch-corner {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+}
+
+.card + .card-links {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  max-width: 280px;
+  margin-top: 6px;
+}
+
+/* Handwriting in a card, in the card's own units, over its text. */
+.card-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.card.sketch .card-ink {
+  overflow: hidden;
+}
+
+.tool-eraser .card-ink path {
+  pointer-events: visiblePainted;
+}
+
+.card-links .canvas-chip svg {
+  color: var(--accent);
+}
+
+/* The look of the canvas on show: notes take its colour. */
+.canvas.tinted .card.note,
+.canvas.tinted .card.sketch {
+  background-color: color-mix(in srgb, var(--card-tint) 30%, var(--panel));
+}
+
+.canvas-style {
+  display: grid;
+  gap: 8px;
+  padding: 6px 6px 8px;
+  width: 248px;
+}
+
+.canvas-style h3 {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.canvas-style .palette-grid {
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.canvas-style .palette-grid .swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
+}
+
+.menu.floating .canvas-style button.default {
+  justify-content: flex-start;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.canvas-style .default[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.menu.floating .segmented button {
+  flex: 1;
+  justify-content: center;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.canvas .react-flow {
+  --xy-background-pattern-lines-color-default: light-dark(#e4e5eb, #1e1e25);
+}

@@ -2,6 +2,7 @@ import { addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type Edge
 import { create } from 'zustand';
 import { before } from '../pdf/folds';
 import type { ConvertOptions, Input } from '../convert';
+import { dropOrphans } from '../canvases';
 import { migrate, prune } from '../links';
 import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
@@ -363,7 +364,7 @@ export function addHighlight(docId: string, parts: Part[], text: string, color: 
 }
 
 export const CARD_WIDTH = 280;
-const newCard = (data: CardData, position: XYPosition): Card => ({
+export const newCard = (data: CardData, position: XYPosition): Card => ({
   id: uid(),
   type: 'card',
   position,
@@ -427,18 +428,25 @@ export const recolor = (id: string, color: Color) =>
     highlights: p.highlights.map((h) => (h.id === id ? { ...h, color } : h)),
   }));
 
-/** Removes cards with their links, and the highlights of excerpts no other card still shows. */
+/**
+ * Removes cards with their links, and the highlights of excerpts no other card still shows. A
+ * canvas card takes its nested canvas with it, and everything on that.
+ */
 export function without(p: Project, removed: Set<string>, highlightIds = new Set<string>()): Partial<Project> {
   // A group goes with the cards inside it.
   const cardIds = new Set([...removed, ...p.cards.filter((c) => c.parentId && removed.has(c.parentId)).map((c) => c.id)]);
-  const cards = p.cards.filter((c) => !cardIds.has(c.id) && !(c.data.kind === 'excerpt' && highlightIds.has(c.data.highlightId)));
-  const shown = new Set(cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
-  const orphaned = new Set(p.cards.filter((c) => cardIds.has(c.id) && c.data.kind === 'excerpt').map((c) => (c.data as { highlightId: string }).highlightId));
+  const { canvases, cards } = dropOrphans(
+    p.canvases,
+    p.cards.filter((c) => !cardIds.has(c.id) && !(c.data.kind === 'excerpt' && highlightIds.has(c.data.highlightId))),
+  );
   const kept = new Set(cards.map((c) => c.id));
+  const shown = new Set(cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
+  const orphaned = new Set(p.cards.filter((c) => !kept.has(c.id) && c.data.kind === 'excerpt').map((c) => (c.data as { highlightId: string }).highlightId));
   const highlights = p.highlights.filter((h) => !highlightIds.has(h.id) && !(orphaned.has(h.id) && !shown.has(h.id)));
   return {
     cards,
     highlights,
+    ...(canvases === p.canvases ? {} : { canvases }),
     links: p.links.filter((l) => kept.has(l.source) && kept.has(l.target)),
     ...prune({ ...p, cards, highlights }),
   };
@@ -582,13 +590,13 @@ export function addCanvas() {
 
 export const renameCanvas = (id: string, name: string) => edit((p) => ({ canvases: p.canvases.map((c) => (c.id === id ? { ...c, name } : c)) }), false);
 
-/** Removes a canvas with its cards; the last canvas stays. */
+/** Removes a top-level canvas with its cards and the canvases nested in it; the last one stays. */
 export function removeCanvas(id: string) {
   const { project, canvasId } = get();
-  if (!project || project.canvases.length < 2) return;
+  if (!project || project.canvases.filter((c) => !c.parentId).length < 2) return;
   const onIt = new Set(project.cards.filter((c) => canvasOf(project, c) === id).map((c) => c.id));
-  edit((p) => ({ ...without(p, onIt), canvases: p.canvases.filter((c) => c.id !== id) }));
-  if (canvasId === id) set({ canvasId: get().project!.canvases[0]!.id });
+  edit((p) => without({ ...p, canvases: p.canvases.filter((c) => c.id !== id) }, onIt));
+  if (!get().project!.canvases.some((c) => c.id === canvasId)) set({ canvasId: get().project!.canvases[0]!.id });
 }
 export const setView = (view: State['view']) => set({ view });
 

@@ -2,6 +2,7 @@ import { useReactFlow, useStore as useFlow } from '@xyflow/react';
 import { Group, Trash2 } from 'lucide-react';
 import { group } from '../store/project';
 import type { Card, Link } from '../types';
+import { CanvasLinkButton } from './CardActions';
 
 /** Room kept between the bar and what it belongs to. */
 const GAP = 10;
@@ -56,6 +57,7 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
           <Group size={16} /> Group
         </button>
       )}
+      {nodes.length === 1 && !edges.length && nodes[0]!.data.kind !== 'group' && <CanvasLinkButton card={nodes[0]!} />}
       <button aria-label={`Delete ${what}`} title={`Delete ${what}`} onClick={() => void rf.deleteElements({ nodes, edges })}>
         <Trash2 size={16} /> Delete
       </button>

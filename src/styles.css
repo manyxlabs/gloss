@@ -1277,7 +1277,6 @@ a.button.primary {
   background: var(--hl);
 }
 
-
 /* An excerpt on the canvas is underlined in the document, so it is clear the passage was used. */
 .hl.linked {
   box-shadow: inset 0 -2px 0 var(--edge);

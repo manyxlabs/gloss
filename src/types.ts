@@ -71,7 +71,8 @@ export type ExcerptData = {
   highlightId: string;
   comment?: string;
 };
-export type NoteData = { kind: 'note'; text: string };
+/** `strokes` are handwriting over the note. */
+export type NoteData = { kind: 'note'; text: string; strokes?: Stroke[] };
 /** Handwriting on the canvas, in canvas units from the card's corner. */
 export type InkData = {
   kind: 'ink';
@@ -82,9 +83,24 @@ export type InkData = {
 };
 /** A collapsed group shows only its name and how many cards it holds; `openHeight` is its height when open. */
 export type GroupData = { kind: 'group'; title: string; collapsed?: boolean; openHeight?: number };
-/** Every card sits on one of the project's canvases; cards from before there were several have none and sit on the first. */
-export type CardData = (ExcerptData | NoteData | InkData | GroupData) & { canvasId?: string };
-export type CanvasMeta = { id: string; name: string };
+/** A stroke written inside a card, in canvas units from the card's corner. */
+export type Stroke = { id: string; points: Point[]; color: InkColor; size: number; pen: boolean };
+/** A box to write in by hand, sized by the reader. */
+export type SketchData = { kind: 'sketch'; strokes: Stroke[] };
+/** Opens canvas `target`, which is nested in the canvas this card is on and goes with the card. */
+export type CanvasCardData = { kind: 'canvas'; target: string };
+/**
+ * Every card sits on one of the project's canvases; cards from before there were several have none
+ * and sit on the first. `canvasLinks` are canvases the card leads to, each shown as a chip on it.
+ */
+export type CardData = (ExcerptData | NoteData | InkData | GroupData | SketchData | CanvasCardData) & { canvasId?: string; canvasLinks?: string[] };
+export type Background = 'dots' | 'grid' | 'plain';
+/**
+ * A canvas, at the top level or nested in `parentId` through a canvas card. Its look: the pattern
+ * behind the cards, the colour notes take, and an accent for what is chosen and for links. `local`
+ * keeps it, with everything on it and nested in it, on this device only, out of sync.
+ */
+export type CanvasMeta = { id: string; name: string; parentId?: string; background?: Background; cardColor?: Color; accent?: Color; local?: true };
 export type Card = Node<CardData, 'card'>;
 export type Link = Edge;
 

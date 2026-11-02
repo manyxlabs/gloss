@@ -1,3 +1,4 @@
+import { inkOf, inkSvg, type InkImage } from './inkImage';
 import { cite, commentOf, endsOf, quoted } from './links';
 import { cardText } from './search';
 import type { Card, Project } from './types';
@@ -5,9 +6,12 @@ import type { Card, Project } from './types';
 /**
  * `note` is the comment pinned to the passage in the document; `comment` is the one written on the card.
  * `links` are the cards a card is connected to, and `passages` the passages linked to it or to its passage, as cited.
+ * `ink` is handwriting, which exports draw as a picture.
  */
 export type NoteItem = { links: string[]; passages: string[] } & (
-  { kind: 'note'; text: string } | { kind: 'excerpt'; text: string; doc: string; page?: number; note?: string; comment?: string }
+  | { kind: 'note'; text: string; ink?: InkImage }
+  | { kind: 'sketch'; ink: InkImage }
+  | { kind: 'excerpt'; text: string; doc: string; page?: number; note?: string; comment?: string }
 );
 /** The notes in the order every export writes them: sections of cards (a group, or loose cards between groups), then highlights left in the documents. */
 export type Outline = {
@@ -45,7 +49,14 @@ export function outline(p: Project): Outline {
         const other = byId.get(id);
         return other && cardText(p, other) ? [title(other)] : [];
       });
-    if (d.kind === 'note') return d.text.trim() ? [{ kind: 'note', text: d.text.trim(), links, passages: linkedTo(c.id) }] : [];
+    if (d.kind === 'note') {
+      const ink = inkOf(d.strokes);
+      return d.text.trim() || ink ? [{ kind: 'note', text: d.text.trim(), ...(ink ? { ink } : {}), links, passages: linkedTo(c.id) }] : [];
+    }
+    if (d.kind === 'sketch') {
+      const ink = inkOf(d.strokes, c.width, c.height);
+      return ink ? [{ kind: 'sketch', ink, links, passages: linkedTo(c.id) }] : [];
+    }
     if (d.kind !== 'excerpt') return [];
     const h = p.highlights.find((x) => x.id === d.highlightId);
     if (!h) return [];
@@ -107,8 +118,10 @@ export function toMarkdown(p: Project) {
   for (const s of o.sections) {
     if (s.title !== undefined) out.push(`## ${s.title}`, '');
     for (const i of s.items) {
-      if (i.kind === 'note') out.push(i.text, '');
-      else {
+      if (i.kind !== 'excerpt') {
+        if (i.kind === 'note' && i.text) out.push(i.text, '');
+        if (i.ink) out.push(`![Handwriting](${inkSvg(i.ink)})`, '');
+      } else {
         out.push(quote(i.text), `> (${i.doc}, p. ${i.page})`, '');
         if (i.note) out.push(`Comment: ${i.note}`, '');
         if (i.comment) out.push(i.comment, '');
