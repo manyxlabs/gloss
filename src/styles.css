@@ -4760,14 +4760,19 @@ dialog.tags-dialog {
   translate: 12px 0;
 }
 
-/* The narrowest panes, such as half of two beside the canvas on a laptop, leave squeezing to the
-   palette and the search results, as the toolbar has no room left for it. */
+/* Narrow panes, such as a phone's or half of two beside the canvas on a laptop, have no room in
+   the toolbar for the squeeze button; the document's tab menu opens its panel instead. */
 .doc-pane {
   container: doc-pane / inline-size;
 }
 
-@container doc-pane (max-width: 339px) {
-  .collapse-wrap {
+@container doc-pane (max-width: 439px) {
+  .collapse-wrap > button {
     display: none;
   }
+}
+
+.selection-bar button.icon {
+  padding: 0;
+  color: var(--text);
 }

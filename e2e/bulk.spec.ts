@@ -242,9 +242,13 @@ test('on a phone, the actions on search results and the squeeze panel fit the sc
   }
   await allActions(page).getByRole('button', { name: 'Highlight all blue' }).tap();
   await expect(allActions(page).getByRole('status')).toHaveText('3 passages highlighted.');
-  await page.keyboard.press('Escape');
+  await searchbox(page).press('Escape');
+  await expect(results(page)).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Squeeze around highlights or words' }).tap();
+  // A phone's toolbar has no room for the squeeze button; the document's tab menu opens the panel.
+  await expect(page.getByRole('button', { name: 'Squeeze around highlights or words' })).toBeHidden();
+  await page.getByRole('button', { name: 'More for this document' }).tap();
+  await page.getByRole('menuitem', { name: 'Squeeze and defined terms…' }).tap();
   const panel = page.getByRole('dialog', { name: 'Squeeze the document' });
   const p = (await panel.boundingBox())!;
   expect(p.x).toBeGreaterThanOrEqual(0);

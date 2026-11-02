@@ -73,13 +73,13 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   Tag from a highlight's or a selection's toolbar (Highlight with tag), the comment editor or the canvas's selection bar, and rename, recolour, file, merge and delete tags in the tags manager.
   Filter by tag: the sidebar lists only the highlights that carry the tags chosen, and the canvas dims the rest.
 - **Squeeze to highlights or matches**: the squeeze button below a document hides everything but its highlights (of a colour or a tag, if chosen) or the matches of some words, with a chosen number of lines of context; Expand all opens it again.
-  In a pane too narrow for the button, the palette and the search results squeeze instead.
+  In a pane too narrow for the button, such as a phone's, the document's tab menu opens the same panel.
 - **Search all projects** from the start page: names, the text of every document, cards and comments, opening the project at what was found.
   Each document is read once into an index kept in the browser, which the page says while it happens.
 - **Jump by keyboard** with Ctrl+P or Ctrl+G: type a page number, or part of a document's name, a contents entry, a canvas, a tag or an action, then the arrow keys and Enter.
   It acts on the document pane last used.
 - **Defined terms** in contracts: terms defined as `"Term" means`, `"Term" shall mean`, `(the "Term")` or `(hereinafter "Term")` are underlined where they are used, and pointing at one, or tapping it, shows its definition with a way to go to it.
-  The book button below a document that defines terms turns this off and on.
+  The squeeze panel of a document that defines terms has a switch to turn this off and on.
 - **Undo and redo** with Ctrl+Z and Ctrl+Shift+Z, page edits included.
 - **Folders** on the start page: file projects in folders from a project's folder button or by dragging, rename, collapse and delete them (their projects are kept).
   Projects are listed by when they were last opened.
