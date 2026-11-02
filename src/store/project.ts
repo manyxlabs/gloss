@@ -5,6 +5,7 @@ import type { ConvertOptions, Input } from '../convert';
 import { migrate, prune } from '../links';
 import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
+import { paneRoom } from '../panes';
 import { passwordAsker } from '../password';
 import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
 
@@ -51,7 +52,7 @@ type State = {
   canvasId: string;
   /** A request for a document pane to scroll to a highlight, or to a page with a place on it or a search match; `at` makes a repeat request distinct. */
   jump:
-    | (({ highlightId: string } | { page: number; query?: string; dest?: unknown[] }) & {
+    | (({ highlightId: string } | { page: number; query?: string; dest?: unknown[]; y?: number }) & {
         pane: Pane;
         at: number;
       })
@@ -291,8 +292,9 @@ export const newProject = (name: string): Project => ({
 
 export const rename = (name: string) => edit(() => ({ name }), false);
 export const setActiveDoc = (docId: string, pane: Pane = 0) => set({ [PANES[pane]]: docId });
-/** How many document panes are open. */
+/** How many document panes are open, of which as many as there is room for are shown. */
 export const paneCount = (s: Pick<State, (typeof PANES)[number]>) => (s.thirdDocId !== null ? 3 : s.sideDocId !== null ? 2 : 1);
+export const shownPanes = (s: Pick<State, (typeof PANES)[number]>) => Math.min(paneCount(s), paneRoom());
 /** Opens another document pane to the right, showing a document the others do not, or another place in the last one. */
 export const openPane = () =>
   set((s) => {
@@ -306,7 +308,7 @@ export const closePane = (pane: 1 | 2) => set((s) => (pane === 1 ? { sideDocId: 
 /** The pane showing a document, the leftmost where several do; the main one where none does. */
 export const paneOf = (docId: string): Pane => {
   const s = get();
-  const at = PANES.slice(0, paneCount(s)).findIndex((k) => s[k] === docId);
+  const at = PANES.slice(0, shownPanes(s)).findIndex((k) => s[k] === docId);
   return (at < 0 ? 0 : at) as Pane;
 };
 export const rememberPage = (docId: string, lastPage: number) =>
@@ -318,7 +320,7 @@ export const rememberPage = (docId: string, lastPage: number) =>
   );
 
 /** Opens a PDF, asking for its password until it opens; null when the reader gives up. */
-async function openProtected(data: Blob, name: string) {
+export async function openProtected(data: Blob, name: string) {
   let password: string | undefined;
   for (;;) {
     try {
@@ -358,11 +360,12 @@ export async function importFiles(project: Project, inputs: Input[], options: Co
   return { project: next, problems };
 }
 
-export async function addDocs(files: Input[], options: ConvertOptions = {}) {
+/** Adds documents to the open project, each with `extra` to know it by, such as where it came from. */
+export async function addDocs(files: Input[], options: ConvertOptions = {}, extra: Pick<DocMeta, 'zotero'> = {}) {
   const { project } = get();
   if (!project) return [];
   const { project: next, problems } = await importFiles(project, files, options);
-  const added = next.docs.slice(project.docs.length);
+  const added = next.docs.slice(project.docs.length).map((d) => ({ ...d, ...extra }));
   const first = added[0];
   // Another edit may have landed while the files were read; only the documents are taken from `next`.
   // An empty project still unnamed takes the name of what it was given first.
@@ -581,19 +584,19 @@ export const showSource = (highlightId: string, inPane?: Pane) => {
   unfold((f) => f.docId === h.docId && before(f.from, spot) && before(spot, f.to));
   const pane = inPane ?? paneOf(h.docId);
   set({
-    ...(pane ? {} : { activeDocId: h.docId }),
+    [PANES[pane]]: h.docId,
     jump: { highlightId, pane, at: Date.now() },
     view: 'doc',
   });
 };
 
-/** Opens a document at a page: at a destination on it (from the PDF's contents), or at a search match there. */
-export const showPage = (docId: string, page: number, how: { query?: string; dest?: unknown[]; pane?: Pane } = {}) => {
+/** Opens a document at a page: at a destination on it (from the PDF's contents), a place down it (a fraction of its height), or a search match there. */
+export const showPage = (docId: string, page: number, how: { query?: string; dest?: unknown[]; y?: number; pane?: Pane } = {}) => {
   unfold((f) => f.docId === docId && f.from.page <= page && f.to.page >= page);
   const pane = how.pane ?? paneOf(docId);
   set({
-    ...(pane ? {} : { activeDocId: docId }),
-    jump: { page, query: how.query, dest: how.dest, pane, at: Date.now() },
+    [PANES[pane]]: docId,
+    jump: { page, query: how.query, dest: how.dest, y: how.y, pane, at: Date.now() },
     view: 'doc',
   });
 };

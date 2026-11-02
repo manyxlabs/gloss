@@ -53,7 +53,7 @@ export function textBoxes(range: Range) {
 }
 
 /** Joins the boxes of one line into a single bar, as pdf.js splits a line into many spans. */
-function mergeLines(rects: Rect[]): Rect[] {
+export function mergeLines(rects: Rect[]): Rect[] {
   const out: Rect[] = [];
   for (const r of [...rects].sort((a, b) => a[1] - b[1] || a[0] - b[0])) {
     const last = out.at(-1);

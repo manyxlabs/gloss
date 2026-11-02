@@ -1,7 +1,25 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Check, Columns2, Columns3, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
+import {
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  Columns2,
+  Columns3,
+  Copy,
+  FileDown,
+  FoldVertical,
+  Link2,
+  MessageSquare,
+  MessageSquarePlus,
+  Minus,
+  PanelLeft,
+  Pin,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
 import { outline, PAPER, pathOf } from '../ink';
@@ -30,6 +48,7 @@ import {
   PANES,
   setActiveDoc,
   showCard,
+  shownPanes,
   useStore,
   type Pane,
 } from '../store/project';
@@ -38,13 +57,16 @@ import { COLORS, type Color, type Point, type Rect } from '../types';
 import { LinkPopover } from './doc/LinkPopover';
 import { NoteEditor } from './doc/NoteEditor';
 import { paint, type PageView } from './doc/paint';
-import { Sidebar } from './doc/Sidebar';
+import { Sidebar, type Tab } from './doc/Sidebar';
+import { addBookmark } from '../store/bookmarks';
+import { moveDoc, orderedDocs } from '../store/docs';
+import { confirmRemove, DOC_MIME, DocList } from './DocList';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
 import { onTabKeys, revealTab } from './tabs';
 import { WebPicker } from './WebPicker';
 import { Tools } from './Tools';
-import { usePaneRoom } from './paneRoom';
+import { usePaneRoom } from '../panes';
 
 // pdf.js tidies its text layers on every keyup and selection change in the document, and that
 // change to the page ends the browser's undo step for typing in any field after one letter.
@@ -72,6 +94,9 @@ const POPUP_HALF_WIDTH = 190;
 const MIN_SNIP = 8;
 /** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
 const SIDEBAR_BESIDE = 560;
+
+/** The pane last pressed in, which Ctrl+D bookmarks. */
+let lastPane: Pane = 0;
 
 /** A position inside the scrolling content, so a popup scrolls with the page it belongs to, kept clear of the pane's sides. */
 function inScroller(c: HTMLElement, clientX: number, clientY: number) {
@@ -162,6 +187,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const snip = useRef<Snip | null>(null);
   const tabList = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const [sideTab, setSideTab] = useState<Tab>('contents');
+  const [freshMark, setFreshMark] = useState<string | null>(null);
+  const [marked, setMarked] = useState(false);
+  const [tabDrop, setTabDrop] = useState<{ id: string; after: boolean } | null>(null);
 
   useEffect(() => revealTab(tabList.current), [activeDocId, docs.length]);
 
@@ -396,6 +425,9 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if ('page' in jump) {
       if (jump.dest) void p.links.goToDestination(jump.dest);
       else p.viewer.currentPageNumber = jump.page;
+      const c = scroller.current!;
+      const spot = jump.y !== undefined && locate(c, jump.page, 0, jump.y);
+      if (spot) c.scrollTop += spot.y - c.getBoundingClientRect().top - 8;
       if (jump.query)
         p.bus.dispatch('find', {
           source: null,
@@ -662,6 +694,37 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const active = docs.find((d) => d.id === activeDocId);
   const ready = !!active && loaded === activeDocId;
   const error = failed && failed.docId === activeDocId ? failed.message : null;
+  /** Bookmarks the place at the top of the view, named after the words there, to be renamed in the sidebar if it is open. */
+  const bookmarkHere = async () => {
+    const c = scroller.current!;
+    if (!activeDocId || !ready) return;
+    const box = c.getBoundingClientRect();
+    const at = pointOnPage(c, box.left + box.width / 2, box.top + 12) ?? { page: status.page, fy: 0 };
+    const y = Math.max(0, Math.round((at.fy - 0.01) * 1e4) / 1e4);
+    const words = (await textIn(activeDocId, active?.password, at.page, [0, y, 1, 0.05]).catch(() => '')).split(' ').filter(Boolean);
+    const name = words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : `Page ${at.page}`;
+    const mark = addBookmark(activeDocId, at.page, y, name);
+    setMarked(true);
+    setTimeout(() => setMarked(false), 1200);
+    if (sidebar) {
+      setSideTab('contents');
+      setFreshMark(mark.id);
+    }
+  };
+  const onBookmarkKey = useEffectEvent((e: KeyboardEvent) => {
+    const t = e.target as HTMLElement;
+    const at = lastPane < shownPanes(useStore.getState()) ? lastPane : 0;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'd' || at !== pane || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+      return;
+    // The browser's own Ctrl+D bookmarks the whole app, which is never what is meant here.
+    e.preventDefault();
+    void bookmarkHere();
+  });
+  useEffect(() => {
+    addEventListener('keydown', onBookmarkKey);
+    return () => removeEventListener('keydown', onBookmarkKey);
+  }, []);
+
   const shown = popup?.docId === activeDocId ? popup : null;
   const highlight = shown && 'highlightId' in shown ? highlights.find((h) => h.id === shown.highlightId) : undefined;
   const card = highlight && cards.find((c) => c.data.kind === 'excerpt' && c.data.highlightId === highlight.id);
@@ -687,6 +750,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       }}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropping(false)}
       onDrop={onDrop}
+      onPointerDownCapture={() => (lastPane = pane)}
     >
       <div className="tabs">
         {active && (
@@ -701,27 +765,58 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             <PanelLeft size={16} />
           </button>
         )}
+        {docs.length > 0 && <DocList pane={pane} onProblems={onProblems} />}
         {/* Only the tabs scroll; the buttons around them stay in reach however many documents there are. */}
-        <div className="tab-list" role="tablist" aria-label="Open documents" ref={tabList} onKeyDown={onTabKeys}>
-          {docs.map((d) => (
-            <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
+        <div
+          className="tab-list"
+          role="tablist"
+          aria-label="Open documents"
+          ref={tabList}
+          onKeyDown={onTabKeys}
+          onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setTabDrop(null)}
+        >
+          {orderedDocs({ docs }).map((d, i, all) => (
+            <div
+              key={d.id}
+              className={`tab${d.id === activeDocId ? ' active' : ''}${d.pinned ? ' pinned' : ''}${tabDrop?.id === d.id ? (tabDrop.after ? ' drop-after' : ' drop-before') : ''}`}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DOC_MIME, d.id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(DOC_MIME)) return;
+                e.preventDefault();
+                const box = e.currentTarget.getBoundingClientRect();
+                setTabDrop({ id: d.id, after: e.clientX > box.left + box.width / 2 });
+              }}
+              onDrop={(e) => {
+                const id = e.dataTransfer.getData(DOC_MIME);
+                if (!id || !tabDrop) return;
+                e.preventDefault();
+                setTabDrop(null);
+                // Dropped among the pinned tabs, a tab is pinned too, and among the others it is not.
+                if (id !== d.id) moveDoc(id, tabDrop.after ? (all.slice(i + 1).find((x) => x.id !== id)?.id ?? null) : d.id, { pinned: !!d.pinned });
+              }}
+              onDragEnd={() => setTabDrop(null)}
+            >
               <button
                 role="tab"
                 aria-selected={d.id === activeDocId}
                 tabIndex={d.id === activeDocId ? 0 : -1}
                 onClick={() => setActiveDoc(d.id, pane)}
-                title={d.source ? `${d.name}\n${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}` : d.name}
+                title={[
+                  d.name,
+                  d.zotero && `${d.zotero.title}${d.zotero.citationKey ? ` (@${d.zotero.citationKey})` : ''}`,
+                  d.source && `${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}`,
+                ]
+                  .filter(Boolean)
+                  .join('\n')}
               >
+                {d.pinned && <Pin size={12} className="tab-pin" aria-label="Pinned" />}
                 {d.name}
               </button>
-              <button
-                className="close"
-                aria-label={`Remove ${d.name}`}
-                tabIndex={d.id === activeDocId ? 0 : -1}
-                onClick={() =>
-                  confirm(`Remove “${d.name}” from this project, with its highlights, comments and the excerpts made from it? Undo brings it all back.`) && removeDoc(d.id)
-                }
-              >
+              <button className="close" aria-label={`Remove ${d.name}`} tabIndex={d.id === activeDocId ? 0 : -1} onClick={() => confirmRemove(d)}>
                 ×
               </button>
             </div>
@@ -760,7 +855,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                   <X size={16} />
                 </button>
               )}
-              <Sidebar pane={pane} docId={active.id} page={status.page} onJump={() => narrow && setSidebar(false)} />
+              <Sidebar pane={pane} docId={active.id} page={status.page} tab={sideTab} onTab={setSideTab} fresh={freshMark} onJump={() => narrow && setSidebar(false)} />
             </aside>
           </>
         )}
@@ -952,6 +1047,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <Plus size={16} />
             </button>
           </span>
+          <button
+            className="icon"
+            aria-label={marked ? 'Bookmarked' : 'Bookmark this place'}
+            title={marked ? 'Bookmarked' : 'Bookmark this place (Ctrl+D)'}
+            onClick={() => void bookmarkHere()}
+          >
+            {marked ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
+          </button>
           <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>
