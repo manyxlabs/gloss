@@ -1,27 +1,13 @@
 import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFPage } from 'pdf-lib';
 import { outline, PAGE_PIXELS, PAPER } from '../ink';
 import { cite, commentOf, endsOf } from '../links';
+import { swatchOf } from '../palette';
 import { fileKey, getFile } from '../store/db';
 import type { Project } from '../types';
 import { bookmarksOf } from '../store/bookmarks';
 import { appendOutline, bookmarkEntries } from './outline';
 import { loadDoc } from './pdfjs';
 
-export const HIGHLIGHT: Record<string, string> = {
-  yellow: '#fde047',
-  green: '#86efac',
-  blue: '#93c5fd',
-  pink: '#f9a8d4',
-  purple: '#c4b5fd',
-};
-/** The darker shade each colour is outlined in, as on screen. */
-const EDGE: Record<string, string> = {
-  yellow: '#ca8a04',
-  green: '#16a34a',
-  blue: '#2563eb',
-  pink: '#db2777',
-  purple: '#7c3aed',
-};
 const BORDER = 1.5;
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 const n = (v: number) => +v.toFixed(3);
@@ -88,7 +74,7 @@ export async function annotatedPdf(project: Project, docId: string) {
 
   const comments = new Map(project.cards.flatMap((c) => (c.data.kind === 'excerpt' && c.data.comment?.trim() ? [[c.data.highlightId, c.data.comment.trim()]] : [])));
   for (const h of project.highlights.filter((x) => x.docId === docId)) {
-    const color = rgb(HIGHLIGHT[h.color]!);
+    const color = rgb(swatchOf(h.color).fill);
     // The comment in the margin and the one on the excerpt's card, when there are both.
     const others = endsOf(project, h.id).flatMap((e) => ('highlight' in e ? [e.highlight] : []));
     const note = [commentOf(project, h)?.text, comments.get(h.id), ...others.map((o) => `Linked passage: ${cite(project, o)}`)].filter(Boolean).join('\n\n');
@@ -117,7 +103,7 @@ export async function annotatedPdf(project: Project, docId: string) {
       const quads = part.rects.map(([x, y, w, hgt]) => [at(x, y), at(x + w, y), at(x, y + hgt), at(x + w, y + hgt)]);
       const rect = bounds(quads.flat());
       if (h.area) {
-        const edge = rgb(EDGE[h.color]!);
+        const edge = rgb(swatchOf(h.color).edge);
         // A page turned by a multiple of 90 degrees keeps the box square to the PDF's axes, so its bounds are the box.
         // The stroke is drawn inside them, so it is not cut off at the edges.
         const inset = BORDER / 2;

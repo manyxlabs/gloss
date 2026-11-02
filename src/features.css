@@ -1,0 +1,569 @@
+/* Styles for the palette, nested canvases and their style, handwriting in cards, copied links, mentions, notifications and privacy. */
+
+/* All 32 colours, under the toolbar that opened them. */
+.palette {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 0;
+  z-index: 30;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  white-space: normal;
+  /* Nearly opaque, like the toolbar it comes from, as it floats over the page's text. */
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  gap: 8px;
+}
+
+.palette-favourites {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-hint {
+  margin: 0;
+  max-width: 232px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.palette footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.palette footer button {
+  padding: 4px 8px !important;
+  font-size: 13px;
+}
+
+/* A ring clear of the swatch, which shows on a dark screen too, where a colour's edge is its fill. */
+.swatch.current {
+  outline: 2px solid var(--edge);
+  outline-offset: 1px;
+}
+
+.more-colors.other {
+  background: color-mix(in srgb, var(--hl) 40%, transparent) !important;
+}
+
+.more-colors.other svg {
+  color: var(--edge);
+}
+
+/* A toolbar wider than a phone goes onto two rows rather than off the screen. */
+.popup[role='toolbar'] {
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* The steps down to a nested canvas, between its tabs and its cards. */
+.canvas-path {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  min-height: 40px;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The canvases above give way, cut short, so the one on show is always whole. */
+.canvas-path ol {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+
+.canvas-path li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.canvas-path li:last-child {
+  flex: none;
+  max-width: 60%;
+}
+
+.canvas-path li button {
+  min-width: 2.5em;
+  max-width: 12em;
+  padding: 4px 8px;
+  font-size: 13.5px;
+}
+
+.canvas-path li button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-path li svg {
+  flex: none;
+}
+
+.canvas-path [aria-current='page'] {
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab button.nested {
+  opacity: 1;
+}
+
+.tab button svg {
+  flex: none;
+}
+
+/* A nested canvas's card: its name, how many cards it holds, and the way in. */
+.card.canvas-card {
+  display: grid;
+  gap: 10px;
+  border-top: 4px solid var(--accent);
+  cursor: zoom-in;
+}
+
+.canvas-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.canvas-card input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+}
+
+.canvas-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.canvas-card .count {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.canvas-card footer button {
+  padding: 3px 10px;
+  font-size: 13px;
+}
+
+/* An ink box fills the size it was given, and its writing is cut to it. */
+.card.sketch {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background-image: radial-gradient(color-mix(in srgb, var(--muted) 35%, transparent) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.sketch-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.react-flow__node .sketch-edge {
+  border-color: var(--accent);
+}
+
+.react-flow__node .sketch-corner {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+}
+
+.card + .card-links {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  max-width: 280px;
+  margin-top: 6px;
+}
+
+/* Handwriting in a card, in the card's own units, over its text. */
+.card-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.card.sketch .card-ink {
+  overflow: hidden;
+}
+
+.tool-eraser .card-ink path {
+  pointer-events: visiblePainted;
+}
+
+.card-links .canvas-chip svg {
+  color: var(--accent);
+}
+
+/* The look of the canvas on show: notes take its colour. */
+.canvas.tinted .card.note,
+.canvas.tinted .card.sketch {
+  background-color: color-mix(in srgb, var(--card-tint) 30%, var(--panel));
+}
+
+.canvas-style {
+  display: grid;
+  gap: 8px;
+  padding: 6px 6px 8px;
+  width: 248px;
+}
+
+.canvas-style h3 {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.canvas-style .palette-grid {
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.canvas-style .palette-grid .swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
+}
+
+.menu.floating .canvas-style button.default {
+  justify-content: flex-start;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.canvas-style .default[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.menu.floating .segmented button {
+  flex: 1;
+  justify-content: center;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.canvas .react-flow {
+  --xy-background-pattern-lines-color-default: light-dark(#e4e5eb, #1e1e25);
+}
+
+/* Gloss links in a note or comment, each leading to what it names. */
+.link-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  white-space: normal;
+}
+
+.link-chips a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.link-chips a:hover {
+  color: var(--accent);
+}
+
+.link-chips a svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.link-chips .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-chips .where {
+  flex: none;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.link-chips a.gone {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.selection-bar button span {
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .link-chips a {
+    min-height: 32px;
+  }
+}
+
+/* Only on this device: a switch, with what it means under it. */
+.private-switch {
+  display: grid;
+  gap: 4px;
+}
+
+.menu.floating .private-switch button {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 13.5px;
+}
+
+.private-switch button i {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  margin-left: auto;
+  border-radius: 9px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.private-switch button i::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: translate 0.15s;
+}
+
+.private-switch [aria-checked='true'] i {
+  background: var(--accent);
+}
+
+.private-switch [aria-checked='true'] i::after {
+  translate: 12px 0;
+}
+
+.private-switch p {
+  margin: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tab button .lock,
+.menu.floating .lock {
+  flex: none;
+  color: var(--accent);
+}
+
+.tab button .lock {
+  margin-right: 5px;
+}
+
+/* The bell in a shared project, with how many mentions and replies are unread on this device. */
+.bell {
+  position: relative;
+}
+
+.bell .badge {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--danger);
+  border: 2px solid var(--panel);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+.notices {
+  display: grid;
+  gap: 2px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 120px));
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.notices h3 {
+  margin: 8px 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.notices a,
+.notices .item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.notices a:hover,
+.notices a:focus-visible {
+  background: var(--panel-2);
+  outline: none;
+}
+
+.notices a.unread {
+  background: var(--accent-soft);
+}
+
+.notices .avatar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  border: 0;
+}
+
+.notices .what {
+  display: grid;
+  min-width: 0;
+}
+
+.notices q {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--muted);
+}
+
+.notices time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notices .none {
+  margin: 2px 8px 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Names to mention, under the field being typed in. */
+.mentions {
+  position: fixed;
+  z-index: 70;
+  min-width: 180px;
+  max-width: 280px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+}
+
+.mentions li {
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mentions li[aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+@media (pointer: coarse) {
+  .canvas-path li button,
+  .canvas-path .icon,
+  .canvas-card footer button,
+  .notices a {
+    min-height: 34px;
+  }
+
+  .palette-grid {
+    gap: 10px;
+  }
+}

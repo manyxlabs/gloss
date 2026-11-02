@@ -1,5 +1,6 @@
 import { useReactFlow, useStore as useFlow, useViewport, ViewportPortal } from '@xyflow/react';
 import { useEffect, useRef, useState } from 'react';
+import { isLocalCanvas } from '../canvases';
 import { useStore } from '../store/project';
 import { GUEST, presence, setName, useMe, useSync, type Presence } from '../sync/state';
 
@@ -94,7 +95,12 @@ export function Cursors() {
 
   useEffect(() => {
     if (!dom || !shared) return;
-    const move = (e: PointerEvent) => presence.update({ cursor: { canvasId, ...rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }) } });
+    const move = (e: PointerEvent) => {
+      const project = useStore.getState().project;
+      // A canvas kept on this device is not named to the others, even by its id.
+      if (project && isLocalCanvas(project, canvasId)) return presence.update({ cursor: undefined });
+      presence.update({ cursor: { canvasId, ...rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }) } });
+    };
     const leave = () => presence.update({ cursor: undefined });
     dom.addEventListener('pointermove', move);
     dom.addEventListener('pointerleave', leave);

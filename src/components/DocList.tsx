@@ -1,12 +1,11 @@
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Ellipsis, FileText, FileUp, Files, Folder, FolderInput, FolderPlus, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Ellipsis, FileText, Files, Folder, FolderPlus, Pencil, Pin, Trash2 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { addDocFolder, moveDoc, orderedDocs, placeDoc, removeDocFolder, renameDocFolder, type Place } from '../store/docs';
 import { PANES, removeDoc, setActiveDoc, useStore, type Pane } from '../store/project';
-import type { DocFolder, DocMeta, ZoteroItem } from '../types';
+import type { DocFolder, DocMeta } from '../types';
 import { byline } from '../zotero';
 import { Menu } from './Menu';
-import { ReplaceDialog } from './ReplaceDialog';
-import { ZoteroDialog } from './ZoteroDialog';
+import { DocActions, openDocDialog } from './DocActions';
 
 /** Dragged between tabs and rows of the list to reorder documents. */
 export const DOC_MIME = 'application/x-gloss-doc';
@@ -14,17 +13,13 @@ export const DOC_MIME = 'application/x-gloss-doc';
 export const confirmRemove = (d: DocMeta) =>
   confirm(`Remove “${d.name}” from this project, with its highlights, comments and the excerpts made from it? Undo brings it all back.`) && removeDoc(d.id);
 
-type Dialog = { replace: DocMeta } | { zotero: true } | { send: DocMeta & { zotero: ZoteroItem } };
-
 /**
  * Every document of the project in one list, opened from the tabs: pinned ones first, then each
  * folder, then the rest. Documents are opened in this pane, pinned, filed, reordered by dragging or
  * from their menu, replaced with a newer version, and imported from Zotero.
  */
-export function DocList({ pane, onProblems }: { pane: Pane; onProblems: (problems: string[]) => void }) {
+export function DocList({ pane }: { pane: Pane }) {
   const [open, setOpen] = useState<HTMLElement | null>(null);
-  const [dialog, setDialog] = useState<Dialog | null>(null);
-  const show = (d: Dialog) => (setOpen(null), setDialog(d));
   return (
     <>
       <button
@@ -38,17 +33,15 @@ export function DocList({ pane, onProblems }: { pane: Pane; onProblems: (problem
         <Files size={16} />
       </button>
       {open && (
-        <Menu anchor={open} label="All documents" panel="doc-list" onClose={() => setOpen(null)}>
-          <Panel pane={pane} onDone={() => setOpen(null)} onDialog={show} />
+        <Menu anchor={open} label="All documents" role="dialog" className="doc-list" onClose={() => setOpen(null)}>
+          <Panel pane={pane} onDone={() => setOpen(null)} />
         </Menu>
       )}
-      {dialog && 'replace' in dialog && <ReplaceDialog doc={dialog.replace} onClose={() => setDialog(null)} />}
-      {dialog && !('replace' in dialog) && <ZoteroDialog send={'send' in dialog ? dialog.send : undefined} onClose={() => setDialog(null)} onProblems={onProblems} />}
     </>
   );
 }
 
-function Panel({ pane, onDone, onDialog }: { pane: Pane; onDone: () => void; onDialog: (d: Dialog) => void }) {
+function Panel({ pane, onDone }: { pane: Pane; onDone: () => void }) {
   const project = useStore((s) => s.project);
   const current = useStore((s) => s[PANES[pane]]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -136,39 +129,16 @@ function Panel({ pane, onDone, onDialog }: { pane: Pane; onDone: () => void; onD
 
   const docMenu = (d: DocMeta) => {
     const i = docs.findIndex((x) => x.id === d.id);
-    const zotero = d.zotero;
     const close = () => setMenu(null);
     return (
       <>
-        <button role="menuitem" onClick={() => (placeDoc(d.id, { pinned: !d.pinned }), close())}>
-          {d.pinned ? <PinOff size={16} /> : <Pin size={16} />} {d.pinned ? 'Unpin' : 'Pin'}
-        </button>
         <button role="menuitem" disabled={i === 0} onClick={() => (moveDoc(d.id, docs[i - 1]!.id, { pinned: !!docs[i - 1]!.pinned }), close())}>
           <ArrowUp size={16} /> Move up
         </button>
         <button role="menuitem" disabled={i === docs.length - 1} onClick={() => (moveDoc(d.id, docs[i + 2]?.id ?? null, { pinned: !!docs[i + 1]!.pinned }), close())}>
           <ArrowDown size={16} /> Move down
         </button>
-        {folders.length > 0 && <hr />}
-        {folders.map((f) => (
-          <button key={f.id} role="menuitemradio" aria-checked={d.folder === f.id} onClick={() => (placeDoc(d.id, { folder: f.id }), close())}>
-            <FolderInput size={16} /> In {f.name}
-          </button>
-        ))}
-        {folders.length > 0 && (
-          <button role="menuitemradio" aria-checked={!(d.folder && known.has(d.folder))} onClick={() => (placeDoc(d.id, { folder: null }), close())}>
-            <FolderInput size={16} /> In no folder
-          </button>
-        )}
-        <hr />
-        <button role="menuitem" onClick={() => onDialog({ replace: d })}>
-          <FileUp size={16} /> Replace with a newer version…
-        </button>
-        {zotero && (
-          <button role="menuitem" onClick={() => onDialog({ send: { ...d, zotero } })}>
-            <BookOpen size={16} /> Send notes to Zotero…
-          </button>
-        )}
+        <DocActions doc={d} onClose={close} />
         <hr />
         <button role="menuitem" className="danger" onClick={() => (close(), confirmRemove(d))}>
           <Trash2 size={16} /> Remove from project
@@ -184,7 +154,7 @@ function Panel({ pane, onDone, onDialog }: { pane: Pane; onDone: () => void; onD
         <button className="icon" aria-label="New folder" title="New folder" onClick={() => setRenaming(addDocFolder('New folder'))}>
           <FolderPlus size={16} />
         </button>
-        <button className="icon" aria-label="Add from Zotero" title="Add from your Zotero library" onClick={() => onDialog({ zotero: true })}>
+        <button className="icon" aria-label="Add from Zotero" title="Add from your Zotero library" onClick={() => (onDone(), openDocDialog({ zotero: true }))}>
           <BookOpen size={16} />
         </button>
       </div>

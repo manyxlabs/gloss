@@ -1,5 +1,6 @@
 import { Fragment, useRef, useState } from 'react';
 import { paneCount, useStore, type Pane } from '../store/project';
+import { DocDialogs } from './DocActions';
 import { DocPane } from './DocPane';
 import { LinkBanner } from './LinkBanner';
 import { usePaneRoom } from '../panes';
@@ -63,6 +64,7 @@ export function DocPanes({ onProblems }: { onProblems: (problems: string[]) => v
         </Fragment>
       ))}
       <LinkBanner />
+      <DocDialogs onProblems={onProblems} />
     </div>
   );
 }

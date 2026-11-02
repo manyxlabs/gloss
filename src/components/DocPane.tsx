@@ -9,6 +9,7 @@ import {
   FileDown,
   FoldVertical,
   Link2,
+  Lock,
   MessageSquare,
   MessageSquarePlus,
   Minus,
@@ -26,6 +27,7 @@ import { outline, PAPER, pathOf } from '../ink';
 import { commentOf } from '../links';
 import { highlightAt, locate, pageAt, pointOnPage, selectionAnchor, textBoxes, type Anchor } from '../pdf/anchor';
 import { annotatedPdf } from '../pdf/annotate';
+import { keepStroke } from '../pdf/lasso';
 import { layoutFolds, refreshTails } from '../pdf/folds';
 import { loadDoc, textIn } from '../pdf/pdfjs';
 import { shownLook, useReading } from '../reading';
@@ -33,7 +35,6 @@ import {
   addDocs,
   addFold,
   addHighlight,
-  addInk,
   excerpt,
   jumped,
   notePen,
@@ -54,7 +55,10 @@ import {
   type Pane,
 } from '../store/project';
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
-import { COLORS, type Color, type Point, type Rect } from '../types';
+import type { Color, Point, Rect } from '../types';
+import { ColorPicker } from './ColorPicker';
+import { CopyLink } from './LinkChips';
+import { DocMenu } from './doc/DocMenu';
 import { LinkPopover } from './doc/LinkPopover';
 import { AnnotsBanner } from './doc/AnnotsBanner';
 import { PageLookMenu } from './doc/PageLookMenu';
@@ -93,7 +97,7 @@ const FLASH_MS = 1600;
 export const INK_SIZE = 0.005;
 /** Fingers brought this close together, from where they started, squeeze the text between them. */
 const SQUEEZE_AT = 0.6;
-const POPUP_HALF_WIDTH = 190;
+const POPUP_HALF_WIDTH = 240;
 /** A box smaller than this, in screen pixels, was a click rather than a snip. */
 const MIN_SNIP = 8;
 /** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
@@ -552,8 +556,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const s = stroke.current;
     stroke.current = null;
     drawLive(null);
-    // Strokes are kept in fractions of the page's width and height.
-    if (s && activeDocId) addInk(activeDocId, s.page, s.points, INK_SIZE, s.pen);
+    // Strokes are kept in fractions of the page's width and height; a loop excerpts what it goes round.
+    if (s && activeDocId) void keepStroke(scroller.current!, activeDocId, active?.password, s, INK_SIZE, color);
   };
 
   /** The box being snipped as page fractions, kept to the page and to the stretch of it in view. */
@@ -789,7 +793,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             <PanelLeft size={16} />
           </button>
         )}
-        {docs.length > 0 && <DocList pane={pane} onProblems={onProblems} />}
+        {docs.length > 0 && <DocList pane={pane} />}
         {/* Only the tabs scroll; the buttons around them stay in reach however many documents there are. */}
         <div
           className="tab-list"
@@ -838,8 +842,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                   .join('\n')}
               >
                 {d.pinned && <Pin size={12} className="tab-pin" aria-label="Pinned" />}
+                {d.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {d.name}
               </button>
+              {d.id === activeDocId && <DocMenu doc={d} />}
               <button className="close" aria-label={`Remove ${d.name}`} tabIndex={d.id === activeDocId ? 0 : -1} onClick={() => confirmRemove(d)}>
                 ×
               </button>
@@ -898,6 +904,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           {shown?.editing && ('anchor' in shown || highlight) && (
             <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Comment">
               <NoteEditor
+                commentId={comment?.id}
                 note={comment?.text}
                 shared={comment ? highlights.filter((h) => h.commentId === comment.id).length : 1}
                 onCancel={() => setPopup(null)}
@@ -923,18 +930,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <button className="primary" onClick={() => excerpt(fromSelection(shown.anchor, color).id)}>
                 Excerpt
               </button>
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={`swatch hl-${c}${c === color ? ' current' : ''}`}
-                  aria-label={`Highlight ${c}`}
-                  title={`Highlight ${c}`}
-                  onClick={() => {
-                    setColor(c);
-                    fromSelection(shown.anchor, c);
-                  }}
-                />
-              ))}
+              <ColorPicker
+                current={color}
+                label={(name) => `Highlight ${name}`}
+                onPick={(c) => {
+                  setColor(c);
+                  fromSelection(shown.anchor, c);
+                }}
+              />
               <span className="sep" />
               <button
                 className="icon"
@@ -995,15 +998,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                   Excerpt
                 </button>
               )}
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={`swatch hl-${c}${c === highlight.color ? ' current' : ''}`}
-                  aria-label={`Make it ${c}`}
-                  title={`Make it ${c}`}
-                  onClick={() => recolor(highlight.id, c)}
-                />
-              ))}
+              <ColorPicker current={highlight.color} label={(name) => `Make it ${name}`} onPick={(c) => recolor(highlight.id, c)} />
               <span className="sep" />
               <button
                 className="icon"
@@ -1016,6 +1011,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <button className="icon" aria-label="Link" title="Link this passage to another" onClick={() => (setPopup(null), startLinking({ kind: 'link', from: highlight.id }))}>
                 <Link2 size={16} />
               </button>
+              <CopyLink target={{ kind: 'h', id: highlight.id }} />
               <button className="icon" aria-label="Delete" title="Delete highlight" onClick={() => (setPopup(null), removeHighlight(highlight.id))}>
                 <Trash2 size={16} />
               </button>
