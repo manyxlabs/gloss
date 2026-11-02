@@ -1364,20 +1364,19 @@ a.button.primary {
   border-radius: 14px;
 }
 
-/* In a pane too narrow for it, as one of three, the toolbar wraps onto a second row. */
+/* Popups measure their room by the pane's width (see features.css), as one of three panes is narrow. */
 .doc-scroll {
   container-type: inline-size;
 }
 
-.popup {
-  width: max-content;
-  max-width: calc(100cqw - 12px);
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
 .tight .zoom .scale {
   display: none;
+}
+
+/* Narrower still, as the narrowest of three panes, the document toolbar wraps onto a second row. */
+.tight .doc-status {
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* On touch screens the system's own copy menu sits above a selection, so ours goes below it. */

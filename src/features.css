@@ -64,7 +64,8 @@
 /* A toolbar wider than a phone goes onto two rows rather than off the screen. */
 .popup[role='toolbar'] {
   width: max-content;
-  max-width: calc(100vw - 16px);
+  /* Inside its pane too, as one of three may be narrower than the screen. */
+  max-width: min(100vw - 16px, 100cqw - 12px);
   flex-wrap: wrap;
   justify-content: center;
 }
