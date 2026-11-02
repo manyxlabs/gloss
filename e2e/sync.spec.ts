@@ -186,7 +186,7 @@ test('share a project, edit it together and offline, and keep the server blind',
   });
 });
 
-test('a second canvas, a margin comment and a password protected PDF all reach the other device', async ({ browser }) => {
+test('a second canvas, a margin comment on two passages, a passage link and a password protected PDF all reach the other device', async ({ browser }) => {
   test.setTimeout(120_000);
   const a = await device(browser);
   const b = await device(browser);
@@ -203,7 +203,15 @@ test('a second canvas, a margin comment and a password protected PDF all reach t
   await select(a.page, 'Coral reefs occupy');
   await a.page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Comment' }).click();
   await a.page.keyboard.type('Check the survey');
-  await a.page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Save' }).click();
+  await a.page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Attach to another passage' }).click();
+  await select(a.page, 'Rising sea temperatures');
+  await expect(a.page.locator('.page:not([data-copy]) .note-mark')).toHaveCount(2);
+  // A link from the first passage to the one above it.
+  const coral = (await a.page.locator('.textLayer span', { hasText: 'Coral reefs occupy' }).first().boundingBox())!;
+  await a.page.mouse.click(coral.x + 30, coral.y + coral.height / 2);
+  await a.page.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Link' }).click();
+  await select(a.page, 'The ocean covers');
+  await expect(a.page.locator('.page:not([data-copy]) .link-mark')).toHaveCount(2);
 
   const tabs = (page: Page) => page.getByRole('tablist', { name: 'Canvases' });
   await tabs(a.page).getByRole('button', { name: 'New canvas' }).click();
@@ -220,9 +228,18 @@ test('a second canvas, a margin comment and a password protected PDF all reach t
   await b.page.goto(link);
   await giveName(b.page, 'Ben');
   await synced(b.page);
-  // The comment's marker sits beside its passage.
+  // The comment's marker sits beside both its passages, and the link's beside both of its own.
   await b.page.getByRole('tab', { name: 'Reef essay' }).click();
-  await expect(b.page.locator('.page:not([data-copy]) .note-mark')).toHaveCount(1);
+  const comments = b.page.locator('.page:not([data-copy]) .note-mark');
+  await expect(comments).toHaveCount(2);
+  await expect(b.page.locator('.page:not([data-copy]) .link-mark')).toHaveCount(2);
+  await b.page.locator('.page:not([data-copy]) .link-mark').first().click();
+  await expect(b.page.getByRole('dialog', { name: 'Linked passages' })).toContainText('The ocean covers');
+  // Edited on one device beside one passage, the comment changes beside both on the other.
+  await a.page.locator('.page:not([data-copy]) .note-mark').last().click();
+  await a.page.getByRole('dialog', { name: 'Comment' }).getByRole('textbox').fill('Check the survey again');
+  await a.page.keyboard.press('Control+Enter');
+  for (const mark of [comments.first(), comments.last()]) await expect(mark).toHaveAttribute('title', 'Check the survey again');
   // The second canvas and its note.
   await expect(tabs(b.page).getByRole('tab')).toHaveCount(2);
   await tabs(b.page).getByRole('tab', { name: 'Canvas 2' }).click();
