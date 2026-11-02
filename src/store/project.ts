@@ -163,20 +163,45 @@ export function panesShowing(s: Pick<State, (typeof PANES)[number]>, shown: (id:
 export const undo = () => travel('past');
 export const redo = () => travel('future');
 
-// Saving: the record is rewritten shortly after each change, and at once when the page is hidden.
+// Saving: the record is rewritten shortly after a change, and at once when the page is hidden. A
+// change does not put off a save already due, so a stream of edits is saved as it goes.
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+/** The record being written, until the write is done. */
+let writing: Project | null = null;
 const save = () => {
   clearTimeout(saveTimer);
+  saveTimer = undefined;
   const { project } = get();
-  if (project) void putProject({ ...project, cards: project.cards.map(storedCard) });
+  if (!project) return;
+  const record = { ...project, cards: project.cards.map(storedCard) };
+  writing = record;
+  void putProject(record).then(() => writing === record && (writing = null));
 };
 useStore.subscribe((s, prev) => {
-  if (s.project && s.project !== prev.project && s.project.id === prev.project?.id) {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 300);
+  if (s.project && s.project !== prev.project && s.project.id === prev.project?.id) saveTimer ??= setTimeout(save, 300);
+});
+/** A copy of a record whose write had not finished as the page closed: the browser drops such writes with the page. */
+const UNSAVED = 'gloss:unsaved';
+addEventListener('pagehide', () => {
+  save();
+  try {
+    if (writing) localStorage.setItem(UNSAVED, JSON.stringify(writing));
+  } catch {
+    // Storage blocked or full: only the last moment's edits can be lost.
   }
 });
-addEventListener('pagehide', save);
+/** The copy kept as the page closed, when it is of this project and newer than its record; taken once. */
+function unsaved(id: string, record: Project | undefined) {
+  try {
+    const kept = localStorage.getItem(UNSAVED);
+    if (kept === null) return undefined;
+    localStorage.removeItem(UNSAVED);
+    const p = JSON.parse(kept) as Project;
+    return p.id === id && p.updatedAt > (record?.updatedAt ?? Infinity) ? p : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Files the project stopped showing: versions a page edit, an undo or another device replaced,
@@ -225,7 +250,8 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
 });
 
 export async function openProject(id: string) {
-  const found = await getProject(id);
+  const record = await getProject(id);
+  const found = unsaved(id, record) ?? record;
   const stored = found && { ...found, openedAt: Date.now() };
   if (stored) {
     void putProject(stored);

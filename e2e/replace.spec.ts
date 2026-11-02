@@ -163,6 +163,7 @@ test('a document replaced on a phone reports in a dialog that fits the screen', 
   await openProject(page);
   await select(page, 'Coral reefs occupy');
   await selection(page).getByRole('button', { name: 'Highlight blue' }).click();
+  await page.getByRole('button', { name: 'Use dark theme' }).tap();
   const dialog = await replaceWith(page, REVISED);
   await expect(dialog.getByRole('status')).toContainText('1 highlight is on the same words');
   const box = (await dialog.boundingBox())!;

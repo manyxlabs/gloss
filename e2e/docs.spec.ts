@@ -98,6 +98,7 @@ test('on a phone, the list of documents fits the screen and opens one', async ({
   const page = await context.newPage();
   await openProject(page);
   await addGuide(page);
+  await page.getByRole('button', { name: 'Use dark theme' }).tap();
   await page.getByRole('button', { name: 'All documents' }).first().tap();
   const box = (await panel(page).boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);

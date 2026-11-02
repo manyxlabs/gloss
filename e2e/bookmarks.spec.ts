@@ -122,6 +122,7 @@ test('on a phone, the toolbar bookmarks and the sidebar lists them over the page
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await openProject(page);
+  await page.getByRole('button', { name: 'Use dark theme' }).tap();
   await page.getByRole('button', { name: 'Bookmark this place' }).tap();
   await page.getByRole('button', { name: 'Contents, pages and highlights' }).first().tap();
   await expect(marks(page)).toHaveText([/^The ocean covers.*p\. 1$/]);
