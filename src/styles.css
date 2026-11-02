@@ -2827,3 +2827,73 @@ button.icon.danger:hover:not(:disabled) {
     display: inline-flex;
   }
 }
+
+/* Page colours (reading.ts), set on the root element so every pane, squeeze copy and thumbnail follows.
+   Dark pages are the page turned negative, with hues turned back, so colours keep their hue; a
+   little short of full so the page is not black and the text not white. Handwriting turns with
+   the page, so ink stays readable. Pictures can be put back over it as they are (doc/photos.ts). */
+:root {
+  --page-dark: invert(0.88) hue-rotate(180deg);
+  --page-sepia: #f4ecd8;
+}
+
+:root[data-pages='dark'] .pdfViewer {
+  /* White under the filter. */
+  --page-bg-color: #1f1f1f;
+}
+
+:root[data-pages='dark'] .pdfViewer .canvasWrapper > canvas,
+:root[data-pages='dark'] .pdfViewer .ink-layer,
+:root[data-pages='dark'] .doc-body > .ink-live,
+:root[data-pages='dark'] .thumb img:not(.thumb-photo) {
+  filter: var(--page-dark);
+}
+
+:root[data-pages='dark'] .thumb {
+  background: #1f1f1f;
+}
+
+.thumb {
+  position: relative;
+}
+
+.thumb .thumb-photo {
+  position: absolute;
+  inset: 0;
+}
+
+/* Multiplied with a dark page a highlight is black; laid over it, thinly, it keeps its hue. */
+:root[data-pages='dark'] .hl:not(.area) {
+  mix-blend-mode: normal;
+  opacity: 0.42;
+}
+
+.photo-layer {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+:root[data-pages='dark'] .photo-layer {
+  display: block;
+}
+
+.photo-layer canvas {
+  position: absolute;
+}
+
+:root[data-pages='sepia'] .pdfViewer {
+  --page-bg-color: var(--page-sepia);
+}
+
+/* Paper tinted by multiplying, which leaves the text dark and the highlights as they are. */
+:root[data-pages='sepia'] .pdfViewer .canvasWrapper::after,
+:root[data-pages='sepia'] .thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--page-sepia);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
