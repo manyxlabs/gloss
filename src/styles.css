@@ -1571,14 +1571,24 @@ button.link:hover:not(:disabled) {
 }
 
 .card.selected {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 1px var(--accent),
-    0 10px 24px -12px var(--shadow-tint);
+  /* One ring, clear of the card, so an excerpt's coloured edge does not read as a second. */
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 10px 24px -12px var(--shadow-tint);
 }
 
-.card.excerpt.selected {
-  border-left-color: var(--edge);
+.card blockquote.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card .more {
+  margin-top: 4px;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--accent);
 }
 
 .card blockquote {
@@ -2394,4 +2404,88 @@ dialog.sheet::backdrop {
 .marks .end .text {
   flex: 1;
   font-size: 13px;
+}
+
+/* Undo and redo, beside the project's name. */
+.bar .history {
+  display: flex;
+  flex: none;
+}
+
+/* What can be done to the cards and links chosen on the canvas, above them. */
+.selection-bar {
+  position: absolute;
+  z-index: 6;
+  translate: -50% 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    var(--shadow);
+}
+
+.selection-bar button {
+  border-color: transparent;
+  background: transparent;
+  padding: 5px 10px;
+}
+
+.selection-bar button:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+/* Others' pointers stay above the cards they move over; they never take a click. */
+.canvas .react-flow__viewport-portal {
+  z-index: 2000;
+  pointer-events: none;
+}
+
+/* Kept, as the library asks, but quietly. */
+.canvas .react-flow__attribution {
+  opacity: 0.5;
+  font-size: 9px;
+}
+
+.canvas .react-flow__attribution a {
+  color: var(--muted);
+}
+
+/* Words for touch screens and for a mouse, where they differ. */
+.touch-only {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .mouse-only {
+    display: none;
+  }
+
+  .touch-only {
+    display: inline;
+  }
+}
+
+/* Ctrl+A and stray drags select the documents' text, not the app around them. */
+.bar,
+.switch,
+.tabs,
+.doc-status,
+.canvas,
+.popup,
+.selection-bar,
+.side-tabs {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.bar input,
+.canvas textarea,
+.canvas input,
+.popup textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }

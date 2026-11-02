@@ -43,6 +43,8 @@ type State = {
     | null;
   /** A request for the canvas to bring a card into view. */
   focus: { cardId: string; at: number } | null;
+  /** The card just made here, a note or a group, whose field takes the focus as it appears; not one brought back by undo or from another device. */
+  fresh: string | null;
   /** Which side a phone shows; a request to show a card or a source switches it. */
   view: 'doc' | 'canvas';
   past: Snapshot[];
@@ -75,6 +77,7 @@ export const useStore = create<State>(() => ({
   canvasId: MAIN_CANVAS,
   jump: null,
   focus: null,
+  fresh: null,
   view: 'doc',
   past: [],
   future: [],
@@ -146,7 +149,7 @@ const storedCard = ({ id, type, position, data, width, height, parentId }: Card)
   data,
   ...(width ? { width } : {}),
   ...(height ? { height } : {}),
-  ...(parentId ? { parentId, expandParent: true } : {}),
+  ...(parentId ? { parentId } : {}),
 });
 
 export async function openProject(id: string) {
@@ -312,11 +315,35 @@ export function excerpt(highlightId: string, position = canvasSpot.next()) {
   return card;
 }
 
+/** A note's or a card comment's text, which is typed in place. */
+const typed = (c?: Card) => (c?.data.kind === 'note' ? c.data.text : c?.data.kind === 'excerpt' ? (c.data.comment ?? '') : undefined);
+type Typing = { before: Snapshot; top: Snapshot | undefined };
+
+/** Typing in a card is one undo step, taken from the state when its field was entered. */
+export const startTyping = (): Typing | null => {
+  const { project, past } = get();
+  return project && { before: snapshot(project), top: past.at(-1) };
+};
+
+/** Ends typing in a card. A note left empty goes; a new one goes with the step that made it, as if never written. */
+export function stopTyping({ before, top }: Typing, cardId: string) {
+  const { project, past } = get();
+  const card = project?.cards.find((c) => c.id === cardId);
+  if (!project || !card) return;
+  const was = before.cards.find((c) => c.id === cardId);
+  const changed = typed(card) !== typed(was);
+  if (changed) set({ past: [...past.slice(-MAX_UNDO + 1), before], future: [] });
+  if (card.data.kind !== 'note' || card.data.text.trim()) return;
+  if (!changed && past.at(-1) === top && top && !top.cards.some((c) => c.id === cardId)) set({ past: past.slice(0, -1) });
+  edit((p) => without(p, new Set([cardId])), false);
+}
+
 export function addNote(position = canvasSpot.next(), text = '') {
   const card = newCard({ kind: 'note', text }, position);
   edit((p) => ({
     cards: [...p.cards.map((c) => ({ ...c, selected: false })), card],
   }));
+  set({ fresh: card.id });
   return card;
 }
 
@@ -356,12 +383,58 @@ export function onCardsChange(changes: NodeChange<Card>[]) {
   const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])));
   // Drags and resizes take their undo step when they start (see the canvas), not on every frame.
   edit((p) => {
-    const cards = applyNodeChanges(
+    let cards = applyNodeChanges(
       changes.filter((c) => c.type !== 'remove'),
       p.cards,
     );
+    for (const c of changes) {
+      const old = c.type === 'dimensions' && p.cards.find((x) => x.id === c.id);
+      if (old && old.data.kind !== 'group' && old.measured?.height && c.dimensions && c.dimensions.height > old.measured.height + 1)
+        cards = grown(cards, c.id, old.measured.height);
+    }
+    // A group deleted on its own leaves its cards on the canvas; only cards chosen with it go too.
+    for (const c of cards) if (c.data.kind === 'group' && removed.has(c.id)) cards = ungroupIn(cards, c.id, removed);
     return removed.size ? without({ ...p, cards }, removed) : { cards };
   }, removed.size > 0);
+}
+
+const sizeOf = (c: Card) => ({ w: c.measured?.width ?? c.width ?? CARD_WIDTH, h: c.measured?.height ?? c.height ?? 100 });
+const NUDGE_GAP = 16;
+
+/**
+ * A card that grew, as when a comment is added to it, pushes the cards just below it down, and
+ * they push theirs, so nothing ends up hidden under it. Its group grows to hold it.
+ */
+function grown(cards: Card[], id: string, oldHeight: number) {
+  const out = new Map(cards.map((c) => [c.id, c]));
+  const queue: [string, number][] = [[id, out.get(id)!.position.y + oldHeight]];
+  for (let q = queue.shift(), guard = 0; q && guard < cards.length * 4; q = queue.shift(), guard++) {
+    const [moverId, oldBottom] = q;
+    const mover = out.get(moverId)!;
+    const { w, h } = sizeOf(mover);
+    const bottom = mover.position.y + h;
+    for (const c of out.values()) {
+      if (c.id === moverId || c.parentId !== mover.parentId || c.data.kind === 'group' || c.data.canvasId !== mover.data.canvasId) continue;
+      const { w: cw, h: ch } = sizeOf(c);
+      const across = c.position.x < mover.position.x + w && mover.position.x < c.position.x + cw;
+      if (!across || c.position.y < oldBottom - 1 || c.position.y >= bottom + NUDGE_GAP) continue;
+      out.set(c.id, { ...c, position: { ...c.position, y: bottom + NUDGE_GAP } });
+      queue.push([c.id, c.position.y + ch]);
+    }
+  }
+  const parent = out.get(id)!.parentId;
+  const next = [...out.values()];
+  return parent ? fitGroup(next, parent, false) : next;
+}
+
+/** Takes a group's cards out of it, where they are on screen, except those in `removed`. */
+function ungroupIn(cards: Card[], groupId: string, removed: Set<string>) {
+  const box = cards.find((c) => c.id === groupId)!;
+  return cards.map((c) => {
+    if (c.parentId !== groupId || removed.has(c.id)) return c;
+    const { parentId, hidden, ...rest } = c;
+    return { ...rest, position: { x: c.position.x + box.position.x, y: c.position.y + box.position.y } };
+  });
 }
 
 export function onLinksChange(changes: EdgeChange<Link>[]) {
@@ -508,14 +581,10 @@ export function group(ids: string[]) {
   if (!project) return;
   const members = project.cards.filter((c) => ids.includes(c.id) && !c.parentId && c.data.kind !== 'group');
   if (!members.length) return;
-  const size = (c: Card) => ({
-    w: c.measured?.width ?? c.width ?? CARD_WIDTH,
-    h: c.measured?.height ?? c.height ?? 100,
-  });
   const left = Math.min(...members.map((c) => c.position.x)) - GROUP_PAD;
   const top = Math.min(...members.map((c) => c.position.y)) - GROUP_HEADER;
-  const right = Math.max(...members.map((c) => c.position.x + size(c).w)) + GROUP_PAD;
-  const bottom = Math.max(...members.map((c) => c.position.y + size(c).h)) + GROUP_PAD;
+  const right = Math.max(...members.map((c) => c.position.x + sizeOf(c).w)) + GROUP_PAD;
+  const bottom = Math.max(...members.map((c) => c.position.y + sizeOf(c).h)) + GROUP_PAD;
   const box: Card = {
     id: uid(),
     type: 'card',
@@ -535,7 +604,6 @@ export function group(ids: string[]) {
           ? {
               ...c,
               parentId: box.id,
-              expandParent: true,
               selected: false,
               position: { x: c.position.x - left, y: c.position.y - top },
             }
@@ -543,6 +611,8 @@ export function group(ids: string[]) {
       ),
     ],
   }));
+  // Brought into view, ready to be named.
+  set({ focus: { cardId: box.id, at: Date.now() }, fresh: box.id });
   return box;
 }
 
@@ -569,36 +639,59 @@ export function ungroup(groupId: string) {
   });
 }
 
-/** Moves a card into a group, or out of one, keeping where it sits on screen. A group grows to hold a card that joins it. */
-export function regroup(cardId: string, groupId: string | null) {
+/**
+ * Settles cards after a drag: each joins the group given, or leaves its own for none, keeping
+ * where it sits on screen. A group a card left or joined then fits its cards; one a card only
+ * moved inside grows to hold it. Part of the drag's undo step.
+ */
+export function placeCards(moves: [cardId: string, groupId: string | null][]) {
   edit((p) => {
-    const card = p.cards.find((c) => c.id === cardId);
-    if (!card || (card.parentId ?? null) === groupId) return {};
-    const at = (id?: string) => p.cards.find((c) => c.id === id)?.position ?? { x: 0, y: 0 };
-    const from = card.parentId ? at(card.parentId) : { x: 0, y: 0 };
-    const to = groupId ? at(groupId) : { x: 0, y: 0 };
-    const { parentId, ...rest } = card;
-    const moved: Card = {
-      ...rest,
-      ...(groupId ? { parentId: groupId, expandParent: true } : { expandParent: false }),
-      position: { x: card.position.x + from.x - to.x, y: card.position.y + from.y - to.y },
-    };
-    const w = card.measured?.width ?? card.width ?? CARD_WIDTH;
-    const h = card.measured?.height ?? card.height ?? 100;
-    const cards = p.cards
-      .filter((c) => c.id !== cardId)
-      .map((c) =>
-        c.id === groupId
-          ? {
-              ...c,
-              width: Math.max(c.width ?? 0, moved.position.x + w + GROUP_PAD),
-              height: Math.max(c.height ?? 0, moved.position.y + h + GROUP_PAD),
-            }
-          : c,
-      );
-    // Kept after its group in the list, as React Flow requires.
-    return { cards: [...cards, moved] };
-  });
+    let cards = p.cards;
+    const refit = new Map<string, boolean>();
+    for (const [cardId, groupId] of moves) {
+      const card = cards.find((c) => c.id === cardId);
+      if (!card) continue;
+      const from = card.parentId ?? null;
+      if (from === groupId) {
+        if (from && !refit.has(from)) refit.set(from, false);
+        continue;
+      }
+      const at = (id: string | null) => cards.find((c) => c.id === id)?.position ?? { x: 0, y: 0 };
+      const [was, to] = [at(from), at(groupId)];
+      const { parentId, ...rest } = card;
+      const moved: Card = {
+        ...rest,
+        ...(groupId ? { parentId: groupId } : {}),
+        position: { x: card.position.x + was.x - to.x, y: card.position.y + was.y - to.y },
+      };
+      // Kept after its group in the list, as React Flow requires.
+      cards = [...cards.filter((c) => c.id !== cardId), moved];
+      for (const g of [from, groupId]) if (g) refit.set(g, true);
+    }
+    for (const [g, shrink] of refit) cards = fitGroup(cards, g, shrink);
+    return { cards };
+  }, false);
+}
+
+/** Fits an open group around its cards with room for its name, moving its cards back by as much as it moves, so none moves on screen. */
+function fitGroup(cards: Card[], groupId: string, shrink: boolean) {
+  const box = cards.find((c) => c.id === groupId);
+  const kids = cards.filter((c) => c.parentId === groupId);
+  if (!box || box.data.kind !== 'group' || box.data.collapsed || !kids.length) return cards;
+  const { w, h } = sizeOf(box);
+  let left = Math.min(...kids.map((c) => c.position.x)) - GROUP_PAD;
+  let top = Math.min(...kids.map((c) => c.position.y)) - GROUP_HEADER;
+  let right = Math.max(...kids.map((c) => c.position.x + sizeOf(c).w)) + GROUP_PAD;
+  let bottom = Math.max(...kids.map((c) => c.position.y + sizeOf(c).h)) + GROUP_PAD;
+  if (!shrink) [left, top, right, bottom] = [Math.min(0, left), Math.min(0, top), Math.max(w, right), Math.max(h, bottom)];
+  if (!left && !top && right === w && bottom === h) return cards;
+  return cards.map((c) =>
+    c.id === groupId
+      ? { ...c, position: { x: c.position.x + left, y: c.position.y + top }, width: right - left, height: bottom - top }
+      : c.parentId === groupId
+        ? { ...c, position: { x: c.position.x - left, y: c.position.y - top } }
+        : c,
+  );
 }
 
 /** Notes that this device has a stylus, for palm rejection. */
