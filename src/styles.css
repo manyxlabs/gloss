@@ -1404,7 +1404,7 @@ a.button.primary {
   justify-content: center;
 }
 
-.tight .zoom button.icon {
+.tight .zoom .scale {
   display: none;
 }
 

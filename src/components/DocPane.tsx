@@ -96,7 +96,7 @@ const POPUP_HALF_WIDTH = 190;
 const MIN_SNIP = 8;
 /** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
 const SIDEBAR_BESIDE = 560;
-/** Narrower still, as one of three panes, the toolbar leaves out its zoom steps; the percentage still fits the page to the pane. */
+/** Narrower still, as one of two or three panes, the toolbar leaves out the zoom percentage; the steps either side of it stay. */
 const TIGHT = 360;
 
 /** The pane last pressed in, which Ctrl+D bookmarks. */

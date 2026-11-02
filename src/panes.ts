@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 /** A third pane needs a wide screen; narrower, it waits, and phones show one pane as before. */
-const WIDE = '(min-width: 1280px)';
+const WIDE = '(min-width: 1440px)';
 
 const wide = () => matchMedia(WIDE).matches;
 /** How many document panes there is room for side by side. */
