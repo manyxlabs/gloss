@@ -74,4 +74,6 @@ export type Project = {
   inks: Ink[];
   folds: Fold[];
   canvases: CanvasMeta[];
+  /** The sync room this project is shared through, with its key; absent while the project stays on this device. */
+  sync?: { room: string; key: string };
 };
