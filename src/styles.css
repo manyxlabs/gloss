@@ -1409,3 +1409,40 @@ button.big.primary {
     gap: 0;
   }
 }
+
+/* Asks for a web page's address. */
+.web-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 20px;
+  border-radius: 16px;
+  color: var(--text);
+}
+
+.web-dialog::backdrop {
+  background: rgb(0 0 0 / 0.3);
+}
+
+.web-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.web-dialog input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+}
+
+.web-dialog p {
+  margin: 10px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.web-dialog .actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+}

@@ -2,6 +2,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { ArrowLeft, NotebookText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { download, toMarkdown } from '../export';
+import { take } from '../notices';
 import { closeProject, openProject, redo, rename, setView, undo, useStore } from '../store/project';
 import { Canvas } from './Canvas';
 import { DocPane } from './DocPane';
@@ -22,7 +23,7 @@ const editable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isCon
 export function Workspace({ id }: { id: string }) {
   const project = useStore((s) => s.project);
   const [missing, setMissing] = useState(false);
-  const [problems, setProblems] = useState<string[]>([]);
+  const [problems, setProblems] = useState<string[]>(take);
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
   const side = useStore((s) => s.sideDocId !== null);

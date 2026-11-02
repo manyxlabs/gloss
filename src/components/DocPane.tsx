@@ -32,6 +32,7 @@ import { COLORS, type Color, type Highlight, type Point } from '../types';
 import { paint, type PageView } from './doc/paint';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
+import { WebPicker } from './WebPicker';
 import { Tools } from './Tools';
 
 type Viewer = { viewer: PDFViewer; bus: EventBus; links: PDFLinkService };
@@ -525,7 +526,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       <div className="tabs" role="tablist" aria-label="Open documents">
         {docs.map((d) => (
           <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
-            <button role="tab" aria-selected={d.id === activeDocId} onClick={() => setActiveDoc(d.id, pane)} title={d.name}>
+            <button
+              role="tab"
+              aria-selected={d.id === activeDocId}
+              onClick={() => setActiveDoc(d.id, pane)}
+              title={d.source ? `${d.name}\nConverted from ${d.source.url ?? d.source.name}` : d.name}
+            >
               {d.name}
             </button>
             <button
@@ -544,6 +550,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         ) : (
           <>
             <FilePicker label="Add PDF" onProblems={onProblems} />
+            <WebPicker add={async (url) => onProblems(await addDocs([{ url }]))} />
             {!split && docs.length > 0 && (
               <button
                 className="icon side"
@@ -634,7 +641,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
         {!docs.length && !pane && (
           <div className="empty">
-            <p>Drop PDFs here to start reading.</p>
+            <p>Drop PDFs, Word or PowerPoint files, images or text here to start reading.</p>
             <FilePicker label="Choose PDFs" primary onProblems={onProblems} />
           </div>
         )}
