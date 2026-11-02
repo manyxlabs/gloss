@@ -1,7 +1,7 @@
 import { useReactFlow, useStore as useFlow, useViewport, ViewportPortal } from '@xyflow/react';
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/project';
-import { presence, setName, useMe, useSync, type Presence } from '../sync/state';
+import { GUEST, presence, setName, useMe, useSync, type Presence } from '../sync/state';
 
 const initials = (name: string) =>
   name
@@ -13,24 +13,33 @@ const initials = (name: string) =>
 
 const peerStyle = (color: string) => ({ '--peer': color }) as React.CSSProperties;
 
-/** Asks how this person should appear to the others; kept on this device for every shared project. */
+/** The field for how this person appears to the others, kept on this device for every shared project; left empty, they are a guest. */
+export const NameField = () => <input name="name" aria-label="Your name" defaultValue={useMe.getState().name} maxLength={40} autoFocus placeholder={GUEST} />;
+export const keepName = (form: HTMLFormElement) => setName(new FormData(form).get('name')?.toString().trim().slice(0, 40) || GUEST);
+
+/** Asks someone who joined a shared project how they should appear; skipping makes them a guest. */
 function NameDialog({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const name = useMe((s) => s.name);
+  const form = useRef<HTMLFormElement>(null);
+  const [named] = useState(() => !!useMe.getState().name);
   useEffect(() => ref.current?.showModal(), []);
   return (
-    <dialog ref={ref} className="sheet glass" aria-labelledby="name-h" onClose={onClose}>
-      <form
-        method="dialog"
-        onSubmit={(e) => {
-          const value = new FormData(e.currentTarget).get('name')?.toString().trim();
-          if (value) setName(value.slice(0, 40));
-        }}
-      >
+    <dialog ref={ref} className="sheet glass" aria-labelledby="name-h" onClose={() => (keepName(form.current!), onClose())}>
+      <form method="dialog" ref={form}>
         <h2 id="name-h">What should others call you?</h2>
         <p>People in this project see your name beside your cursor and where you are reading.</p>
-        <input name="name" aria-label="Your name" defaultValue={name} maxLength={40} required autoFocus placeholder="Your name" />
+        <NameField />
         <footer>
+          {!named && (
+            <button
+              type="submit"
+              onClick={() => {
+                (form.current!.elements.namedItem('name') as HTMLInputElement).value = '';
+              }}
+            >
+              Skip
+            </button>
+          )}
           <button type="submit" className="primary">
             Save
           </button>
@@ -45,6 +54,7 @@ export function Peers() {
   const peers = useSync((s) => s.peers);
   const me = useMe();
   const docs = useStore((s) => s.project?.docs);
+  // Someone who shared the project gave their name as they did; someone who joined is asked here.
   const [naming, setNaming] = useState(!me.name);
   const where = (p: Presence) => {
     const doc = docs?.find((d) => d.id === p.docId);
