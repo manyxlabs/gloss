@@ -177,7 +177,7 @@ test('images added together become one PDF, a page each, in order', async ({ pag
     { name: 'Square pool.webp', mimeType: 'image/webp', buffer: await picture(page, 300, 300, '#5a1e8a', 'image/webp') },
     { name: 'Dot.gif', mimeType: 'image/gif', buffer: gif },
   ]);
-  await expect(page.getByRole('tab')).toHaveCount(1);
+  await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(1);
   await expect(page.getByRole('tab', { name: 'Wide shore' })).toHaveAttribute('title', 'Wide shore\nConverted from Wide shore.png, Tall cliff.jpg, Square pool.webp, Dot.gif');
   await expect(page.getByText('Page 1 / 4')).toBeVisible();
   const pages = page.locator('.page');
