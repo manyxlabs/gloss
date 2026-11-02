@@ -24,15 +24,15 @@ export function PaletteGrid({ current, label, onPick }: { current?: Color; label
 }
 
 /**
- * The favourite colours, then More, which opens all 32. A colour in use that is not a favourite
- * shows after them, so the current one is always in view. Favourites are edited in the palette:
- * pick a place, then the colour to put there.
+ * The favourite colours, then More, which opens all 32 and is tinted with the colour in use when
+ * that is not a favourite. Favourites are edited in the palette: pick a place, then the colour to
+ * put there.
  */
 export function ColorPicker({ current, label, onPick }: { current?: Color; label: (name: string) => string; onPick: (c: Color) => void }) {
   const favourites = useFavourites((s) => s.favourites);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
-  const inline = current && !favourites.includes(current) ? [...favourites, current] : favourites;
+  const other = current && !favourites.includes(current) ? current : null;
   const swatch = (c: Color) => (
     <button
       key={c}
@@ -44,8 +44,14 @@ export function ColorPicker({ current, label, onPick }: { current?: Color; label
   );
   return (
     <>
-      {inline.map(swatch)}
-      <button className="icon more-colors" aria-label="More colours" title="More colours" aria-expanded={open} onClick={() => (setOpen(!open), setEditing(null))}>
+      {favourites.map(swatch)}
+      <button
+        className={`icon more-colors${other ? ` hl-${other} other` : ''}`}
+        aria-label="More colours"
+        title={other ? `More colours (now ${SWATCHES[other].name})` : 'More colours'}
+        aria-expanded={open}
+        onClick={() => (setOpen(!open), setEditing(null))}
+      >
         <Palette size={16} />
       </button>
       {open && (

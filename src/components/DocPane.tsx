@@ -64,7 +64,7 @@ const FLASH_MS = 1600;
 export const INK_SIZE = 0.005;
 /** Fingers brought this close together, from where they started, squeeze the text between them. */
 const SQUEEZE_AT = 0.6;
-const POPUP_HALF_WIDTH = 190;
+const POPUP_HALF_WIDTH = 240;
 /** A box smaller than this, in screen pixels, was a click rather than a snip. */
 const MIN_SNIP = 8;
 /** Narrower than this, a pane's sidebar covers the page instead of pushing it aside, and its toolbar is compacted. */
