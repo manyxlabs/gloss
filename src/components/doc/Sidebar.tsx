@@ -7,10 +7,13 @@ import { cardText } from '../../search';
 import { showEnd } from '../../store/links';
 import { showCard, showPage, showSource, useStore, type Pane } from '../../store/project';
 import type { Highlight } from '../../types';
+import { byline } from '../../zotero';
+import { Bookmarks } from './Bookmarks';
 import { Pages } from './Pages';
+import { Unplaced } from './Unplaced';
 
 type OutlineItem = Awaited<ReturnType<PDFDocumentProxy['getOutline']>>[number];
-type Tab = 'contents' | 'pages' | 'highlights';
+export type Tab = 'contents' | 'pages' | 'highlights';
 const TABS: [Tab, string][] = [
   ['contents', 'Contents'],
   ['pages', 'Pages'],
@@ -31,14 +34,40 @@ function useDoc(docId: string, password?: string, file?: string) {
   return doc?.docId === docId ? doc.doc : null;
 }
 
-/** The PDF's table of contents, the pages as thumbnails, and the reader's highlights, beside one pane's document. */
-export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: string; page: number; onJump: () => void }) {
-  const [tab, setTab] = useState<Tab>('contents');
+/**
+ * The reader's bookmarks with the PDF's table of contents, the pages as thumbnails, and the
+ * reader's highlights, beside one pane's document; `fresh` is a bookmark just made, to name.
+ */
+export function Sidebar({
+  pane,
+  docId,
+  page,
+  tab,
+  onTab: setTab,
+  fresh,
+  onJump,
+}: {
+  pane: Pane;
+  docId: string;
+  page: number;
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+  fresh: string | null;
+  onJump: () => void;
+}) {
   const password = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.password);
   const file = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.file);
+  const zotero = useStore((s) => s.project?.docs.find((d) => d.id === docId)?.zotero);
   const doc = useDoc(docId, password, file);
   return (
     <>
+      {zotero && (
+        <div className="doc-cite" aria-label="From Zotero">
+          <span className="title">{zotero.title}</span>
+          {byline(zotero) && <span className="by">{byline(zotero)}</span>}
+          {zotero.citationKey && <span className="cite-key">@{zotero.citationKey}</span>}
+        </div>
+      )}
       <div className="side-tabs" role="tablist" aria-label="Sidebar">
         {TABS.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
@@ -48,11 +77,19 @@ export function Sidebar({ pane, docId, page, onJump }: { pane: Pane; docId: stri
       </div>
       <div className="side-list" role="tabpanel" aria-label={TABS.find(([id]) => id === tab)![1]}>
         {!doc ? null : tab === 'contents' ? (
-          <Contents doc={doc} docId={docId} pane={pane} onJump={onJump} />
+          <>
+            <h3 className="side-head">Bookmarks</h3>
+            <Bookmarks docId={docId} pane={pane} fresh={fresh} onJump={onJump} />
+            <h3 className="side-head">Contents</h3>
+            <Contents doc={doc} docId={docId} pane={pane} onJump={onJump} />
+          </>
         ) : tab === 'pages' ? (
           <Pages key={docId} doc={doc} docId={docId} password={password} pane={pane} current={page} onJump={onJump} />
         ) : (
-          <Highlights docId={docId} pane={pane} onJump={onJump} />
+          <>
+            <Unplaced docId={docId} />
+            <Highlights docId={docId} pane={pane} onJump={onJump} />
+          </>
         )}
       </div>
     </>
@@ -110,7 +147,7 @@ const byPlace = (a: Highlight, b: Highlight) =>
 
 function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump: () => void }) {
   const project = useStore((s) => s.project);
-  const mine = (project?.highlights ?? []).filter((h) => h.docId === docId).sort(byPlace);
+  const mine = (project?.highlights ?? []).filter((h) => h.docId === docId && h.parts.length).sort(byPlace);
   if (!project || !mine.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
   return (
     <ul className="marks">
