@@ -59,8 +59,19 @@ async function fromImages(files: File[], problems: string[]): Promise<Converted 
   return { name, data: asPdf(await ts.pdf.save()), source: { kind: 'image', name: files.map((f) => f.name).join(', ') } };
 }
 
-async function fromWeb(url: string, problems: string[]): Promise<Converted> {
+/** A file from a link, converted as if it had been opened here, remembering the link. */
+async function fromLink(url: string, problems: string[]): Promise<Converted[]> {
+  const { fetchLinked } = await import('./link');
+  const file = await fetchLinked(url);
+  const done = await convert([file]);
+  problems.push(...done.problems);
+  return done.converted.map((c) => ({ ...c, source: { ...(c.source ?? { kind: 'link', name: file.name }), url } }));
+}
+
+/** A web page's article; null when the address is not a web page, as a link straight to a file. */
+async function fromWeb(url: string, problems: string[]): Promise<Converted | null> {
   const res = await fetch(`/api/page?url=${encodeURIComponent(url)}`);
+  if (res.status === 415) return null;
   const page = (await res.json().catch(() => null)) as { url: string; title: string; byline?: string; site?: string; html: string; error?: string } | null;
   if (!res.ok || !page?.html) throw new Error(page?.error ?? 'Web pages can be added only where Gloss runs with its server.');
   const by = [page.byline, page.site].filter(Boolean).join(' · ');
@@ -91,8 +102,11 @@ export async function convert(inputs: Input[]) {
   for (const [i, input] of inputs.entries()) {
     const kind = kinds[i];
     try {
-      if ('url' in input) converted.push(await fromWeb(input.url, problems));
-      else if (kind === 'pdf') converted.push({ name: input.name.replace(/\.pdf$/i, ''), data: input });
+      if ('url' in input) {
+        const { isFileLink } = await import('./link');
+        const page = !isFileLink(input.url) && (await fromWeb(input.url, problems));
+        converted.push(...(page ? [page] : await fromLink(input.url, problems)));
+      } else if (kind === 'pdf') converted.push({ name: input.name.replace(/\.pdf$/i, ''), data: input });
       else if (kind === 'image') {
         const done = input === images[0] && (await fromImages(images, problems));
         if (done) converted.push(done);
