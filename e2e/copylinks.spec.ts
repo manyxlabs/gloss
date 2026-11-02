@@ -81,7 +81,9 @@ test('copy a link to a passage, card, comment, canvas or document; it opens ther
 
   // A document.
   await page.getByRole('tab', { name: 'Survey notes' }).click();
-  const doc = await copied(page, page.getByRole('button', { name: 'Copy link to this document' }), 'd');
+  await page.getByRole('button', { name: 'More for this document' }).click();
+  const doc = await copied(page, page.getByRole('menu', { name: 'More for this document' }).getByRole('menuitem', { name: 'Copy link to this document' }), 'd');
+  await page.keyboard.press('Escape');
   await page.getByRole('tab', { name: 'Reef essay' }).click();
 
   // Each opens where it leads, after a reload too.

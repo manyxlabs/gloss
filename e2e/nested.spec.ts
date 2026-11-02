@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { SWATCHES } from '../src/palette';
 import { noteCard } from './cards';
@@ -152,7 +153,7 @@ test('a backup keeps the tree of canvases, their looks and the handwriting in th
   page.on('dialog', (d) => d.accept());
   await page.getByRole('button', { name: 'Delete Reef essay' }).click();
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Restore a backup' }).click()]);
-  await chooser.setFiles(await download.path());
+  await chooser.setFiles({ name: 'Reef essay.gloss', mimeType: 'application/octet-stream', buffer: readFileSync(await download.path()) });
   await tabs(page).getByRole('button', { name: 'Canvases in Canvas 1' }).click();
   await page.getByRole('menu', { name: 'Canvases in Canvas 1' }).getByRole('menuitemradio', { name: 'Ideas' }).click();
   await expect(path(page).getByRole('listitem')).toHaveText(['Canvas 1', 'Ideas']);
