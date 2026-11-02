@@ -76,7 +76,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   In a pane too narrow for the button, such as a phone's, the document's tab menu opens the same panel.
 - **Search all projects** from the start page: names, the text of every document, cards and comments, opening the project at what was found.
   Each document is read once into an index kept in the browser, which the page says while it happens.
-- **Jump by keyboard** with Ctrl+P or Ctrl+G: type a page number, or part of a document's name, a contents entry, a canvas, a tag or an action, then the arrow keys and Enter.
+- **Jump by keyboard** with Ctrl+P or Ctrl+G: type a page number, or part of a document's name, a contents entry, a bookmark, a canvas, a tag or an action, then the arrow keys and Enter.
   It acts on the document pane last used.
 - **Defined terms** in contracts: terms defined as `"Term" means`, `"Term" shall mean`, `(the "Term")` or `(hereinafter "Term")` are underlined where they are used, and pointing at one, or tapping it, shows its definition with a way to go to it.
   The squeeze panel of a document that defines terms has a switch to turn this off and on.
