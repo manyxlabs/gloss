@@ -156,6 +156,8 @@ test('deleting a page moves the later highlights up with their cards, and undo b
 });
 
 test('pages move by dragging and by menu, take pages from another file, and the result exports, reloads and restores from a backup', async ({ page }) => {
+  // Five versions of the file, an export, a reload and a restore: more than 30 seconds on a machine running the whole suite.
+  test.setTimeout(90_000);
   await openProject(page);
   await page.locator('.page[data-page-number="3"]').scrollIntoViewIfNeeded();
   await select(page, 'Kelp forests grow');
