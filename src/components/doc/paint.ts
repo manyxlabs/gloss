@@ -17,14 +17,14 @@ function layer<T extends Element>(div: HTMLElement, make: () => T, className: st
 }
 
 /** Paints a page's highlights (under the text, so it stays selectable) and handwriting (over it). */
-export function paint(view: PageView, flashId: string | null) {
-  const { project, activeDocId } = useStore.getState();
+export function paint(view: PageView, flashId: string | null, docId: string | null) {
+  const { project } = useStore.getState();
   if (!project) return;
   const excerpted = new Set(project.cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
   const marks = layer(view.div, () => document.createElement('div'), 'hl-layer', '.textLayer');
   marks.replaceChildren(
     ...project.highlights
-      .filter((h) => h.docId === activeDocId)
+      .filter((h) => h.docId === docId)
       .flatMap((h) =>
         h.parts
           .filter((p) => p.page === view.id)
@@ -52,7 +52,7 @@ export function paint(view: PageView, flashId: string | null) {
   ink.setAttribute('viewBox', `0 0 ${PAGE_PIXELS} ${PAGE_PIXELS * ratio}`);
   ink.replaceChildren(
     ...project.inks
-      .filter((i) => i.docId === activeDocId && i.page === view.id)
+      .filter((i) => i.docId === docId && i.page === view.id)
       .map((i) => {
         const path = document.createElementNS(SVG, 'path');
         path.setAttribute(
