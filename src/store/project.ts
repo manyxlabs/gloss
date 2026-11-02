@@ -203,7 +203,7 @@ export const newProject = (name: string): Project => ({
   links: [],
   inks: [],
   folds: [],
-  canvases: [{ id: MAIN_CANVAS, name: 'Canvas' }],
+  canvases: [{ id: MAIN_CANVAS, name: 'Canvas 1' }],
   comments: [],
   passageLinks: [],
   cardLinks: [],
