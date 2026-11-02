@@ -9,6 +9,7 @@ export type DocHit = {
   after: string;
 };
 export type CardHit = { cardId: string; text: string };
+export type CommentHit = { highlightId: string; docId: string; page: number; note: string };
 
 const PER_DOC = 30;
 const CONTEXT = 48;
@@ -26,12 +27,12 @@ function snippets(text: string, query: string) {
   return out;
 }
 
-/** Every page of every document, and every card, that mentions the query. */
+/** Every page of every document, every card and every comment in a document's margin that mentions the query. */
 export async function search(project: Project, raw: string) {
   const query = raw.trim().replace(/\s+/g, ' ').toLowerCase();
   const docs: DocHit[] = [];
   for (const doc of project.docs) {
-    const pages = await pageTexts(doc.id).catch(() => [] as string[]);
+    const pages = await pageTexts(doc.id, doc.password).catch(() => [] as string[]);
     const hits = pages.flatMap((text, i) =>
       snippets(text.replace(/\s+/g, ' '), query).map((s) => ({
         docId: doc.id,
@@ -45,7 +46,10 @@ export async function search(project: Project, raw: string) {
     const text = cardText(project, c);
     return text.toLowerCase().includes(query) ? [{ cardId: c.id, text }] : [];
   });
-  return { docs, cards };
+  const comments: CommentHit[] = project.highlights.flatMap((h) =>
+    h.note?.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, note: h.note }] : [],
+  );
+  return { docs, cards, comments };
 }
 
 /** The words on a card: a note, a group's name, or an excerpt with the comment on it. Handwriting has none. */
