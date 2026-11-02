@@ -3,27 +3,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { AlignmentType, Document, HeadingLevel, ImageRun, LevelFormat, Packer, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { ARTIFACTS, card, openProject, select, shot, STANDARD_FONTS } from './helpers';
+import { ARTIFACTS, card, openProject, picture, select, shot, STANDARD_FONTS } from './helpers';
 import { ESSAY } from './pdfs';
 
 type File = { name: string; mimeType: string; buffer: Buffer };
-
-/** A picture drawn in the browser: a coloured field with a white panel, encoded as `type`. */
-async function picture(page: Page, width: number, height: number, color: string, type: string) {
-  const bytes = await page.evaluate(
-    async ({ width, height, color, type }) => {
-      const canvas = new OffscreenCanvas(width, height);
-      const g = canvas.getContext('2d')!;
-      g.fillStyle = color;
-      g.fillRect(0, 0, width, height);
-      g.fillStyle = '#fff';
-      g.fillRect(width / 4, height / 4, width / 2, height / 2);
-      return [...new Uint8Array(await (await canvas.convertToBlob({ type })).arrayBuffer())];
-    },
-    { width, height, color, type },
-  );
-  return Buffer.from(bytes);
-}
 
 /** Opens the files from the start page as a new project. */
 async function open(page: Page, files: File[]) {

@@ -8,9 +8,9 @@ const answer = (route: Route, html: string) => route.fulfill({ json: { url: new 
 
 async function addFromWeb(page: Page, address: string) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Add from the web' }).click();
-  await page.getByRole('textbox', { name: 'Web page address' }).fill(address);
-  await page.getByRole('button', { name: 'Add page' }).click();
+  await page.getByRole('button', { name: 'Add from a link' }).click();
+  await page.getByRole('textbox', { name: 'Link', exact: true }).fill(address);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
 }
 
 test('an address without https:// is taken as one, and a gallery keeps its pictures without bullets', async ({ page }) => {
@@ -44,26 +44,26 @@ test('adding a long web page shows how far it has got, and Cancel stops it', asy
     await answer(route, article);
   });
   await addFromWeb(page, 'https://example.org/long');
-  const status = page.getByRole('dialog', { name: 'Add a web page' }).getByRole('status');
+  const status = page.getByRole('dialog', { name: 'Add from a link' }).getByRole('status');
   await expect(status).toHaveText('Fetching the page…');
   await expect(page.getByRole('button', { name: 'Adding…' })).toBeDisabled();
   release();
   await expect(status).toHaveText(/^Converting page \d+…$/);
   await shot(page, 'web-converting');
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByRole('dialog', { name: 'Add a web page' })).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Add from a link' })).toBeHidden();
   // Nothing was added, and the start page is ready for another try.
   await page.waitForTimeout(1500);
   await expect(page).toHaveURL(/#?\/?$/);
-  await expect(page.getByRole('button', { name: 'Add from the web' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Add from a link' })).toBeEnabled();
 
   // Cancelled while still fetching, likewise.
-  await page.getByRole('button', { name: 'Add from the web' }).click();
-  await page.getByRole('textbox', { name: 'Web page address' }).fill('https://example.org/long');
-  await page.getByRole('button', { name: 'Add page' }).click();
+  await page.getByRole('button', { name: 'Add from a link' }).click();
+  await page.getByRole('textbox', { name: 'Link', exact: true }).fill('https://example.org/long');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(status).toHaveText('Fetching the page…');
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Add a web page' })).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Add from a link' })).toBeHidden();
   release();
   await page.waitForTimeout(1000);
   await expect(page).toHaveURL(/#?\/?$/);

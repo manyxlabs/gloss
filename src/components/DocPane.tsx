@@ -121,6 +121,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const inks = useStore((s) => s.project?.inks);
   const folds = useStore((s) => s.project?.folds);
   const activeDocId = useStore((s) => (pane ? s.sideDocId : s.activeDocId));
+  // A page edit, or its undo, gives the document a new file to show.
+  const file = useStore((s) => s.project?.docs.find((d) => d.id === (pane ? s.sideDocId : s.activeDocId))?.file);
   const split = useStore((s) => s.sideDocId !== null);
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
@@ -344,6 +346,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       return;
     }
     let stale = false;
+    // The same document in a new version keeps its zoom.
+    const scale = loaded === activeDocId && p.viewer.pdfDocument ? p.viewer.currentScaleValue : 'page-width';
     loadDoc(activeDocId, useStore.getState().project?.docs.find((d) => d.id === activeDocId)?.password).then(
       (doc) => {
         if (stale) return;
@@ -351,7 +355,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           'pagesinit',
           () => {
             if (stale) return;
-            p.viewer.currentScaleValue = 'page-width';
+            p.viewer.currentScaleValue = scale;
             relayout(p.viewer, activeDocId);
             const last = useStore.getState().project?.docs.find((d) => d.id === activeDocId)?.lastPage;
             if (last) p.viewer.currentPageNumber = last;
@@ -371,7 +375,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     return () => {
       stale = true;
     };
-  }, [activeDocId]);
+  }, [activeDocId, file]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Before the jump below, so a squeeze opened for a jump is laid out when the jump measures.
   useEffect(() => {
@@ -701,7 +705,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 aria-selected={d.id === activeDocId}
                 tabIndex={d.id === activeDocId ? 0 : -1}
                 onClick={() => setActiveDoc(d.id, pane)}
-                title={d.source ? `${d.name}\nConverted from ${d.source.url ?? d.source.name}` : d.name}
+                title={d.source ? `${d.name}\n${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}` : d.name}
               >
                 {d.name}
               </button>

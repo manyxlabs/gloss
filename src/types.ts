@@ -31,11 +31,18 @@ export type DocMeta = {
    * with the rest, end-to-end encrypted, since everyone with the link can read the PDF anyway.
    */
   password?: string;
-  /** What a document was converted from, when it was not added as a PDF. */
+  /** What a document was converted from, when it was not added as a PDF, or the link it was fetched from. */
   source?: DocSource;
+  /**
+   * The version of the file once its pages have been edited. Each edit stores a new file beside the
+   * old one, so the switch is one step, undo can switch back, and other devices know to fetch it.
+   * Absent, the file is the one the document was added with.
+   */
+  file?: string;
 };
 
-export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web'; name?: string; url?: string };
+/** `link` is a file fetched from a share link as it was, without converting. */
+export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web' | 'link'; name?: string; url?: string };
 
 export const INKS = ['ink', 'red', 'blue', 'green'] as const;
 export type InkColor = (typeof INKS)[number];
@@ -98,4 +105,10 @@ export type Project = {
   restoredFrom?: string;
   /** The sync room this project is shared through, with its key; absent while the project stays on this device. */
   sync?: { room: string; key: string };
+  /** The library folder it is filed in, on this device only; absent or unknown, it is at the top level. */
+  folder?: string;
+  /** When it was last opened on this device; projects from before this was kept count their last edit. */
+  openedAt?: number;
 };
+
+export type Folder = { id: string; name: string; createdAt: number; collapsed?: boolean };

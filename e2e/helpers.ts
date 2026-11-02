@@ -11,6 +11,23 @@ mkdirSync(ARTIFACTS, { recursive: true });
 export const shot = (page: Page, name: string) => page.screenshot({ path: `${ARTIFACTS}/${name}.png` });
 export const pdf = async (name: string, pages: string[][]) => ({ name, mimeType: 'application/pdf', buffer: await makePdf(pages) });
 
+/** A picture drawn in the browser: a coloured field with a white panel, encoded as `type`. */
+export async function picture(page: Page, width: number, height: number, color: string, type: string) {
+  const bytes = await page.evaluate(
+    async ({ width, height, color, type }) => {
+      const canvas = new OffscreenCanvas(width, height);
+      const g = canvas.getContext('2d')!;
+      g.fillStyle = color;
+      g.fillRect(0, 0, width, height);
+      g.fillStyle = '#fff';
+      g.fillRect(width / 4, height / 4, width / 2, height / 2);
+      return [...new Uint8Array(await (await canvas.convertToBlob({ type })).arrayBuffer())];
+    },
+    { width, height, color, type },
+  );
+  return Buffer.from(bytes);
+}
+
 export async function openProject(page: Page) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
