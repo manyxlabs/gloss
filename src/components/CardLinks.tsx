@@ -1,5 +1,5 @@
 import { Link2 } from 'lucide-react';
-import { docName } from '../links';
+import { docName, where } from '../links';
 import { showSource, useStore } from '../store/project';
 
 /** The passages a card was linked to with the pen, each a chip that opens the document there. */
@@ -16,7 +16,7 @@ export function CardLinks({ cardId }: { cardId: string }) {
         <button key={id} className={`hl-${h.color}`} onClick={() => showSource(h.id)} title="Show the linked passage">
           <Link2 size={12} aria-hidden="true" />
           <span>
-            Linked to {docName(project, h.docId)} p. {h.parts[0]?.page}
+            Linked to {docName(project, h.docId)} {where(h)}
           </span>
         </button>
       ))}

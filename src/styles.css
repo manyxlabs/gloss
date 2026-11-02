@@ -1392,6 +1392,22 @@ a.button.primary {
   border-radius: 14px;
 }
 
+/* In a pane too narrow for it, as one of three, the toolbar wraps onto a second row. */
+.doc-scroll {
+  container-type: inline-size;
+}
+
+.popup {
+  width: max-content;
+  max-width: calc(100cqw - 12px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tight .zoom button.icon {
+  display: none;
+}
+
 /* On touch screens the system's own copy menu sits above a selection, so ours goes below it. */
 .popup.below {
   transform: translate(-50%, 34px);
@@ -1405,7 +1421,7 @@ a.button.primary {
 .note-editor {
   display: grid;
   gap: 6px;
-  width: min(320px, calc(100vw - 48px));
+  width: min(320px, calc(100vw - 48px), calc(100cqw - 24px));
 }
 
 .note-editor textarea {
@@ -3102,4 +3118,569 @@ button.icon.danger:hover:not(:disabled) {
 
 .projects li > button:last-child {
   margin-right: 8px;
+}
+
+/* A dragged tab, row or bookmark shows where it will land with a bar in the accent colour. */
+.tab {
+  position: relative;
+}
+
+.tab.drop-before::before,
+.tab.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.tab.drop-before::before {
+  left: -3px;
+}
+
+.tab.drop-after::after {
+  right: -3px;
+}
+
+.tab .tab-pin {
+  display: inline;
+  margin: 0 4px -1px 0;
+  color: var(--accent);
+}
+
+/* Every document of the project, opened from the tabs. */
+.menu.doc-list {
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  display: block;
+  padding: 6px;
+}
+
+.doc-list-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 6px 8px;
+}
+
+.doc-list-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.doc-list-body,
+.doc-list-body ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.doc-group + .doc-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.doc-group-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.doc-row,
+.folder-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 9px;
+}
+
+.doc-row:hover,
+.folder-head:hover {
+  background: var(--panel-2);
+}
+
+.menu.floating .doc-row button.doc-open,
+.menu.floating .folder-head button.folder-toggle {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  gap: 8px;
+  text-align: left;
+  white-space: normal;
+  font-weight: 450;
+}
+
+.folder .doc-row button.doc-open {
+  padding-left: 30px;
+}
+
+.doc-row button.doc-open[aria-current='page'] {
+  color: var(--accent);
+}
+
+.doc-row .what {
+  display: grid;
+  min-width: 0;
+}
+
+.doc-row .title,
+.folder-toggle .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-toggle .title {
+  flex: 1;
+}
+
+.doc-row .by {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cite-key {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 550;
+}
+
+.menu.floating .doc-row .pin {
+  opacity: 0;
+}
+
+.menu.floating .doc-row:hover .pin,
+.menu.floating .doc-row .pin:focus-visible,
+.menu.floating .doc-row .pin[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.menu.floating .doc-row .pin[aria-pressed='true'],
+.menu.floating .doc-row .pin[aria-pressed='true'] svg {
+  background: transparent;
+  color: var(--accent);
+}
+
+.folder-toggle .chevron {
+  transition: rotate 0.15s;
+}
+
+.folder-toggle[aria-expanded='false'] .chevron {
+  rotate: -90deg;
+}
+
+.folder-toggle .count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.folder-head input {
+  flex: 1;
+  min-width: 0;
+  margin: 3px 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.folder .side-empty {
+  padding: 4px 8px 6px 30px;
+}
+
+.doc-row.drop-before::before,
+.doc-row.drop-after::after,
+.bookmarks li.drop-before::before,
+.bookmarks li.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.doc-row.drop-before::before,
+.bookmarks li.drop-before::before {
+  top: -2px;
+}
+
+.doc-row.drop-after::after,
+.bookmarks li.drop-after::after {
+  bottom: -2px;
+}
+
+/* The sidebar's Contents: the reader's bookmarks, then the PDF's own table of contents. */
+.side-head {
+  margin: 4px 8px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.side-head ~ .side-head {
+  margin-top: 12px;
+}
+
+.bookmarks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bookmarks li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 7px;
+}
+
+.bookmarks li:hover {
+  background: var(--panel-2);
+}
+
+.bookmarks button.bookmark {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 5px 4px 5px 8px;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.bookmarks .what {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.bookmarks .what svg {
+  flex: none;
+  align-self: center;
+  color: var(--accent);
+}
+
+.bookmarks .text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmarks .page {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bookmarks button.icon {
+  width: 28px;
+  height: 28px;
+  opacity: 0;
+}
+
+.bookmarks li:hover button.icon,
+.bookmarks button.icon:focus-visible,
+.bookmarks button.icon[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.bookmarks input.rename {
+  flex: 1;
+  min-width: 0;
+  margin: 2px 0;
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+/* Highlights kept aside when their document was replaced, to place again. */
+.unplaced {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.unplaced h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 8px 6px;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.unplaced-marks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.unplaced-item {
+  display: block;
+  padding: 6px 6px 6px 9px;
+  border: 1px dashed var(--border);
+  border-left: 3px solid var(--edge, var(--border));
+  border-radius: 3px 8px 8px 3px;
+}
+
+.unplaced-item .text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: 'Iowan Old Style', Charter, Georgia, serif;
+  font-size: 14px;
+}
+
+.unplaced-item .note {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.unplaced-item .actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.unplaced-item .actions > button:first-child {
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
+/* A document imported from Zotero, cited above its sidebar's tabs. */
+.doc-cite {
+  display: grid;
+  gap: 1px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.sidebar-over .doc-cite {
+  padding-right: 44px;
+}
+
+.doc-cite .title {
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.doc-cite .by {
+  color: var(--muted);
+}
+
+.doc-cite .cite-key {
+  justify-self: start;
+  margin: 3px 0 0;
+}
+
+.sheet h2 svg {
+  vertical-align: -3px;
+  color: var(--accent);
+}
+
+.sheet .unplaced-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  max-height: 160px;
+  overflow: auto;
+  font-family: 'Iowan Old Style', Charter, Georgia, serif;
+  font-size: 14px;
+}
+
+.sheet footer button svg {
+  flex: none;
+}
+
+/* Zotero: connecting with a key, then the library to search and import from. */
+.zotero-dialog {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.zotero-dialog .name-field {
+  margin-bottom: 10px;
+}
+
+.zotero-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.zotero-account .ghost {
+  padding: 4px 6px;
+}
+
+.zotero-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.sheet .zotero-search input,
+.sheet .zotero-search input:focus-visible {
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+.zotero-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.zotero-results {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  max-height: min(46vh, 380px);
+  overflow: auto;
+}
+
+.zotero-results li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.zotero-results .what {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.zotero-results .title {
+  font-weight: 550;
+  font-size: 14px;
+}
+
+.zotero-results .by,
+.zotero-results .done {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.zotero-results .done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--edge-green);
+}
+
+.zotero-sent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text) !important;
+}
+
+/* Choosing documents for one PDF. */
+.combined-docs {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 4px;
+  max-height: min(44vh, 320px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.combined-docs li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.combined-docs label,
+.combined-canvas {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.combined-docs .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.combined-canvas {
+  padding: 0 4px;
+}
+
+@media (pointer: coarse) {
+  .menu.floating .doc-row .pin,
+  .bookmarks button.icon {
+    opacity: 1;
+  }
+
+  .bookmarks button.icon {
+    width: 32px;
+    height: 32px;
+  }
 }

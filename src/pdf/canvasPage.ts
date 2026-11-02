@@ -5,7 +5,7 @@ import fontkit from '@pdf-lib/fontkit';
 import { rgb, type PDFDocument, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 import { fontFile } from '../convert/typeset';
 import { outline, PAPER, pathOf } from '../ink';
-import { docName } from '../links';
+import { docName, where } from '../links';
 import { canvasOf, CARD_WIDTH } from '../store/project';
 import type { Card, Project } from '../types';
 import { regionImage } from './pdfjs';
@@ -130,7 +130,7 @@ export async function addCanvasPage(pdf: PDFDocument, project: Project, canvasId
         }
       } else y = text(wrap(`“${h.text}”`, font, SIZE, inner), font, SIZE, b.x + PAD, y, end - SIZE * 1.6);
       if (d.comment) y = text(wrap(d.comment, font, SIZE, inner), font, SIZE, b.x + PAD, y + 4, end - SIZE * 1.6);
-      text([`${docName(project, h.docId)} · ${part ? `p. ${part.page}` : 'not placed'}`], font, SIZE - 2, b.x + PAD, Math.max(y + 2, end - SIZE * 1.4), end + SIZE, MUTED);
+      text([`${docName(project, h.docId)} · ${where(h)}`], font, SIZE - 2, b.x + PAD, Math.max(y + 2, end - SIZE * 1.4), end + SIZE, MUTED);
     }
   }
   return page;

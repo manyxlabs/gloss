@@ -32,12 +32,10 @@ export function Unplaced({ docId }: { docId: string }) {
         <CircleAlert size={14} aria-hidden="true" /> Unplaced ({lost.length})
       </h3>
       <p className="side-note">Not found in the new version of this document. Select where one belongs in the page, then press Place.</p>
-      <ul className="marks">
+      <ul className="unplaced-marks">
         {lost.map((h) => (
-          <li key={h.id} className="unplaced-item">
-            <span className={`what hl-${h.color}`}>
-              <span className="text">{quoted(h)}</span>
-            </span>
+          <li key={h.id} className={`unplaced-item hl-${h.color}`}>
+            <span className="text">{quoted(h)}</span>
             {h.commentId && comments && <span className="note">{commentOf({ comments }, h)?.text}</span>}
             {/* Pressing these must not take the selection away from under them. */}
             <span className="actions" onMouseDown={(e) => e.preventDefault()}>
