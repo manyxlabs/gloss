@@ -1,4 +1,4 @@
-import { ChevronDown, Lock } from 'lucide-react';
+import { ChevronDown, ListCollapse, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { privateWarning, setDocLocal } from '../../store/privacy';
 import { useStore } from '../../store/project';
@@ -6,6 +6,7 @@ import type { DocMeta } from '../../types';
 import { CopyLink } from '../LinkChips';
 import { DocActions } from '../DocActions';
 import { Menu } from '../Menu';
+import { useSqueeze } from './Collapse';
 
 /** The open document's tab menu: copy a link to it, keep it on this device only, and its own actions (see DocActions). */
 export function DocMenu({ doc }: { doc: DocMeta }) {
@@ -36,6 +37,9 @@ export function DocMenu({ doc }: { doc: DocMeta }) {
             }}
           >
             <Lock size={16} /> Only on this device
+          </button>
+          <button role="menuitem" onClick={() => (setButton(null), useSqueeze.setState({ docId: doc.id }))}>
+            <ListCollapse size={16} /> Squeeze and defined terms…
           </button>
           <DocActions doc={doc} onClose={() => setButton(null)} />
         </Menu>

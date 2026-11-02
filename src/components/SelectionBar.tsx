@@ -67,8 +67,9 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
         </button>
       )}
       {nodes.length > 0 && (
-        <button aria-expanded={tagging} onClick={() => setTagging(!tagging)}>
-          <Tag size={16} /> Tag
+        // An icon alone: the bar sits over what is chosen, and a wider one covers a group's own buttons.
+        <button className="icon" aria-label="Tag" title="Tag" aria-expanded={tagging} onClick={() => setTagging(!tagging)}>
+          <Tag size={16} />
         </button>
       )}
       {nodes.length === 1 && !edges.length && nodes[0]!.data.kind !== 'group' && <CanvasLinkButton card={nodes[0]!} />}

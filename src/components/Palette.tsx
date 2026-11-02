@@ -190,6 +190,8 @@ export function Palette() {
           value={query}
           onChange={(e) => (setQuery(e.target.value), setActive(0))}
           onKeyDown={onKeyDown}
+          // A modal keeps the keyboard: a jump still settling elsewhere must not take the focus from it.
+          onBlur={(e) => !e.currentTarget.closest('[role="dialog"]')?.contains(e.relatedTarget) && requestAnimationFrame(() => input.current?.focus())}
         />
         <div className="command-list" id="command-list" role="listbox" aria-label="Places and actions" ref={list}>
           {!items.length && <p className="none">Nothing matches “{q}”.</p>}

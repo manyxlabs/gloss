@@ -1,5 +1,6 @@
 import { ListCollapse } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { create } from 'zustand';
 import { collapseAround, expandAll, useLastSearch } from '../../store/bulk';
 import { useStore } from '../../store/project';
 import { TermsToggle } from './Terms';
@@ -8,13 +9,17 @@ import { ColorPicker } from '../ColorPicker';
 
 const NONE: Tag[] = [];
 
+/** The document whose squeeze panel is open: from its button, or from the document's tab menu where a pane has no room for the button. */
+export const useSqueeze = create<{ docId: string | null }>(() => ({ docId: null }));
+
 /**
  * Squeezes a document down to its highlights (of a colour or with a tag, if chosen) or to the matches
  * of some words, with a chosen number of lines around each, as LiquidText's pinch to collapse does;
  * Expand all opens every squeeze again. Each is one undo step.
  */
 export function Collapse({ docId }: { docId: string }) {
-  const [open, setOpen] = useState(false);
+  const open = useSqueeze((s) => s.docId === docId);
+  const setOpen = (on: boolean) => useSqueeze.setState({ docId: on ? docId : null });
   const last = useLastSearch((s) => s.query);
   const tags = useStore((s) => s.project?.tags ?? NONE);
   const folded = useStore((s) => s.project?.folds.some((f) => f.docId === docId) ?? false);
