@@ -1,5 +1,5 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
+import { Check, Columns2, Copy, FileDown, FoldVertical, Link2, MessageSquare, MessageSquarePlus, Minus, PanelLeft, Plus, Trash2, X } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
@@ -38,6 +38,7 @@ import { paint, type PageView } from './doc/paint';
 import { Sidebar } from './doc/Sidebar';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
+import { onTabKeys, revealTab } from './tabs';
 import { WebPicker } from './WebPicker';
 import { Tools } from './Tools';
 
@@ -152,6 +153,28 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const section = useRef<HTMLElement>(null);
   const snipLive = useRef<HTMLDivElement>(null);
   const snip = useRef<Snip | null>(null);
+  const tabList = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => revealTab(tabList.current), [activeDocId, docs.length]);
+
+  // Escape puts a toolbar away, with the selection it was for; a selection gone by other means takes its toolbar with it.
+  const toolbar = popup && !popup.editing ? popup : null;
+  useEffect(() => {
+    if (!toolbar) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if ('anchor' in toolbar) getSelection()?.removeAllRanges();
+      setPopup(null);
+    };
+    const onSelection = () => 'anchor' in toolbar && (getSelection()?.isCollapsed ?? true) && setPopup(null);
+    addEventListener('keydown', onKey);
+    document.addEventListener('selectionchange', onSelection);
+    return () => {
+      removeEventListener('keydown', onKey);
+      document.removeEventListener('selectionchange', onSelection);
+    };
+  }, [toolbar]);
 
   useEffect(() => {
     const resize = new ResizeObserver(([entry]) => setNarrow(entry!.contentRect.width < SIDEBAR_BESIDE));
@@ -593,6 +616,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  // A press inside a selection starts a drag; let go where nothing takes it, the selection is still there, and so is its toolbar.
+  const onDragEnd = (e: DragEvent) => {
+    if (e.dataTransfer.dropEffect !== 'none') return getSelection()?.removeAllRanges();
+    setPopup(selectionPopup(scroller.current!, false, activeDocId));
+  };
+
   const onDrop = async (e: DragEvent) => {
     setDropping(false);
     const files = [...e.dataTransfer.files];
@@ -650,7 +679,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropping(false)}
       onDrop={onDrop}
     >
-      <div className="tabs" role="tablist" aria-label="Open documents">
+      <div className="tabs">
         {active && (
           <button
             className="icon"
@@ -663,52 +692,69 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             <PanelLeft size={16} />
           </button>
         )}
-        {docs.map((d) => (
-          <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
-            <button
-              role="tab"
-              aria-selected={d.id === activeDocId}
-              onClick={() => setActiveDoc(d.id, pane)}
-              title={d.source ? `${d.name}\nConverted from ${d.source.url ?? d.source.name}` : d.name}
-            >
-              {d.name}
-            </button>
-            <button
-              className="close"
-              aria-label={`Remove ${d.name}`}
-              onClick={() => confirm(`Remove “${d.name}” and its highlights and excerpts from this project?`) && removeDoc(d.id)}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+        {/* Only the tabs scroll; the buttons around them stay in reach however many documents there are. */}
+        <div className="tab-list" role="tablist" aria-label="Open documents" ref={tabList} onKeyDown={onTabKeys}>
+          {docs.map((d) => (
+            <div key={d.id} className={`tab${d.id === activeDocId ? ' active' : ''}`}>
+              <button
+                role="tab"
+                aria-selected={d.id === activeDocId}
+                tabIndex={d.id === activeDocId ? 0 : -1}
+                onClick={() => setActiveDoc(d.id, pane)}
+                title={d.source ? `${d.name}\nConverted from ${d.source.url ?? d.source.name}` : d.name}
+              >
+                {d.name}
+              </button>
+              <button
+                className="close"
+                aria-label={`Remove ${d.name}`}
+                tabIndex={d.id === activeDocId ? 0 : -1}
+                onClick={() =>
+                  confirm(`Remove “${d.name}” from this project, with its highlights, comments and the excerpts made from it? Undo brings it all back.`) && removeDoc(d.id)
+                }
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
         {pane ? (
           <button className="icon side" aria-label="Close this pane" title="Close this pane" onClick={() => setSideBySide(false)}>
             <X size={16} />
           </button>
         ) : (
-          <>
-            <FilePicker label="Add file" onProblems={onProblems} />
-            <WebPicker add={async (url) => onProblems(await addDocs([{ url }]))} />
-            {!split && docs.length > 0 && (
-              <button
-                className="icon side"
-                aria-label="Open side by side"
-                title="Open a second document, or another place in this one, side by side"
-                onClick={() => setSideBySide(true)}
-              >
-                <Columns2 size={16} />
-              </button>
-            )}
-          </>
+          docs.length > 0 && (
+            <>
+              <FilePicker label="Add file" onProblems={onProblems} />
+              <WebPicker add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
+              {!split && docs.length > 0 && (
+                <button
+                  className="icon side"
+                  aria-label="Open side by side"
+                  title="Open a second document, or another place in this one, side by side"
+                  onClick={() => setSideBySide(true)}
+                >
+                  <Columns2 size={16} />
+                </button>
+              )}
+            </>
+          )
         )}
       </div>
 
       <div className="doc-body" ref={body}>
         {sidebar && active && (
-          <aside className="doc-sidebar" aria-label="Contents, pages and highlights">
-            <Sidebar pane={pane} docId={active.id} page={status.page} onJump={() => narrow && setSidebar(false)} />
-          </aside>
+          <>
+            {narrow && <div className="side-backdrop" onClick={() => setSidebar(false)} />}
+            <aside className="doc-sidebar" aria-label="Contents, pages and highlights">
+              {narrow && (
+                <button className="icon side-close" aria-label="Close the sidebar" title="Close the sidebar" onClick={() => setSidebar(false)}>
+                  <X size={16} />
+                </button>
+              )}
+              <Sidebar pane={pane} docId={active.id} page={status.page} onJump={() => narrow && setSidebar(false)} />
+            </aside>
+          </>
         )}
         <div
           className={`doc-scroll tool-${tool}`}
@@ -719,6 +765,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           onPointerCancel={onPointerCancel}
           onClick={onClick}
           onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
         >
           <div className="pdfViewer" ref={viewerDiv} />
           {shown?.editing && ('anchor' in shown || highlight) && (
@@ -738,7 +785,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             </div>
           )}
           {shown && !shown.editing && 'anchor' in shown && (
-            <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="toolbar" aria-label="Selection">
+            // Pressing a button here must not take the selection away from under it.
+            <div
+              className={`popup${shown.below ? ' below' : ''}`}
+              style={{ left: shown.x, top: shown.y }}
+              role="toolbar"
+              aria-label="Selection"
+              onMouseDown={(e) => e.preventDefault()}
+            >
               <button className="primary" onClick={() => excerpt(fromSelection(shown.anchor, color).id)}>
                 Excerpt
               </button>
@@ -782,14 +836,29 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <button className="icon" aria-label="Squeeze" title="Squeeze these lines out of view" onClick={() => squeeze(shown.anchor)}>
                 <FoldVertical size={17} />
               </button>
-              <button className="icon" aria-label="Copy" title="Copy" onClick={() => (void navigator.clipboard.writeText(shown.anchor.text), setPopup(null))}>
-                <Copy size={16} />
+              <button
+                className="icon"
+                aria-label={copied ? 'Copied' : 'Copy'}
+                title={copied ? 'Copied' : 'Copy'}
+                onClick={async () => {
+                  await navigator.clipboard.writeText(shown.anchor.text);
+                  setCopied(true);
+                  setTimeout(() => (setCopied(false), setPopup((p) => (p === shown ? null : p))), 900);
+                }}
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
           )}
           {shown && 'links' in shown && shown.links && highlight && <LinkPopover highlight={highlight} pane={pane} x={shown.x} y={shown.y} onClose={() => setPopup(null)} />}
           {shown && !shown.editing && !('links' in shown && shown.links) && highlight && (
-            <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="toolbar" aria-label="Highlight">
+            <div
+              className={`popup${shown.below ? ' below' : ''}`}
+              style={{ left: shown.x, top: shown.y }}
+              role="toolbar"
+              aria-label="Highlight"
+              onMouseDown={(e) => e.preventDefault()}
+            >
               {card ? (
                 <button className="primary" onClick={() => (setPopup(null), showCard(card.id))}>
                   Show on canvas
@@ -839,8 +908,14 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
         {!docs.length && !pane && (
           <div className="empty">
-            <p>Drop PDFs, Word or PowerPoint files, images or text here to start reading.</p>
-            <FilePicker label="Choose files" primary onProblems={onProblems} />
+            <p>
+              <span className="mouse-only">Drop PDFs, Word or PowerPoint files, images or text here, or add a web page, to start reading.</span>
+              <span className="touch-only">Add PDFs, Word or PowerPoint files, images, text or a web page to start reading.</span>
+            </p>
+            <div className="actions">
+              <FilePicker label="Choose files" primary onProblems={onProblems} />
+              <WebPicker kind="text" add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
+            </div>
           </div>
         )}
         {error && active && (

@@ -578,6 +578,7 @@ button.link:hover:not(:disabled) {
 
 .password-dialog input[aria-invalid='true'] {
   border-color: var(--danger);
+  --ring: color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
 .password-dialog .wrong {
@@ -806,15 +807,32 @@ button.link:hover:not(:disabled) {
   outline-offset: -6px;
 }
 
+/* The same height for documents and canvases, so their borders meet in one line. Only the tabs
+   themselves scroll; the buttons beside them stay in reach. */
 .tabs {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 8px;
+  height: 44px;
+  flex: none;
+  padding: 0 8px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
+}
+
+.tab-list {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.narrow .tabs .add .label {
+  display: none;
 }
 
 .tab {
@@ -858,6 +876,7 @@ button.link:hover:not(:disabled) {
   background: transparent;
   color: var(--accent);
   flex: none;
+  min-height: 32px;
 }
 
 .doc-body {
@@ -1336,6 +1355,20 @@ button.link:hover:not(:disabled) {
   padding: 7px 10px;
   resize: none;
   font-size: 14px;
+}
+
+/* Fields in popups and dialogs show focus on their own border, inside the room the popup has. */
+.note-editor textarea:focus-visible,
+.password-dialog input:focus-visible,
+.web-dialog input:focus-visible,
+.sheet input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring, var(--accent-soft));
+}
+
+.password-dialog input[aria-invalid='true']:focus-visible {
+  border-color: var(--danger);
 }
 
 .note-editor .row {
@@ -2533,4 +2566,32 @@ dialog.sheet::backdrop {
 
 .returning .problems {
   margin: 0 0 16px;
+}
+
+/* A sidebar over a narrow page: the page dims behind it, and a tap there or its own button closes it. */
+.side-backdrop {
+  position: absolute;
+  z-index: 21;
+  inset: 0;
+  background: rgb(0 0 0 / 0.25);
+}
+
+.sidebar-over .doc-status {
+  display: none;
+}
+
+.sidebar-over .side-tabs {
+  padding-right: 44px;
+}
+
+.side-close {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 6px;
+}
+
+.empty .actions {
+  justify-content: center;
+  margin-top: 8px;
 }

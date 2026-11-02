@@ -24,6 +24,8 @@ test('read, excerpt, connect, find and export', async ({ page }) => {
   await page.mouse.up();
   const rising = card(page, 'Rising sea temperatures');
   await expect(rising).toBeVisible();
+  // The selection went with the drag, and its toolbar with it.
+  await expect(page.getByRole('toolbar', { name: 'Selection' })).toHaveCount(0);
   const dropped = (await rising.boundingBox())!;
   expect(Math.abs(dropped.x - (canvas.x + 160 - 24))).toBeLessThan(40);
 

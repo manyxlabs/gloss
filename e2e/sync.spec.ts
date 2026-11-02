@@ -214,7 +214,7 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await expect(a.page.locator('.page:not([data-copy]) .link-mark')).toHaveCount(2);
 
   const tabs = (page: Page) => page.getByRole('tablist', { name: 'Canvases' });
-  await tabs(a.page).getByRole('button', { name: 'New canvas' }).click();
+  await a.page.getByRole('button', { name: 'New canvas' }).click();
   await addNote(a.page, 'Only on the second canvas', 200, 200);
 
   await a.page.getByRole('button', { name: 'Share' }).click();
