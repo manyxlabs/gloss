@@ -630,7 +630,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               role="tab"
               aria-selected={d.id === activeDocId}
               onClick={() => setActiveDoc(d.id, pane)}
-              title={d.source ? `${d.name}\nConverted from ${d.source.url ?? d.source.name}` : d.name}
+              title={d.source ? `${d.name}\n${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}` : d.name}
             >
               {d.name}
             </button>

@@ -24,7 +24,7 @@ export type DocMeta = {
    * with the rest, end-to-end encrypted, since everyone with the link can read the PDF anyway.
    */
   password?: string;
-  /** What a document was converted from, when it was not added as a PDF. */
+  /** What a document was converted from, when it was not added as a PDF, or the link it was fetched from. */
   source?: DocSource;
   /**
    * The version of the file once its pages have been edited. Each edit stores a new file beside the
@@ -34,7 +34,8 @@ export type DocMeta = {
   file?: string;
 };
 
-export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web'; name?: string; url?: string };
+/** `link` is a file fetched from a share link as it was, without converting. */
+export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web' | 'link'; name?: string; url?: string };
 
 export const INKS = ['ink', 'red', 'blue', 'green'] as const;
 export type InkColor = (typeof INKS)[number];

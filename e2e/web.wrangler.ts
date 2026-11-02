@@ -11,9 +11,9 @@ const guarded = `http://localhost:${port + 2}`;
 const span = (page: Page, text: string) => page.locator('.textLayer span', { hasText: text }).first();
 
 async function addFromWeb(page: Page, url: string) {
-  await page.getByRole('button', { name: 'Add from the web' }).click();
-  await page.getByRole('textbox', { name: 'Web page address' }).fill(url);
-  await page.getByRole('button', { name: 'Add page' }).click();
+  await page.getByRole('button', { name: 'Add from a link' }).click();
+  await page.getByRole('textbox', { name: 'Link' }).fill(url);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
 }
 
 test('a web page becomes a document with its title, source and article', async ({ page }) => {
@@ -45,7 +45,7 @@ test('a web page becomes a document with its title, source and article', async (
 
   // What is not a web page, and a redirect to a cloud metadata address, are refused with a reason.
   await addFromWeb(page, `${site}/data.json`);
-  await expect(page.getByRole('alert')).toContainText(`${site}/data.json could not be added. That address is not a web page.`);
+  await expect(page.getByRole('alert')).toContainText(`${site}/data.json could not be added. That address is not a web page or a file Gloss can open.`);
   await addFromWeb(page, `${site}/to-metadata`);
   await expect(page.getByRole('alert')).toContainText('Addresses given as IP numbers are not fetched.');
   await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(1);
