@@ -168,6 +168,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       eventBus: bus,
       linkService: links,
       findController,
+      imageResourcesPath: `${import.meta.env.BASE_URL}pdfjs/images/`,
     });
     links.setViewer(viewer);
     pdf.current = { viewer, bus, links };
