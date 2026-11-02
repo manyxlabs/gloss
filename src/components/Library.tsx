@@ -1,9 +1,13 @@
 import { FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { Input } from '../convert';
+import { ACCEPT } from '../convert/formats';
+import { leave } from '../notices';
 import { deleteProject, listProjects, putProject } from '../store/db';
 import type { Project } from '../types';
 import { Logo } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
+import { WebPicker } from './WebPicker';
 
 const ago = (t: number) => {
   const s = (Date.now() - t) / 1000;
@@ -69,16 +73,16 @@ export function Library() {
     void listProjects().then(setProjects);
   }, []);
 
-  const start = async (files: File[]) => {
+  const start = async (inputs: Input[]) => {
     setBusy(true);
     try {
-      const name = files[0]?.name.replace(/\.pdf$/i, '') ?? 'Untitled project';
       // Loaded here rather than imported above, so pdf.js is not part of the start page.
       const { importFiles, newProject } = await import('../store/project');
-      const { project, problems } = await importFiles(newProject(name), files);
+      const { project, problems } = await importFiles(newProject('Untitled project'), inputs);
       setProblems(problems);
-      if (files.length && !project.docs.length) return;
-      await putProject(project);
+      if (inputs.length && !project.docs.length) return;
+      await putProject({ ...project, name: project.docs[0]?.name ?? project.name });
+      leave(problems);
       location.hash = `#/p/${project.id}`;
     } finally {
       setBusy(false);
@@ -123,15 +127,16 @@ export function Library() {
               <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
                 {busy ? 'Opening…' : 'Open PDFs'}
               </button>
+              <WebPicker big add={(url) => start([{ url }])} />
               <button className="big" disabled={busy} onClick={() => void start([])}>
                 New empty project
               </button>
             </div>
-            <p className="hint">or drop PDFs anywhere on this page</p>
+            <p className="hint">or drop PDFs, Word and PowerPoint files, images or text anywhere on this page</p>
             <input
               ref={input}
               type="file"
-              accept="application/pdf,.pdf"
+              accept={ACCEPT}
               multiple
               hidden
               onChange={(e) => {

@@ -3,6 +3,8 @@ import { expect, type Page } from '@playwright/test';
 import { ESSAY, makePdf, NOTES } from './pdfs';
 
 export const ARTIFACTS = 'test-results/artifacts';
+/** Where pdf.js, reading a PDF in Node, finds the standard fonts that PDFs may use without embedding. */
+export const STANDARD_FONTS = 'node_modules/pdfjs-dist/standard_fonts/';
 mkdirSync(ARTIFACTS, { recursive: true });
 
 export const shot = (page: Page, name: string) => page.screenshot({ path: `${ARTIFACTS}/${name}.png` });

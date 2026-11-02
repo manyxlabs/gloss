@@ -1,7 +1,8 @@
 import { addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, type NodeChange, type XYPosition } from '@xyflow/react';
 import { create } from 'zustand';
 import { before } from '../pdf/folds';
-import { closeDocs, isPdf, openPdf, PdfPasswordError } from '../pdf/pdfjs';
+import type { Input } from '../convert';
+import { closeDocs, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { addFiles, deleteFile, getProject, putProject } from './db';
 
@@ -173,31 +174,18 @@ export const rememberPage = (docId: string, lastPage: number) =>
     false,
   );
 
-/** Reads and stores PDFs. Returns a message for each file that could not be added. */
-export async function importFiles(project: Project, files: File[]): Promise<{ project: Project; problems: string[] }> {
-  const problems: string[] = [];
-  const added: [DocMeta, File][] = [];
-  for (const file of files) {
-    if (!(await isPdf(file))) {
-      problems.push(`${file.name} is not a PDF.`);
-      continue;
-    }
+/** Converts what was added to PDFs and stores them. Returns a message for each file that could not be added, or added only in part. */
+export async function importFiles(project: Project, inputs: Input[]): Promise<{ project: Project; problems: string[] }> {
+  const { convert } = await import('../convert');
+  const { converted, problems } = await convert(inputs);
+  const added: [DocMeta, Blob][] = [];
+  for (const { name, data, source } of converted) {
     try {
-      const { doc, close } = await openPdf(file);
-      added.push([
-        {
-          id: uid(),
-          name: file.name.replace(/\.pdf$/i, ''),
-          pages: doc.numPages,
-          size: file.size,
-        },
-        file,
-      ]);
+      const { doc, close } = await openPdf(data);
+      added.push([{ id: uid(), name, pages: doc.numPages, size: data.size, ...(source ? { source } : {}) }, data]);
       await close();
     } catch (err) {
-      problems.push(
-        err instanceof PdfPasswordError ? `${file.name} is password protected. Save a copy without the password and add that.` : `${file.name} could not be read as a PDF.`,
-      );
+      problems.push(err instanceof PdfPasswordError ? `${name} is password protected. Save a copy without the password and add that.` : `${name} could not be read as a PDF.`);
     }
   }
   if (added.length) await addFiles(added.map(([meta, file]) => [meta.id, file]));
@@ -209,7 +197,7 @@ export async function importFiles(project: Project, files: File[]): Promise<{ pr
   return { project: next, problems };
 }
 
-export async function addDocs(files: File[]) {
+export async function addDocs(files: Input[]) {
   const { project } = get();
   if (!project) return [];
   const { project: next, problems } = await importFiles(project, files);
