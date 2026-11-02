@@ -46,9 +46,11 @@ export async function search(project: Project, raw: string) {
     const text = cardText(project, c);
     return text.toLowerCase().includes(query) ? [{ cardId: c.id, text }] : [];
   });
-  const comments: CommentHit[] = project.highlights.flatMap((h) =>
-    h.note?.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, note: h.note }] : [],
-  );
+  // A comment on several passages is found once, at the first of them.
+  const comments: CommentHit[] = project.comments.flatMap((c) => {
+    const h = project.highlights.find((x) => x.commentId === c.id);
+    return h && c.text.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, note: c.text }] : [];
+  });
   return { docs, cards, comments };
 }
 
