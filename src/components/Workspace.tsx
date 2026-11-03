@@ -18,6 +18,7 @@ import { Share } from './Share';
 import { TagsDialog } from './TagsDialog';
 import { ThemeToggle } from './ThemeToggle';
 import { useMedia } from '../panes';
+import { PeopleItems } from './Presence';
 
 const SPLIT_KEY = 'gloss:split';
 const readSplit = () => {
@@ -143,8 +144,19 @@ export function Workspace({ id }: { id: string }) {
         <Search />
         <Screens />
         <Share />
-        {/* On a phone the theme joins the exports in the header's More, which leaves the project's name room. */}
-        <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} more={compact && <ThemeToggle item />} />
+        {/* On a phone the theme, and who is here, join the exports in the header's More, which leaves the project's name room. */}
+        <ExportMenu
+          disabled={!project.cards.length && !project.highlights.length}
+          onProblems={setProblems}
+          more={
+            compact && (
+              <>
+                <ThemeToggle item />
+                {project.sync && <PeopleItems />}
+              </>
+            )
+          }
+        />
         {!compact && <ThemeToggle />}
       </header>
 
