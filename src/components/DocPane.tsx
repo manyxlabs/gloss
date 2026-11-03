@@ -193,6 +193,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const live = useRef<SVGPathElement>(null);
   const pdf = useRef<Viewer | null>(null);
   const flash = useRef<string | null>(null);
+  /** Where the reader last pressed or jumped to, which stays in place as the pane is resized while it is in view. */
+  const reading = useRef<{ page: number; fx: number; fy: number } | null>(null);
   const stroke = useRef<Stroke | null>(null);
   const [loaded, setLoaded] = useState<string | null>(null);
   const [failed, setFailed] = useState<{
@@ -378,9 +380,20 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     container.addEventListener('touchend', onTouchEnd);
     container.addEventListener('touchcancel', onTouchEnd);
 
-    // A phone turned sideways or a moved divider keeps the page fitted, unless the reader zoomed.
+    // A phone turned sideways, a moved divider or another screen's choice keeps the page fitted, unless the reader zoomed.
+    // The place being read stays where it is on screen: where the reader last pressed or jumped to while
+    // that is in view, else the middle. pdf.js keeps the top, and zoomed in, the passage would fall below.
     const resize = new ResizeObserver(() => {
-      if (viewer.pdfDocument && viewer.currentScaleValue === 'page-width') viewer.currentScaleValue = 'page-width';
+      if (!viewer.pdfDocument || viewer.currentScaleValue !== 'page-width') return;
+      const box = container.getBoundingClientRect();
+      const last = reading.current;
+      const seen = last && locate(container, last.page, last.fx, last.fy);
+      const inView = seen && seen.y >= box.top && seen.y <= box.bottom;
+      const y = inView ? seen.y : box.top + box.height / 2;
+      const anchor = inView ? last : pointOnPage(container, box.left + box.width / 2, y);
+      viewer.currentScaleValue = 'page-width';
+      const now = anchor && locate(container, anchor.page, anchor.fx, anchor.fy);
+      if (now) container.scrollTop += now.y - y;
     });
     resize.observe(container);
 
@@ -483,6 +496,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       const c = scroller.current!;
       const spot = jump.y !== undefined && locate(c, jump.page, 0, jump.y);
       if (spot) c.scrollTop += spot.y - c.getBoundingClientRect().top - 8;
+      reading.current = { page: jump.page, fx: 0, fy: jump.y ?? 0 };
       if (jump.query)
         p.bus.dispatch('find', {
           source: null,
@@ -502,6 +516,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const container = scroller.current!;
     const spot = part && rect && locate(container, part.page, rect[0], rect[1]);
     if (!h || !spot) return;
+    reading.current = { page: part.page, fx: rect[0], fy: rect[1] };
     const outer = container.getBoundingClientRect();
     container.scrollTo({
       top: container.scrollTop + spot.y - outer.top - container.clientHeight * 0.3,
@@ -544,6 +559,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const fingerScroll = useRef<{ id: number; x: number; y: number; left: number; top: number } | null>(null);
 
   const onPointerDown = (e: ReactPointerEvent) => {
+    reading.current = pointOnPage(scroller.current!, e.clientX, e.clientY);
     if (e.pointerType === 'pen') notePen();
     if (!activeDocId || tool === 'select' || tool === 'text' || (e.target as HTMLElement).closest('.popup, .fold-bar')) return;
     if (e.pointerType === 'touch' && useStore.getState().penSeen) {
