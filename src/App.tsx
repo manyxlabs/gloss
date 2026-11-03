@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Join } from './components/Join';
 import { Library } from './components/Library';
 import { Lost } from './components/Lost';
@@ -34,6 +34,14 @@ export function App() {
     addEventListener('hashchange', onHash);
     return () => removeEventListener('hashchange', onHash);
   }, []);
+  // The start page keeps room for the notices at its foot, so they never sit over its links: see .library in styles.css.
+  const notices = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = notices.current!;
+    const sized = new ResizeObserver(() => document.documentElement.style.setProperty('--notices', `${el.offsetHeight}px`));
+    sized.observe(el);
+    return () => sized.disconnect();
+  }, []);
   return (
     <>
       {joining ? (
@@ -52,7 +60,7 @@ export function App() {
         <Library />
       )}
       <PasswordDialog />
-      <div className="toasts">
+      <div className="toasts" ref={notices}>
         <AppUpdates />
         <ProgressNotice />
         <Unsent />
