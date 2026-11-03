@@ -10,6 +10,7 @@ import { download } from '../export';
 import { useStore } from '../store/project';
 import type { Card, Link, Project } from '../types';
 import { CardNode } from './CardNode';
+import { radios } from './Segmented';
 
 const nodeTypes = { card: CardNode };
 const useDialog = create<{ open: boolean }>(() => ({ open: false }));
@@ -194,17 +195,6 @@ export function CanvasExport() {
   };
 
   if (!open) return null;
-  const radios = <T extends string | number | boolean>(name: string, value: T, choices: [T, string, boolean?][], pick: (v: T) => void) => (
-    <div className="segmented" role="radiogroup" aria-label={name}>
-      {choices.map(([v, label, disabled]) => (
-        <label key={String(v)} className={disabled ? 'disabled' : undefined}>
-          <input type="radio" name={name} checked={value === v} disabled={disabled} onChange={() => pick(v)} />
-          {label}
-        </label>
-      ))}
-    </div>
-  );
-
   return createPortal(
     <dialog ref={dialog} className="web-dialog glass picture-dialog" aria-labelledby="picture-h" onClose={close}>
       <form

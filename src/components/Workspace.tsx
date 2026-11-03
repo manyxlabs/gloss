@@ -12,6 +12,8 @@ import { Lost } from './Lost';
 import { useLinkTarget } from './OpenLink';
 import { Search } from './Search';
 import { Palette } from './Palette';
+import { openScreen } from '../sync/state';
+import { Screens, useShown } from './Screens';
 import { Share } from './Share';
 import { TagsDialog } from './TagsDialog';
 import { ThemeToggle } from './ThemeToggle';
@@ -33,12 +35,14 @@ export function Workspace({ id }: { id: string }) {
   const [problems, setProblems] = useState<string[]>(take);
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
+  const shown = useShown();
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const body = useRef<HTMLDivElement>(null);
   useLinkTarget((problem) => setProblems((p) => [...p, problem]));
 
   useEffect(() => {
+    openScreen(id);
     void openProject(id).then((p) => {
       setMissing(!p);
       const to = p && takeArrival(p.id);
@@ -134,19 +138,22 @@ export function Workspace({ id }: { id: string }) {
           </button>
         </span>
         <Search />
+        <Screens />
         <Share />
         <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} />
         <ThemeToggle />
       </header>
 
-      <div className="switch" role="tablist" aria-label="Show">
-        <button role="tab" aria-selected={view === 'doc'} onClick={() => setView('doc')}>
-          Document
-        </button>
-        <button role="tab" aria-selected={view === 'canvas'} onClick={() => setView('canvas')}>
-          Canvas{project.cards.length ? ` (${project.cards.length})` : ''}
-        </button>
-      </div>
+      {shown === 'both' && (
+        <div className="switch" role="tablist" aria-label="Show">
+          <button role="tab" aria-selected={view === 'doc'} onClick={() => setView('doc')}>
+            Document
+          </button>
+          <button role="tab" aria-selected={view === 'canvas'} onClick={() => setView('canvas')}>
+            Canvas{project.cards.length ? ` (${project.cards.length})` : ''}
+          </button>
+        </div>
+      )}
 
       {problems.length > 0 && (
         <div className="problems" role="alert">
@@ -159,8 +166,12 @@ export function Workspace({ id }: { id: string }) {
         </div>
       )}
 
-      <div className={`panes show-${view}`} ref={body} style={{ '--split': `${split}%` } as React.CSSProperties}>
-        <DocPanes onProblems={setProblems} />
+      <div
+        className={`panes ${shown === 'both' ? `show-${view}` : `alone show-${shown === 'canvas' ? 'canvas' : 'doc'}`}`}
+        ref={body}
+        style={{ '--split': `${split}%` } as React.CSSProperties}
+      >
+        <DocPanes onProblems={setProblems} only={typeof shown === 'number' ? shown : undefined} />
         <div className="divider" role="separator" aria-orientation="vertical" aria-label="Resize" onPointerDown={drag} />
         <ReactFlowProvider>
           <Canvas />
