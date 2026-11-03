@@ -249,7 +249,8 @@ test('a text box keeps its place and words through reload, zoom, a page turn, a 
   await page.getByRole('button', { name: 'Page colours' }).first().click();
   await page.getByRole('menu', { name: 'Page colours' }).getByRole('menuitemradio', { name: 'Dark pages' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-pages', 'dark');
-  await box.scrollIntoViewIfNeeded();
+  // The new page colour redraws the page, which may replace the box while it is being scrolled to.
+  await expect(() => box.scrollIntoViewIfNeeded({ timeout: 1000 })).toPass();
   await expect(box).toBeVisible();
   await shot(page, 'text-box-dark-page');
 });
