@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openProject, pdf, shot } from './helpers';
+import { openProject, pdf, shot, useTheme } from './helpers';
 
 const panel = (page: Page) => page.getByRole('dialog', { name: 'All documents' });
 const tabs = (page: Page) => page.getByRole('tablist', { name: 'Open documents' }).first().getByRole('tab');
@@ -98,7 +98,7 @@ test('on a phone, the list of documents fits the screen and opens one', async ({
   const page = await context.newPage();
   await openProject(page);
   await addGuide(page);
-  await page.getByRole('button', { name: 'Use dark theme' }).tap();
+  await useTheme(page, 'dark');
   await page.getByRole('button', { name: 'All documents' }).first().tap();
   const box = (await panel(page).boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);

@@ -99,3 +99,32 @@ export async function inkStyle(page: Page, toolbar: 'Document tools' | 'Canvas t
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 }
+
+/** Switches the app's theme from the header, or on a phone from the header's More, where the switch has no room of its own. */
+export async function useTheme(page: Page, theme: 'dark' | 'light') {
+  const name = `Use ${theme} theme`;
+  const button = page.getByRole('button', { name });
+  if (await button.isVisible()) return button.click();
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name }).click();
+}
+
+/**
+ * Presses a toolbar's button, or on a phone the same item in that toolbar's More, where the button has
+ * no room of its own; `more` names the More. Returns the menu it opens, if it opens one.
+ */
+export async function fromToolbar(page: Page, name: string, more: string, menu = name) {
+  const button = page.getByRole('button', { name, exact: true }).first();
+  if (await button.isVisible()) {
+    await button.click();
+    return page.getByRole('menu', { name: menu });
+  }
+  await page.getByRole('button', { name: more, exact: true }).first().click();
+  const items = page.getByRole('menu', { name: more });
+  const item = items.getByRole('menuitem', { name: new RegExp(`^${name}`) });
+  if (await item.count()) await item.click();
+  return items;
+}
+
+/** Opens the export of the notes, which on a phone is the header's More. */
+export const exportNotes = (page: Page) => fromToolbar(page, 'Export notes', 'More');

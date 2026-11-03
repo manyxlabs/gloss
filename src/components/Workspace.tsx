@@ -17,6 +17,7 @@ import { Screens, useShown } from './Screens';
 import { Share } from './Share';
 import { TagsDialog } from './TagsDialog';
 import { ThemeToggle } from './ThemeToggle';
+import { useMedia } from '../panes';
 
 const SPLIT_KEY = 'gloss:split';
 const readSplit = () => {
@@ -37,6 +38,8 @@ export function Workspace({ id }: { id: string }) {
   const view = useStore((s) => s.view);
   const shown = useShown();
   const canUndo = useStore((s) => s.past.length > 0);
+  // A phone's header, where buttons a fingertip wide leave no room for them all; as in the header's CSS.
+  const compact = useMedia('(pointer: coarse) and (max-width: 760px)');
   const canRedo = useStore((s) => s.future.length > 0);
   const body = useRef<HTMLDivElement>(null);
   useLinkTarget((problem) => setProblems((p) => [...p, problem]));
@@ -140,8 +143,9 @@ export function Workspace({ id }: { id: string }) {
         <Search />
         <Screens />
         <Share />
-        <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} />
-        <ThemeToggle />
+        {/* On a phone the theme joins the exports in the header's More, which leaves the project's name room. */}
+        <ExportMenu disabled={!project.cards.length && !project.highlights.length} onProblems={setProblems} more={compact && <ThemeToggle item />} />
+        {!compact && <ThemeToggle />}
       </header>
 
       {shown === 'both' && (

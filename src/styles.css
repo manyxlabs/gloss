@@ -2480,6 +2480,8 @@ button.screens.linked {
 /* Opaque where it drops from the frosted header: inside one frosted panel another has nothing to frost, so what is under it would show through sharp. */
 .menu:not(.floating) {
   background: var(--panel);
+  /* As wide as its longest item, not the button it hangs from. */
+  width: max-content;
 }
 
 .menu button {
@@ -2532,14 +2534,14 @@ button.screens.linked {
 }
 
 /* Notices stack at the foot, clear of the problems shown at the top right, and high enough to clear
-   the canvas's minimap and zoom buttons (15px from the edge and up to 119px tall with a finger's
+   the canvas's minimap and zoom buttons (15px from the edge and up to 120px tall with a finger's
    larger buttons) and the document toolbar. They sit under the toolbars and everything that opens
    from them, menus, panels and banners, which may open where a notice shows, but over the pages and cards. */
 .toasts {
   position: fixed;
   z-index: 9;
   right: 12px;
-  bottom: 128px;
+  bottom: 144px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -3296,28 +3298,25 @@ section.folder {
   color: var(--muted);
 }
 
-/* Touch screens: everything that can be tapped is at least 32 pixels each way, and reaches 40. */
+/* Touch screens: everything that can be tapped is at least 40 pixels each way, the size of a fingertip. */
 @media (pointer: coarse) {
-  /* Controls keep their look and spacing; a smaller one's reach grows past its edges, into the gaps around it.
+  /* Small controls that sit apart from others, such as swatches, keep their look; their reach grows past their edges, into the gaps around them.
      Not menu items marked as chosen, whose ::after is the check mark: menu rows are tall enough. */
-  :where(button:not([aria-checked]), a[href], [role='tab']) {
-    position: relative;
-  }
-
   :where(button:not([aria-checked]), a[href], [role='tab'])::after {
     content: '';
     position: absolute;
     inset: min(0px, calc((100% - 40px) / 2));
   }
 
-  .ink-swatch,
-  .swatch {
+  :where(button:not([aria-checked]), a[href], [role='tab']) {
     position: relative;
   }
 
-  .ink-swatch::after,
-  .swatch::after {
-    inset: -9px;
+  /* Swatches in a row are 40 pixels apart, so each one's reach ends where the next one's starts. */
+  .ink-swatch,
+  .swatch {
+    position: relative;
+    margin: 0 9px;
   }
 
   .canvas .react-flow__handle::after {
@@ -3326,19 +3325,51 @@ section.folder {
     inset: -7px;
   }
 
-  /* Rows one above the other have no gaps to reach into, so they are tall enough themselves. */
-  .menu button:not(.icon, .swatch) {
+  /* Controls side by side have no gaps to reach into, so they are 40 pixels themselves. */
+  button.icon,
+  .canvas .react-flow__controls-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .menu button:not(.icon, .swatch),
+  [role='listbox'] [role='option'],
+  .bar button,
+  .doc-status button,
+  .canvas-tools button,
+  .popup button,
+  .selection-bar button,
+  .switch [role='tab'],
+  .tab button,
+  .canvas-tabs button,
+  .zoom .scale,
+  .choice button,
+  .card .source,
+  .card .ghost,
+  .card-links button,
+  .group button,
+  button.link,
+  .foot a {
+    min-width: 40px;
     min-height: 40px;
   }
 
-  .canvas .react-flow__handle {
-    width: 14px;
-    height: 14px;
+  button.link,
+  .foot a {
+    display: inline-flex;
+    align-items: center;
   }
 
-  .canvas .react-flow__controls-button {
-    width: 34px;
-    height: 34px;
+  /* Swatches keep their size: their spacing and reach make them a fingertip wide. */
+  button.swatch,
+  button.ink-swatch {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .bar .home {
+    width: 40px;
+    height: 40px;
   }
 
   .divider::after {
@@ -3353,21 +3384,7 @@ section.folder {
   }
 
   .tab button.close {
-    min-width: 32px;
-    min-height: 32px;
     opacity: 0.7;
-  }
-
-  .tab button {
-    min-height: 32px;
-  }
-
-  .canvas-tabs .add,
-  .zoom .scale,
-  .doc-status button.icon,
-  .narrow .doc-status button.icon {
-    min-width: 32px;
-    min-height: 32px;
   }
 
   /* In a narrow pane fingers pinch to zoom, which leaves the toolbar room for its tools; the percentage still fits the page. */
@@ -3375,27 +3392,33 @@ section.folder {
     display: none;
   }
 
-  .card .source,
-  .card .ghost,
-  .card-links button {
-    min-height: 32px;
-  }
-
-  button.link,
-  .foot a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-  }
-
   .group .fold {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
   }
 
   .group button {
-    min-height: 32px;
     opacity: 1;
+  }
+
+  .doc-status .zoom .scale {
+    min-width: 40px;
+  }
+
+  .thumbs .page-more {
+    top: 4px;
+    right: 4px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Far enough in from the page's edge that their reach, past it, is not cut off by the page. */
+  .note-mark {
+    right: max(1.2%, 12px);
+  }
+
+  .link-mark {
+    left: max(1.2%, 12px);
   }
 }
 
@@ -3593,6 +3616,36 @@ button.icon.danger:hover:not(:disabled) {
 @media (max-width: 760px) {
   .canvas-tools .picture-export {
     display: inline-flex;
+  }
+}
+
+/* A toolbar's More shows only where its buttons are a fingertip wide and the toolbar is short of room
+   for them all, and then holds what is hidden beside it: in a narrow pane, or a canvas a phone wide. */
+button.more-tools {
+  display: none;
+}
+
+.canvas {
+  container: canvas / inline-size;
+}
+
+@media (pointer: coarse) {
+  .narrow .doc-status button.more-tools {
+    display: inline-flex;
+  }
+
+  .narrow .doc-status button.overflow {
+    display: none;
+  }
+
+  @container canvas (max-width: 480px) {
+    .canvas-tools button.more-tools {
+      display: inline-flex;
+    }
+
+    .canvas-tools button.overflow {
+      display: none;
+    }
   }
 }
 
@@ -4237,9 +4290,14 @@ button.icon.danger:hover:not(:disabled) {
     opacity: 1;
   }
 
+  .menu.floating .doc-row button.doc-open,
+  .menu.floating .folder-head button.folder-toggle {
+    min-height: 40px;
+  }
+
   .bookmarks button.icon {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
   }
 }
 
@@ -4608,11 +4666,11 @@ dialog.tags-dialog {
   .tag-list button,
   .tag-row-edit .add-tag,
   .tag-picker footer .ghost {
-    min-height: 36px;
+    min-height: 40px;
   }
 
   .side-filter .tag-filter {
-    min-height: 34px;
+    min-height: 40px;
   }
 }
 
@@ -4749,7 +4807,7 @@ dialog.tags-dialog {
 @media (pointer: coarse) {
   .results .search-actions button:not(.swatch, .more-colors),
   .results .search-tags .tag-chip {
-    min-height: 34px;
+    min-height: 40px;
   }
 }
 
@@ -4843,8 +4901,16 @@ dialog.tags-dialog {
 }
 
 @media (pointer: coarse) {
-  .collapse-panel .choice button {
-    min-height: 34px;
+  .collapse-panel .choice button,
+  .collapse-panel select,
+  .collapse-panel input[type='range'] {
+    min-height: 40px;
+  }
+
+  /* Its swatches are spaced by their own margins, which make each a fingertip wide. */
+  .collapse-panel .colors {
+    gap: 0;
+    margin-inline: -9px;
   }
 }
 
@@ -5099,8 +5165,8 @@ dialog.tags-dialog {
 
   .term-card header .icon,
   .term-card footer button {
-    min-height: 34px;
-    min-width: 34px;
+    min-height: 40px;
+    min-width: 40px;
   }
 }
 

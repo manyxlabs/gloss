@@ -1,3 +1,4 @@
+import { Ellipsis } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -93,5 +94,32 @@ export function Menu({
       {children}
     </div>,
     document.body,
+  );
+}
+
+/**
+ * A toolbar's More: what has no room beside the rest where the toolbar is short of it, as on a phone,
+ * where every button is a fingertip wide. CSS shows it, and hides what it holds, only there.
+ */
+export function MoreMenu({ label, children }: { label: string; children: (close: () => void, anchor: HTMLElement) => ReactNode }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <button
+        className="icon more-tools"
+        aria-label={label}
+        title={label}
+        aria-haspopup="menu"
+        aria-expanded={!!anchor}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
+      >
+        <Ellipsis size={17} />
+      </button>
+      {anchor && (
+        <Menu anchor={anchor} label={label} onClose={() => setAnchor(null)}>
+          {children(() => setAnchor(null), anchor)}
+        </Menu>
+      )}
+    </>
   );
 }

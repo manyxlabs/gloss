@@ -1,6 +1,6 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { ARTIFACTS, card, inkStyle, openProject, picture, readPdf, select, shot } from './helpers';
+import { ARTIFACTS, card, fromToolbar, inkStyle, openProject, picture, readPdf, select, shot } from './helpers';
 import { PICTURE, pictureReport } from './pdfs';
 
 test.use({ viewport: { width: 1600, height: 1000 } });
@@ -236,7 +236,7 @@ test('a collapsed group exports as its chip, and a phone exports from the canvas
   await expect(note(page, 'Kelp')).toBeHidden();
   const chip = (await cardsOnCanvas(page)).find((c) => c.text.includes('2 cards'))!;
 
-  await page.getByRole('button', { name: 'Export the canvas as a picture' }).click();
+  await fromToolbar(page, 'Export the canvas as a picture', 'More canvas tools');
   const dialog = page.getByRole('dialog', { name: 'Export the canvas as a picture' });
   await expect(dialog).toBeVisible();
   const box = (await dialog.boundingBox())!;

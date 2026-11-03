@@ -1,6 +1,6 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { ARTIFACTS, card, openProject, pdf, select, shot } from './helpers';
+import { ARTIFACTS, card, exportNotes, openProject, pdf, select, shot } from './helpers';
 import { ESSAY, NOTES } from './pdfs';
 
 const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
@@ -71,7 +71,7 @@ test('on a phone, search opens over the header and its results stay on the scree
   await page.getByRole('button', { name: 'Note', exact: true }).tap();
   await expect(page.getByRole('textbox', { name: 'Note' })).toBeFocused();
   await page.keyboard.type('Notes from a phone');
-  await page.getByRole('button', { name: 'Export notes' }).tap();
+  await exportNotes(page);
   const menu = page.getByRole('menu');
   await expect(menu).toBeInViewport({ ratio: 1 });
   await shot(page, 'phone-export-menu');

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ARTIFACTS, card, openProject, pdf, PHONE, picture, select, shot } from './helpers';
+import { ARTIFACTS, card, exportNotes, fromToolbar, openProject, pdf, PHONE, picture, select, shot } from './helpers';
 import { ESSAY, makePdf, NOTES } from './pdfs';
 
 /**
@@ -296,7 +296,7 @@ test('folder import and sending look right on a desktop, a tablet and a phone, i
     await excerptSomething(page);
     for (const theme of ['light', 'dark'] as const) {
       await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
-      await page.getByRole('button', { name: 'Export notes' }).click();
+      await exportNotes(page);
       await page.waitForTimeout(300);
       await shot(page, `send-notes-menu-${label}-${theme}`);
       await page.getByRole('menuitem', { name: 'Documents as one PDF…' }).click();
@@ -365,7 +365,7 @@ test('notices never cover the canvas minimap or any controls, and a slow export 
     let release = () => {};
     const held = new Promise<void>((r) => (release = r));
     await page.route('**/fonts/**', async (route) => (await held, route.continue()));
-    await page.getByRole('button', { name: 'Export notes' }).click();
+    await exportNotes(page);
     const downloaded = page.waitForEvent('download');
     await page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'PDF (.pdf)' }).click();
     const making = page.getByRole('status').filter({ hasText: 'Making the notes…' });
@@ -387,8 +387,7 @@ test('notices never cover the canvas minimap or any controls, and a slow export 
       }
       if (view === 'Canvas') continue;
       // What opens from the document's toolbar stays above the notices.
-      await page.getByRole('button', { name: 'Page colours' }).click();
-      await expect(page.getByRole('menu', { name: 'Page colours' })).toBeVisible();
+      await expect(await fromToolbar(page, 'Page colours', 'More document tools')).toBeVisible();
       expect(await over(page, ['.menu', '.doc-banners > *'])).toEqual([]);
       await page.keyboard.press('Escape');
       const squeeze = page.getByRole('button', { name: 'Squeeze around highlights or words' });

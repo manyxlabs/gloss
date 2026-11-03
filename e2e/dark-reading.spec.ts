@@ -1,6 +1,6 @@
 import { copyFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { ARTIFACTS, card, picture, readPdf, select, shot } from './helpers';
+import { ARTIFACTS, card, fromToolbar, picture, readPdf, select, shot, useTheme } from './helpers';
 import { PICTURE, pictureReport } from './pdfs';
 
 // Each test exports or redraws pages several times over, which takes a while on a busy machine.
@@ -48,8 +48,8 @@ async function look(page: Page, box: Box) {
 const lum = ([r, g, b]: number[]) => 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 
 async function choose(page: Page, item: string) {
-  await page.getByRole('button', { name: 'Page colours' }).first().click();
-  await page.getByRole('menu', { name: 'Page colours' }).getByRole('menuitemradio', { name: item }).click();
+  const menu = await fromToolbar(page, 'Page colours', 'More document tools');
+  await menu.getByRole('menuitemradio', { name: item }).click();
 }
 
 test('dark pages keep text, highlights, pictures and handwriting readable, and change no export', async ({ page }) => {
@@ -167,7 +167,7 @@ test('pages can follow the app theme, on a phone too', async ({ browser }) => {
   await openReport(page);
   const margin = await onPage(page, 12, 600, 40, 120);
 
-  // The toolbar keeps to the screen with the page colours button in it.
+  // The toolbar keeps to the screen, with the page colours in its More.
   const bar = (await page.locator('.doc-status').boundingBox())!;
   expect(bar.x).toBeGreaterThanOrEqual(8);
   expect(bar.x + bar.width).toBeLessThanOrEqual(390 - 8);
@@ -177,22 +177,22 @@ test('pages can follow the app theme, on a phone too', async ({ browser }) => {
   expect(lum((await look(page, margin)).rgb)).toBeGreaterThan(245);
   await shot(page, 'pages-light-phone');
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await useTheme(page, 'dark');
   await expect(page.locator('html')).toHaveAttribute('data-pages', 'dark');
   await expect(page.locator('.photo-layer canvas')).toHaveCount(1);
   expect(lum((await look(page, margin)).rgb)).toBeLessThan(45);
   await shot(page, 'pages-dark-phone');
-  await page.getByRole('button', { name: 'Page colours' }).click();
+  await fromToolbar(page, 'Page colours', 'More document tools');
   await shot(page, 'pages-menu-phone');
   await page.keyboard.press('Escape');
 
   // Following the theme is what is kept, so a light theme next time brings light pages.
-  await page.getByRole('button', { name: 'Use light theme' }).click();
+  await useTheme(page, 'light');
   await expect(page.locator('html')).toHaveAttribute('data-pages', 'light');
   await page.reload();
   await expect(page.locator('.textLayer span').first()).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-pages', 'light');
-  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await useTheme(page, 'dark');
   await expect(page.locator('html')).toHaveAttribute('data-pages', 'dark');
   await context.close();
 });

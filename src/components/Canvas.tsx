@@ -14,7 +14,7 @@ import {
   type OnBeforeDelete,
   type XYPosition,
 } from '@xyflow/react';
-import { ImageDown, SquarePen, SquareStack, StickyNote } from 'lucide-react';
+import { ImageDown, Paintbrush, SquarePen, SquareStack, StickyNote } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { canvasView } from '../canvasView';
 import { inkAlong } from '../erase';
@@ -40,7 +40,8 @@ import {
 } from '../store/project';
 import { addNestedCanvas, addSketch, addStroke, erase as eraseOnCanvas, type Erased } from '../store/cards';
 import type { Card, Link, Point } from '../types';
-import { CanvasPath, CanvasStyleMenu } from './CanvasNav';
+import { CanvasPath, CanvasStyleMenu, CanvasStylePanel } from './CanvasNav';
+import { MoreMenu } from './Menu';
 import { CanvasExport, openCanvasExport } from './CanvasExport';
 import { CanvasTabs } from './CanvasTabs';
 import { CardNode } from './CardNode';
@@ -81,6 +82,8 @@ export function Canvas() {
   const live = useRef<SVGPathElement>(null);
   const stroke = useRef<(Drawn & { ruler: Ruler; from?: string }) | null>(null);
   const [over, setOver] = useState(false);
+  // The canvas style opened from the tools' More, where its own button has no room.
+  const [styleFrom, setStyleFrom] = useState<HTMLElement | null>(null);
   // Fitting an empty canvas would happen when its first card appears, moving everything under the reader's pointer.
   const [fit] = useState(() => cards.length > 0);
 
@@ -436,10 +439,10 @@ export function Canvas() {
           <button onClick={() => addNote()}>
             <StickyNote size={16} /> Note
           </button>
-          <button className="icon" aria-label="Ink box" title="Ink box: a box to write in by hand" onClick={() => addSketch()}>
+          <button className="icon overflow" aria-label="Ink box" title="Ink box: a box to write in by hand" onClick={() => addSketch()}>
             <SquarePen size={16} />
           </button>
-          <button className="icon" aria-label="Nested canvas" title="Nested canvas: a card that opens a canvas of its own" onClick={() => addNestedCanvas()}>
+          <button className="icon overflow" aria-label="Nested canvas" title="Nested canvas: a card that opens a canvas of its own" onClick={() => addNestedCanvas()}>
             <SquareStack size={16} />
           </button>
           <Tools side="canvasTool" />
@@ -447,7 +450,7 @@ export function Canvas() {
           {project?.tags.length ? <TagFilter /> : null}
           {/* Shown on a phone only, where the header is far from the canvas. */}
           <button
-            className="icon picture-export"
+            className="icon picture-export overflow"
             aria-label="Export the canvas as a picture"
             title="Export the canvas as a picture"
             disabled={!cards.length}
@@ -455,6 +458,25 @@ export function Canvas() {
           >
             <ImageDown size={17} />
           </button>
+          <MoreMenu label="More canvas tools">
+            {(close, anchor) => (
+              <>
+                <button role="menuitem" onClick={() => (close(), addSketch())}>
+                  <SquarePen size={16} /> Ink box
+                </button>
+                <button role="menuitem" onClick={() => (close(), addNestedCanvas())}>
+                  <SquareStack size={16} /> Nested canvas
+                </button>
+                <button role="menuitem" onClick={() => (close(), setStyleFrom(anchor))}>
+                  <Paintbrush size={16} /> Canvas style…
+                </button>
+                <button role="menuitem" disabled={!cards.length} onClick={() => (close(), openCanvasExport())}>
+                  <ImageDown size={16} /> Export the canvas as a picture…
+                </button>
+              </>
+            )}
+          </MoreMenu>
+          {styleFrom && <CanvasStylePanel anchor={styleFrom} onClose={() => setStyleFrom(null)} />}
         </div>
         {!cards.length && (
           <p className="canvas-hint">

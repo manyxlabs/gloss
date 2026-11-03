@@ -68,7 +68,7 @@ import { setTag } from '../store/tags';
 import { Collapse } from './doc/Collapse';
 import { LinkPopover } from './doc/LinkPopover';
 import { AnnotsBanner } from './doc/AnnotsBanner';
-import { PageLookMenu } from './doc/PageLookMenu';
+import { PageLookItems, PageLookMenu } from './doc/PageLookMenu';
 import { NoteEditor } from './doc/NoteEditor';
 import { OcrBanner } from './doc/OcrBanner';
 import { chooseBox, paint, type PageView } from './doc/paint';
@@ -83,8 +83,9 @@ import { DefinedTerms } from './doc/Terms';
 import { TagPicker, TagRow } from './Tags';
 import { EXCERPT_MIME } from './dnd';
 import { FilePicker } from './FilePicker';
-import { onTabKeys, revealTab } from './tabs';
+import { onTabKeys, revealTab, useRevealOnResize } from './tabs';
 import { WebPicker } from './WebPicker';
+import { MoreMenu } from './Menu';
 import { Tools } from './Tools';
 import { usePaneRoom } from '../panes';
 
@@ -227,6 +228,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const [tabDrop, setTabDrop] = useState<{ id: string; after: boolean } | null>(null);
 
   useEffect(() => revealTab(tabList.current), [activeDocId, docs.length]);
+  useRevealOnResize(tabList);
 
   // Escape puts a toolbar away, with the selection it was for; a selection gone by other means takes its toolbar with it.
   const toolbar = popup && !popup.editing && !('tagging' in popup && popup.tagging) ? popup : null;
@@ -1188,9 +1190,26 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             {marked ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
           </button>
           <PageLookMenu />
-          <button className="icon" aria-label="Export PDF with highlights" title="Export PDF with highlights and handwriting" disabled={exporting} onClick={() => void exportPdf()}>
+          <button
+            className="icon overflow"
+            aria-label="Export PDF with highlights"
+            title="Export PDF with highlights and handwriting"
+            disabled={exporting}
+            onClick={() => void exportPdf()}
+          >
             <FileDown size={17} />
           </button>
+          <MoreMenu label="More document tools">
+            {(close) => (
+              <>
+                <PageLookItems close={close} />
+                <hr />
+                <button role="menuitem" disabled={exporting} onClick={() => (close(), void exportPdf())}>
+                  <FileDown size={16} /> Export PDF with highlights
+                </button>
+              </>
+            )}
+          </MoreMenu>
         </div>
       )}
     </section>
