@@ -55,6 +55,11 @@ export function Search() {
         setOpen(true);
         input.current?.focus();
       }
+      // From anywhere in the results, as the actions on all matches, or from nowhere once a picker in them has closed.
+      if (e.key === 'Escape' && (e.target === document.body || box.current?.contains(e.target as Node))) {
+        setOpen(false);
+        input.current?.blur();
+      }
     };
     const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
     addEventListener('keydown', onKey);
@@ -159,10 +164,7 @@ export function Search() {
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setOpen(false);
-      input.current?.blur();
-    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && options.length) {
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && options.length) {
       e.preventDefault();
       setOpen(true);
       const step = e.key === 'ArrowDown' ? 1 : -1;

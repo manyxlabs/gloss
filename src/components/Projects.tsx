@@ -138,9 +138,8 @@ export function Projects({
     >
       <a href={`#/p/${p.id}`} draggable={false}>
         <strong>{p.name}</strong>
-        <span>
-          {plural(p.docs.length, 'document')} · {plural(p.cards.length, 'card')} · {ago(p.openedAt ?? p.updatedAt)}
-        </span>
+        {/* Wrapped only between the facts, never inside one such as "just now". */}
+        <span>{[plural(p.docs.length, 'document'), plural(p.cards.length, 'card'), ago(p.openedAt ?? p.updatedAt)].map((s) => s.replaceAll(' ', '\u00a0')).join(' · ')}</span>
       </a>
       <button
         className="icon"
