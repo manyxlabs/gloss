@@ -309,7 +309,7 @@ test('pens on the canvas: Shift draws straight, nibs show in cards, and the canv
 
   // The notes in Markdown draw the note's handwriting as a picture, with its nibs.
   await page.getByRole('button', { name: 'Export notes' }).click();
-  const [md] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
+  const [md] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await md.path(), `${ARTIFACTS}/pens-notes.md`);
   const svg = Buffer.from(/base64,([^)]+)\)/.exec(readFileSync(await md.path(), 'utf8'))![1]!, 'base64').toString();
   expect(svg).toContain('fill="#16a34a" fill-opacity="0.4"');
