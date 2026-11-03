@@ -21,7 +21,9 @@ import {
   type Nib,
   type Part,
   type Project,
+  type Rect,
   type Spot,
+  type Typed,
 } from '../types';
 import { strokeSize, WIDTHS, type Width } from '../ink';
 import { paneRoom } from '../panes';
@@ -59,8 +61,8 @@ const atVersion = (d: DocMeta, v: Version | undefined): DocMeta => {
 };
 
 export type Tool = 'select' | 'pen' | 'eraser';
-/** Documents also take a box drawn around a figure. */
-export type DocTool = Tool | 'snip';
+/** Documents also take a box drawn around a figure, and text boxes typed onto the page. */
+export type DocTool = Tool | 'snip' | 'text';
 /** The document panes, from the left: the main one, and up to two more beside it on a wide screen. */
 export type Pane = 0 | 1 | 2;
 export const PANES = ['activeDocId', 'sideDocId', 'thirdDocId'] as const;
@@ -163,9 +165,13 @@ files.key = (docId) => {
   return doc ? fileKey(doc) : docId;
 };
 
-/** Where the canvas puts a new card when it was not dropped at a spot: set by the canvas while it is mounted. */
-export const canvasSpot: { next: () => XYPosition } = {
+/**
+ * Where the canvas puts a new card when it was not dropped at a spot, and where on it a point on
+ * screen is, null where the canvas is not: set by the canvas while it is mounted.
+ */
+export const canvasSpot: { next: () => XYPosition; at: (x: number, y: number) => XYPosition | null } = {
   next: () => ({ x: 0, y: 0 }),
+  at: () => null,
 };
 
 export function edit(change: (p: Project) => Partial<Project>, undoable = true) {
@@ -484,6 +490,29 @@ export function addHighlight(docId: string, parts: Part[], text: string, color: 
   return highlight;
 }
 
+/** A text box's letter sizes, as fractions of the page's width: about 9, 12 and 17 points on a Letter page. */
+export const TEXT_SIZES: readonly number[] = [0.015, 0.02, 0.028];
+/** A text box's line height and its padding across and down, in letter sizes, on screen and in the exported PDF alike. */
+export const TEXT_LINE = 1.3;
+export const TEXT_PAD = [0.45, 0.3] as const;
+
+/** How a new text box looks: like the last one made in the project, or yellow and of the middle size. */
+export function nextTextBox(): { color: Color; typed: Typed } {
+  const last = get().project?.highlights.findLast((h) => h.typed);
+  return { color: last?.color ?? 'yellow', typed: { size: last?.typed?.size ?? TEXT_SIZES[1]! } };
+}
+
+/** A new, empty text box to type into. */
+export function addTextBox(docId: string, page: number, rect: Rect, look = nextTextBox()) {
+  const box: Highlight = { id: uid(), docId, parts: [{ page, rects: [rect] }], text: '', ...look };
+  edit((p) => ({ highlights: [...p.highlights, box] }));
+  return box;
+}
+
+/** Changes a text box: typing takes its undo step when it ends, a move or a resize when it is made. */
+export const updateTextBox = (id: string, change: Partial<Pick<Highlight, 'text' | 'parts' | 'typed'>>, undoable = false) =>
+  edit((p) => ({ highlights: p.highlights.map((h) => (h.id === id && h.typed ? { ...h, ...change } : h)) }), undoable);
+
 export const CARD_WIDTH = 280;
 export const newCard = (data: CardData, position: XYPosition): Card => ({
   id: uid(),
@@ -504,27 +533,34 @@ export function excerpt(highlightId: string, position = canvasSpot.next()) {
   return card;
 }
 
-/** A note's or a card comment's text, which is typed in place. */
-const typed = (c?: Card) => (c?.data.kind === 'note' ? c.data.text : c?.data.kind === 'excerpt' ? (c.data.comment ?? '') : undefined);
+/** A note's, a card comment's or a text box's text, which is typed in place. */
+function typed(s: Snapshot, id: string) {
+  const c = s.cards.find((x) => x.id === id);
+  if (c) return c.data.kind === 'note' ? c.data.text : c.data.kind === 'excerpt' ? (c.data.comment ?? '') : undefined;
+  return s.highlights.find((h) => h.id === id && h.typed)?.text;
+}
+/** Notes and text boxes go when left empty. */
+function blank(s: Snapshot, id: string) {
+  const goes = s.cards.find((c) => c.id === id)?.data.kind === 'note' || s.highlights.some((h) => h.id === id && h.typed);
+  return goes && !typed(s, id)?.trim();
+}
 type Typing = { before: Snapshot; top: Snapshot | undefined };
 
-/** Typing in a card is one undo step, taken from the state when its field was entered. */
+/** Typing in a card or a text box is one undo step, taken from the state when its field was entered. */
 export const startTyping = (): Typing | null => {
   const { project, past } = get();
   return project && { before: snapshot(project), top: past.at(-1) };
 };
 
-/** Ends typing in a card. A note left empty goes; a new one goes with the step that made it, as if never written. */
-export function stopTyping({ before, top }: Typing, cardId: string) {
+/** Ends typing in a card or a text box. One left empty goes; a new one goes with the step that made it, as if never written. */
+export function stopTyping({ before, top }: Typing, id: string) {
   const { project, past } = get();
-  const card = project?.cards.find((c) => c.id === cardId);
-  if (!project || !card) return;
-  const was = before.cards.find((c) => c.id === cardId);
-  const changed = typed(card) !== typed(was);
+  if (!project || typed(project, id) === undefined) return;
+  const changed = typed(project, id) !== typed(before, id);
   if (changed) set({ past: [...past.slice(-MAX_UNDO + 1), before], future: [] });
-  if (card.data.kind !== 'note' || card.data.text.trim()) return;
-  if (!changed && past.at(-1) === top && top && !top.cards.some((c) => c.id === cardId)) set({ past: past.slice(0, -1) });
-  edit((p) => without(p, new Set([cardId])), false);
+  if (!blank(project, id)) return;
+  if (!changed && past.at(-1) === top && top && ![...top.cards, ...top.highlights].some((x) => x.id === id)) set({ past: past.slice(0, -1) });
+  edit((p) => without(p, new Set([id]), new Set([id])), false);
 }
 
 export function addNote(position = canvasSpot.next(), text = '') {
@@ -563,7 +599,8 @@ export function without(p: Project, removed: Set<string>, highlightIds = new Set
   const kept = new Set(cards.map((c) => c.id));
   const shown = new Set(cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
   const orphaned = new Set(p.cards.filter((c) => !kept.has(c.id) && c.data.kind === 'excerpt').map((c) => (c.data as { highlightId: string }).highlightId));
-  const highlights = p.highlights.filter((h) => !highlightIds.has(h.id) && !(orphaned.has(h.id) && !shown.has(h.id)));
+  // A text box is the reader's own writing on the page, so it stays when its last excerpt goes.
+  const highlights = p.highlights.filter((h) => !highlightIds.has(h.id) && !(orphaned.has(h.id) && !shown.has(h.id) && !h.typed));
   return {
     cards,
     highlights,

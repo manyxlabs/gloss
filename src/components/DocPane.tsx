@@ -1,5 +1,6 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
 import {
+  ALargeSmall,
   Bookmark,
   BookmarkCheck,
   Check,
@@ -21,7 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { useEffect, useEffectEvent, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
 import { fillOf, outline, PAPER, pathOf, ruler, type Ruler } from '../ink';
@@ -53,6 +54,7 @@ import {
   showCard,
   shownPanes,
   startStroke,
+  TEXT_SIZES,
   useStore,
   type Drawn,
   type Pane,
@@ -69,7 +71,8 @@ import { AnnotsBanner } from './doc/AnnotsBanner';
 import { PageLookMenu } from './doc/PageLookMenu';
 import { NoteEditor } from './doc/NoteEditor';
 import { OcrBanner } from './doc/OcrBanner';
-import { paint, type PageView } from './doc/paint';
+import { chooseBox, paint, type PageView } from './doc/paint';
+import { attachBoxes, editBox, sizeBox } from './doc/boxes';
 import { Sidebar, type Tab } from './doc/Sidebar';
 import { addBookmark } from '../store/bookmarks';
 import { moveDoc, orderedDocs } from '../store/docs';
@@ -111,6 +114,8 @@ const MIN_SNIP = 8;
 const SIDEBAR_BESIDE = 560;
 /** Narrower still, as one of two or three panes, the toolbar leaves out the zoom percentage; the steps either side of it stay. */
 const TIGHT = 360;
+
+const SIZE_NAMES = ['small', 'medium', 'large'];
 
 /** The pane last pressed in, which Ctrl+D bookmarks. */
 let lastPane: Pane = 0;
@@ -219,9 +224,19 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
   // Escape puts a toolbar away, with the selection it was for; a selection gone by other means takes its toolbar with it.
   const toolbar = popup && !popup.editing && !('tagging' in popup && popup.tagging) ? popup : null;
-  useEffect(() => {
+  // Listening from the moment the toolbar is drawn, as a key pressed on sight may beat a passive effect.
+  useLayoutEffect(() => {
     if (!toolbar) return;
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      const box =
+        'highlightId' in toolbar &&
+        !t.isContentEditable &&
+        !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) &&
+        useStore.getState().project?.highlights.find((h) => h.id === toolbar.highlightId && h.typed);
+      // A chosen text box is typed in with Enter and deleted with Delete.
+      if (box && (e.key === 'Delete' || e.key === 'Backspace')) return (e.preventDefault(), setPopup(null), removeHighlight(box.id));
+      if (box && e.key === 'Enter') return (e.preventDefault(), editBox(scroller.current!, box.id));
       if (e.key !== 'Escape') return;
       if ('anchor' in toolbar) getSelection()?.removeAllRanges();
       setPopup(null);
@@ -382,7 +397,13 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     container.addEventListener('selectstart', onSelectStart);
     container.addEventListener('pointerdown', onDown);
     document.addEventListener('selectionchange', onSelection);
+    const detachBoxes = attachBoxes(container, docNow, (highlightId, box) => {
+      const docId = docNow();
+      const below = box.top - container.getBoundingClientRect().top < 60;
+      if (docId) setPopup({ docId, highlightId, below, ...inScroller(container, box.left + box.width / 2, below ? box.bottom : box.top - 8) });
+    });
     return () => {
+      detachBoxes();
       clearTimeout(remember);
       clearTimeout(settle);
       cancelAnimationFrame(frame);
@@ -520,7 +541,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'pen') notePen();
-    if (!activeDocId || tool === 'select' || (e.target as HTMLElement).closest('.popup, .fold-bar')) return;
+    if (!activeDocId || tool === 'select' || tool === 'text' || (e.target as HTMLElement).closest('.popup, .fold-bar')) return;
     if (e.pointerType === 'touch' && useStore.getState().penSeen) {
       const c = scroller.current!;
       fingerScroll.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: c.scrollLeft, top: c.scrollTop };
@@ -626,7 +647,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const onPointerUp = (e: ReactPointerEvent) => {
     if (tool === 'snip') return void finishSnip(e.clientX, e.clientY);
     if (tool !== 'select') return finishStroke();
-    if (!activeDocId || (e.target as HTMLElement).closest('.popup, .fold-bar, .note-mark, .link-mark')) return;
+    if (!activeDocId || (e.target as HTMLElement).closest('.popup, .fold-bar, .note-mark, .link-mark, .text-box')) return;
     const docId = activeDocId;
     const c = scroller.current!;
     const touch = e.pointerType === 'touch';
@@ -765,6 +786,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const highlight = shown && 'highlightId' in shown ? highlights.find((h) => h.id === shown.highlightId) : undefined;
   const card = highlight && cards.find((c) => c.data.kind === 'excerpt' && c.data.highlightId === highlight.id);
   const comment = highlight && comments && commentOf({ comments }, highlight);
+  const chosenBox = shown && !shown.editing && highlight?.typed ? highlight.id : null;
+  useEffect(() => chooseBox(chosenBox), [chosenBox]);
   /** Saves the comment being written, making its highlight first for a selection, and returns the passage it is on. */
   const saveComment = (text: string) => {
     if (!shown) return;
@@ -1040,14 +1063,25 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               )}
               <ColorPicker current={highlight.color} label={(name) => `Make it ${name}`} onPick={(c) => recolor(highlight.id, c)} />
               <span className="sep" />
-              <button
-                className="icon"
-                aria-label={comment ? 'Edit comment' : 'Comment'}
-                title={comment ? 'Edit the comment in the margin' : 'Add a comment in the margin'}
-                onClick={() => setPopup({ ...shown, below: true, editing: true })}
-              >
-                <MessageSquare size={16} />
-              </button>
+              {highlight.typed ? (
+                <button
+                  className="icon"
+                  aria-label={`Text size: ${SIZE_NAMES[TEXT_SIZES.indexOf(highlight.typed.size)] ?? 'other'}`}
+                  title="Text size: small, medium or large"
+                  onClick={() => sizeBox(scroller.current!, highlight.id)}
+                >
+                  <ALargeSmall size={17} />
+                </button>
+              ) : (
+                <button
+                  className="icon"
+                  aria-label={comment ? 'Edit comment' : 'Comment'}
+                  title={comment ? 'Edit the comment in the margin' : 'Add a comment in the margin'}
+                  onClick={() => setPopup({ ...shown, below: true, editing: true })}
+                >
+                  <MessageSquare size={16} />
+                </button>
+              )}
               <button className="icon" aria-label="Tag" title="Tag this passage" onClick={() => setPopup({ ...shown, below: true, tagging: true })}>
                 <Tag size={16} />
               </button>
@@ -1055,7 +1089,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 <Link2 size={16} />
               </button>
               <CopyLink target={{ kind: 'h', id: highlight.id }} />
-              <button className="icon" aria-label="Delete" title="Delete highlight" onClick={() => (setPopup(null), removeHighlight(highlight.id))}>
+              <button
+                className="icon"
+                aria-label="Delete"
+                title={highlight.typed ? 'Delete text box (Delete)' : 'Delete highlight'}
+                onClick={() => (setPopup(null), removeHighlight(highlight.id))}
+              >
                 <Trash2 size={16} />
               </button>
             </div>

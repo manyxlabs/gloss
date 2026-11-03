@@ -270,17 +270,18 @@ test('the exported PDF carries highlights, comments and handwriting as annotatio
   await chooser.setFiles({ name: 'annotated.pdf', mimeType: 'application/pdf', buffer: readFileSync(file) });
   await expect(page.getByRole('tab', { name: 'annotated' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.hl')).toHaveCount(0);
-  await page.waitForTimeout(800);
+  // The page is drawn a while after the document opens, longer on a busy machine.
+  const pixels = () =>
+    page
+      .locator('.page[data-page-number="1"] canvas')
+      .first()
+      .evaluate((c: HTMLCanvasElement) => {
+        const g = c.getContext('2d')!;
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let yellow = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i]! > 200 && d[i + 1]! > 180 && d[i + 2]! < 120) yellow++;
+        return yellow;
+      });
+  await expect.poll(pixels).toBeGreaterThan(500);
   await shot(page, 'exported-pdf-reopened');
-  const pixels = await page
-    .locator('.page[data-page-number="1"] canvas')
-    .first()
-    .evaluate((c: HTMLCanvasElement) => {
-      const g = c.getContext('2d')!;
-      const d = g.getImageData(0, 0, c.width, c.height).data;
-      let yellow = 0;
-      for (let i = 0; i < d.length; i += 4) if (d[i]! > 200 && d[i + 1]! > 180 && d[i + 2]! < 120) yellow++;
-      return yellow;
-    });
-  expect(pixels).toBeGreaterThan(500);
 });

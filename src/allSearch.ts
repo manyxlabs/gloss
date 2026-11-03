@@ -34,13 +34,13 @@ async function textsOf(doc: DocMeta): Promise<string[]> {
 }
 
 export type AllHit = { id: string; project: Project; label: string; snippet?: { before: string; match: string; after: string } } & (
-  { kind: 'project' } | { kind: 'page'; docId: string; page: number } | { kind: 'card'; cardId: string } | { kind: 'comment'; highlightId: string }
+  { kind: 'project' } | { kind: 'page'; docId: string; page: number } | { kind: 'card'; cardId: string } | { kind: 'comment' | 'box'; highlightId: string }
 );
 
 const PER_PROJECT = 40;
 
 /**
- * Every project's name, document pages, cards and comments that mention the query. Documents not
+ * Every project's name, document pages, cards, comments and text boxes that mention the query. Documents not
  * read before are read first, reporting how many of how many as it goes; the index forgets files
  * no project shows any more.
  */
@@ -83,6 +83,8 @@ export async function searchAll(raw: string, progress: (done: number, total: num
       if (h && c.text.toLowerCase().includes(query))
         mine.push({ id: `m-${project.id}-${c.id}`, kind: 'comment', project, highlightId: h.id, label: `${commentOf(project, h)?.text} (on ${cite(project, h)})` });
     }
+    for (const h of project.highlights)
+      if (h.typed && h.text.toLowerCase().includes(query)) mine.push({ id: `b-${project.id}-${h.id}`, kind: 'box', project, highlightId: h.id, label: cite(project, h) });
     hits.push(...mine.slice(0, PER_PROJECT));
   }
   return hits;

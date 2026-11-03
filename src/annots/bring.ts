@@ -64,7 +64,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
  * Brings a document's highlights, notes and ink from other apps into Gloss: marked text becomes
  * highlights in the nearest Gloss colour, with the annotation's note as their comment; a note
  * becomes a comment on the passage nearest it, or a note on the canvas where there is no text near;
- * ink becomes handwriting. The originals are taken out of the file, in a new version of it, so
+ * text typed onto the page becomes a text box where it was; ink becomes handwriting. The originals are taken out of the file, in a new version of it, so
  * they are not drawn twice and the annotated export has each once. All of it is one step to undo.
  * Resolves with what to tell the reader.
  */
@@ -108,6 +108,9 @@ async function convert(docId: string): Promise<string[]> {
         const at = canvasSpot.next();
         cards.push({ ...newCard({ kind: 'note', text: `${text}\n\n(${doc.name}, p. ${f.page})` }, { x: at.x, y: at.y + cards.length * 140 }), selected: false });
       }
+    } else if (f.kind === 'box') {
+      if (f.text)
+        highlights.push({ id: uid(), docId, parts: [{ page: f.page, rects: [round(f.box)] }], text: f.text, color: color(f), typed: { size: Math.round(f.size * 1e5) / 1e5 } });
     } else if (f.kind === 'ink')
       inks.push(
         ...f.strokes
