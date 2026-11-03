@@ -57,5 +57,5 @@ export const quoted = (h: Highlight) => (h.area ? `[Figure${h.text ? `: ${h.text
 /** Where a passage is: its page, or that it waits to be placed again since its document was replaced. */
 export const where = (h: Highlight) => (h.parts[0] ? `p. ${h.parts[0].page}` : 'not placed');
 
-/** A passage as notes cite it: its words, or a figure's, with where it is. */
-export const cite = (p: Pick<Project, 'docs'>, h: Highlight) => `${h.area ? quoted(h) : `“${h.text}”`} (${docName(p, h.docId)}, ${where(h)})`;
+/** A passage as notes cite it: its words, a figure's, or a text box's, which are the reader's own and so not quoted, with where it is. */
+export const cite = (p: Pick<Project, 'docs'>, h: Highlight) => `${h.area || h.typed ? quoted(h) : `“${h.text}”`} (${docName(p, h.docId)}, ${where(h)})`;

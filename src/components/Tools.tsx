@@ -1,4 +1,4 @@
-import { Eraser, MousePointer2, PenLine, SquareDashed } from 'lucide-react';
+import { Eraser, MousePointer2, PenLine, SquareDashed, Type } from 'lucide-react';
 import { PAPER, SCREEN } from '../ink';
 import { setTools, useStore, type DocTool } from '../store/project';
 import { INKS, type InkColor } from '../types';
@@ -10,23 +10,18 @@ const TOOLS: [DocTool, string, typeof PenLine][] = [
   ['pen', 'Pen', PenLine],
   ['eraser', 'Eraser', Eraser],
   ['snip', 'Snip', SquareDashed],
+  ['text', 'Text box', Type],
 ];
+const TITLES: Partial<Record<DocTool, string>> = { snip: 'Snip: draw a box around a figure or table', text: 'Text box: tap the page to type there' };
 
-/** Select, pen and eraser, and on documents snip, which boxes a figure; with the pen's colours while it is chosen: as they show on paper, or on the canvas, where ink follows the theme. */
+/** Select, pen and eraser, and on documents snip, which boxes a figure, and text boxes; with the pen's colours while it is chosen: as they show on paper, or on the canvas, where ink follows the theme. */
 export function Tools({ side }: { side: 'docTool' | 'canvasTool' }) {
   const tool = useStore((s) => s[side]);
   const ink = useStore((s) => s.inkColor);
   return (
     <div className="tools" role="toolbar" aria-label={side === 'docTool' ? 'Document tools' : 'Canvas tools'}>
-      {TOOLS.filter(([id]) => id !== 'snip' || side === 'docTool').map(([id, label, Icon]) => (
-        <button
-          key={id}
-          className="icon"
-          aria-pressed={tool === id}
-          aria-label={label}
-          title={id === 'snip' ? 'Snip: draw a box around a figure or table' : label}
-          onClick={() => setTools({ [side]: id })}
-        >
+      {TOOLS.filter(([id]) => side === 'docTool' || (id !== 'snip' && id !== 'text')).map(([id, label, Icon]) => (
+        <button key={id} className="icon" aria-pressed={tool === id} aria-label={label} title={TITLES[id] ?? label} onClick={() => setTools({ [side]: id })}>
           <Icon size={17} />
         </button>
       ))}

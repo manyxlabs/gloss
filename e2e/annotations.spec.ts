@@ -99,9 +99,9 @@ const storedFile = (page: Page) =>
     return p.docs[0]!.file ?? 'original';
   }, page.url().split('/').at(-1)!);
 
-test('annotations from another app are brought in as highlights, comments, a canvas note and ink, drawn and exported once', async ({ page }) => {
+test('annotations from another app are brought in as highlights, comments, a canvas note, a text box and ink, drawn and exported once', async ({ page }) => {
   await addAnnotated(page);
-  await expect(asked(page)).toContainText('This PDF has 2 highlights, 3 notes and 1 drawing from another app. Bring them in?');
+  await expect(asked(page)).toContainText('This PDF has 2 highlights, 2 notes, 1 text box and 1 drawing from another app. Bring them in?');
   await expect.poll(() => yellowInPdf(page)).toBeGreaterThan(30);
   await shot(page, 'annotations-asked');
 
@@ -111,7 +111,7 @@ test('annotations from another app are brought in as highlights, comments, a can
 
   // The highlight covers the words the other app marked, in the nearest of the 32 Gloss colours, with its note as the comment.
   const marks = page.locator('.pdfViewer > .page[data-page-number="1"] .hl');
-  await expect(marks).toHaveCount(4);
+  await expect(marks).toHaveCount(3);
   const coral = page.locator('.pdfViewer > .page[data-page-number="1"] .hl.hl-deep-yellow').first();
   // The page is redrawn as the cleaned file opens, so the mark is measured once it has settled.
   const overlap = async () => {
@@ -119,7 +119,7 @@ test('annotations from another app are brought in as highlights, comments, a can
     return box ? Math.min(inside(words, box) / 0.85, inside(box, words) / 0.6) : 0;
   };
   await expect.poll(overlap).toBeGreaterThan(1);
-  await expect(page.locator('.note-mark')).toHaveCount(3);
+  await expect(page.locator('.note-mark')).toHaveCount(2);
 
   await openHighlights(page);
   const list = sidebar(page).locator('.marks > li');
@@ -129,11 +129,17 @@ test('annotations from another app are brought in as highlights, comments, a can
   await expect(list.nth(0).locator('button').first()).toHaveClass(/hl-deep-yellow/);
   await expect(list.nth(1)).toContainText('sea temperatures');
   await expect(list.nth(1).locator('button').first()).toHaveClass(/hl-deep-sky/);
-  // A sticky note in the margin and a text box beside a line become comments on those lines.
+  // A sticky note in the margin becomes a comment on its line; a text box is a Gloss text box where it was, its letters as big.
   await expect(list.nth(2)).toContainText('Mangrove forests protect coastlines from storms.');
   await expect(list.nth(2)).toContainText('Is this still true?');
-  await expect(list.nth(3)).toContainText('Kelp forests shelter hundreds of species.');
   await expect(list.nth(3)).toContainText('Source?');
+  const typed = page.locator('.pdfViewer > .page[data-page-number="1"] .text-box');
+  await expect(typed).toHaveText('Source?');
+  const page1 = (await page.locator('.pdfViewer > .page[data-page-number="1"]').boundingBox())!;
+  const typedAt = (await typed.boundingBox())!;
+  expect((typedAt.x - page1.x) / page1.width).toBeCloseTo(330 / 612, 2);
+  expect((typedAt.y - page1.y) / page1.height).toBeCloseTo((792 - baseline(3) - 14) / 792, 2);
+  expect(await typed.evaluate((el) => parseFloat(getComputedStyle(el).fontSize) / el.closest('.page')!.getBoundingClientRect().width)).toBeCloseTo(12 / 612, 3);
   // The note far from any text is a note on the canvas, saying where it came from.
   await expect(card(page, 'Remember to cite the survey.')).toContainText('(Reef review, p. 1)');
   // The pen stroke is Gloss handwriting, in red, where it was drawn.
@@ -153,14 +159,16 @@ test('annotations from another app are brought in as highlights, comments, a can
 
   // The exported file has each once.
   const annots = await exported(page, 'Reef review (annotated).pdf');
-  expect(annots.filter((a) => a.subtype === 'Highlight')).toHaveLength(4);
+  expect(annots.filter((a) => a.subtype === 'Highlight')).toHaveLength(3);
   expect(annots.filter((a) => a.subtype === 'Ink')).toHaveLength(1);
-  expect(annots.filter((a) => ['Text', 'FreeText', 'Underline', 'Popup'].includes(a.subtype))).toEqual([]);
+  expect(annots.filter((a) => a.subtype === 'FreeText').map((a) => a.textContent.join(' '))).toEqual(['Source?']);
+  expect(annots.filter((a) => ['Text', 'Underline', 'Popup'].includes(a.subtype))).toEqual([]);
   expect(annots.filter((a) => a.contentsObj?.str.includes('Check the source of this figure.'))).toHaveLength(1);
 
   // Undo is one step: the file as it was added, with its own annotations, and none of Gloss's.
   await page.keyboard.press('Control+z');
   await expect(marks).toHaveCount(0);
+  await expect(typed).toHaveCount(0);
   await expect(ink).toHaveCount(0);
   await expect(card(page, 'Remember to cite the survey.')).toBeHidden();
   await expect.poll(() => yellowInPdf(page)).toBeGreaterThan(30);
@@ -183,7 +191,7 @@ test('declined, the PDF stays as it is, and its annotations can be brought in la
   await expect(page.locator('.textLayer')).toContainText('Coral reefs occupy');
   await expect(asked(page)).toBeHidden();
   await openHighlights(page);
-  await expect(sidebar(page)).toContainText('This PDF has 2 highlights, 3 notes and 1 drawing from another app.');
+  await expect(sidebar(page)).toContainText('This PDF has 2 highlights, 2 notes, 1 text box and 1 drawing from another app.');
   await shot(page, 'annotations-sidebar');
   await sidebar(page).getByRole('button', { name: 'Bring in this PDF’s annotations' }).click();
   await expect(sidebar(page).locator('.marks > li')).toHaveCount(4);

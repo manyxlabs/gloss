@@ -1,9 +1,12 @@
-import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFPage } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFFont, type PDFPage } from 'pdf-lib';
+import { covered, fontFile } from '../convert/typeset';
 import { outline, PAGE_PIXELS, PAPER } from '../ink';
 import { cite, commentOf, endsOf } from '../links';
 import { swatchOf } from '../palette';
 import { fileKey, getFile } from '../store/db';
-import type { Project } from '../types';
+import { TEXT_LINE, TEXT_PAD } from '../store/project';
+import type { Highlight, Project } from '../types';
 import { bookmarksOf } from '../store/bookmarks';
 import { appendOutline, bookmarkEntries } from './outline';
 import { loadDoc } from './pdfjs';
@@ -13,9 +16,37 @@ const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 
 const n = (v: number) => +v.toFixed(3);
 
 /**
+ * A text box's words in lines no wider than `width`, broken as the page shows them: at spaces, and
+ * inside a word only where the word alone is wider.
+ */
+function wrap(text: string, width: number, measure: (s: string) => number) {
+  const lines: string[] = [];
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const word of para.match(/\S+\s*|\s+/g) ?? []) {
+      if (line && measure((line + word).trimEnd()) > width) {
+        lines.push(line.trimEnd());
+        line = '';
+      }
+      let rest = [...word];
+      while (!line && rest.length > 1 && measure(rest.join('').trimEnd()) > width) {
+        let cut = rest.length - 1;
+        while (cut > 1 && measure(rest.slice(0, cut).join('')) > width) cut--;
+        lines.push(rest.slice(0, cut).join(''));
+        rest = rest.slice(cut);
+      }
+      line += rest.join('');
+    }
+    lines.push(line.trimEnd());
+  }
+  return lines;
+}
+
+/**
  * The document with its highlights and handwriting added as standard PDF annotations, so any
  * reader shows them and can edit them. Each carries its own appearance, as some readers do not
- * draw an annotation without one. A boxed figure becomes a Square. The highlight's own comment,
+ * draw an annotation without one. A boxed figure becomes a Square, and a text box a FreeText with
+ * its words set in Noto Sans, upright however the page is turned. The highlight's own comment,
  * its excerpt's comment and the passages linked to it become the annotation's note, and a link to
  * a passage in the same document is also a Link annotation over the passage that goes there.
  */
@@ -43,14 +74,15 @@ export async function annotatedPdf(project: Project, docId: string) {
     return f;
   };
 
-  const add = (page: PDFPage, rect: number[], dict: Record<string, unknown>, drawing: string) => {
+  const add = (page: PDFPage, rect: number[], dict: Record<string, unknown>, drawing: string, form: Record<string, unknown> = {}) => {
     const appearance = ctx.register(
       ctx.stream(drawing, {
         Type: 'XObject',
         Subtype: 'Form',
         BBox: rect,
         Resources: { ExtGState: { M: multiply } },
-      }),
+        ...form,
+      } as never),
     );
     const annot = ctx.register(
       ctx.obj({
@@ -70,6 +102,39 @@ export async function annotatedPdf(project: Project, docId: string) {
     const xs = pts.map((p) => p[0]!);
     const ys = pts.map((p) => p[1]!);
     return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)].map(n);
+  };
+
+  let font: Promise<PDFFont> | undefined;
+  const letters = rgb(PAPER.ink).map(n).join(' ');
+  /** A text box as the page shows it: its words wrapped in its width, its height theirs. */
+  const addTextBox = async (h: Highlight) => {
+    const part = h.parts[0];
+    const rect = part?.rects[0];
+    if (!part || !rect) return;
+    const [x, y, w] = rect;
+    if (!font) pdf.registerFontkit(fontkit);
+    const face = await (font ??= fontFile('r').then((bytes) => pdf.embedFont(bytes, { subset: true })));
+    const { width: vw, height: vh } = (await source.getPage(part.page)).getViewport({ scale: 1 });
+    const size = h.typed!.size * vw;
+    const [padX, padY, lead] = [TEXT_PAD[0] * size, TEXT_PAD[1] * size, TEXT_LINE * size];
+    const [width, text] = [w * vw, [...h.text].map((ch) => (/\s/.test(ch) || covered(face, ch) ? ch : '?')).join('')];
+    const lines = wrap(text, width - 2 * padX, (s) => face.widthOfTextAtSize(s, size));
+    const height = lines.length * lead + 2 * padY;
+    // The baseline sits as CSS puts it: the line's spare height split above and below the font's own.
+    const baseline = height - padY - (lead - face.heightAtSize(size)) / 2 - face.heightAtSize(size, { descender: false });
+    const at = await pointOf(part.page);
+    const [a, b, c] = [at(x, y + height / vh), at(x + w, y + height / vh), at(x, y)];
+    // The form is drawn upright in the box's own units and turned onto the page, which may be turned itself.
+    const matrix = [(b[0] - a[0]) / width, (b[1] - a[1]) / width, (c[0] - a[0]) / height, (c[1] - a[1]) / height, a[0], a[1]].map(n);
+    const fill = rgb(swatchOf(h.color).fill);
+    const words = lines.map((l, i) => `${i ? 'T* ' : ''}${face.encodeText(l).toString()} Tj`).join('\n');
+    add(
+      pdf.getPage(part.page - 1),
+      bounds([a, b, c, at(x + w, y)]),
+      { Subtype: 'FreeText', Contents: PDFHexString.fromText(h.text), DA: PDFString.of(`/F ${n(size)} Tf ${letters} rg`), C: fill, BS: { W: 0 } },
+      `q /M gs ${fill.join(' ')} rg 0 0 ${n(width)} ${n(height)} re f Q\nBT /F ${n(size)} Tf ${letters} rg ${n(lead)} TL ${n(padX)} ${n(baseline)} Td\n${words}\nET`,
+      { BBox: [0, 0, n(width), n(height)], Matrix: matrix, Resources: { ExtGState: { M: multiply }, Font: { F: face.ref } } },
+    );
   };
 
   const comments = new Map(project.cards.flatMap((c) => (c.data.kind === 'excerpt' && c.data.comment?.trim() ? [[c.data.highlightId, c.data.comment.trim()]] : [])));
@@ -96,6 +161,10 @@ export async function annotatedPdf(project: Project, docId: string) {
         } as never),
       );
       pdf.getPage(from.page - 1).node.addAnnot(link);
+    }
+    if (h.typed) {
+      await addTextBox(h);
+      continue;
     }
     for (const part of h.parts) {
       const at = await pointOf(part.page);

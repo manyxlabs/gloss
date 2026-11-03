@@ -69,6 +69,18 @@ function turnRect([x, y, w, h]: Rect, turn: number): Rect {
   return r.map(round) as Rect;
 }
 
+/**
+ * A text box on its page turned clockwise, given the page's width over its height: its words stay
+ * upright, so it keeps its size on screen, about where it was on the page.
+ */
+function turnBox(r: Rect, turn: number, ratio: number): Rect {
+  const [x, y, w, h] = turnRect(r, turn);
+  if (!(turn % 180)) return [x, y, w, h];
+  const [bw, bh] = [r[2] * ratio, r[3] / ratio];
+  const fit = (v: number, size: number) => round(Math.min(Math.max(0, v), Math.max(0, 1 - size)));
+  return [fit(x + w / 2 - bw / 2, bw), fit(y + h / 2 - bh / 2, bh), round(bw), round(bh)];
+}
+
 function turnPoint([x, y, pressure]: Point, turn: number): Point {
   const [a, b] = turn === 90 ? [1 - y, x] : turn === 180 ? [1 - x, 1 - y] : turn === 270 ? [y, 1 - x] : [x, y];
   return [round(a), round(b), pressure];
@@ -90,12 +102,16 @@ export function remap(p: Project, docId: string, sheets: Sheet[], ratios: number
     const parts = h.parts
       .flatMap((part) => {
         const at = to.get(part.page);
-        return at ? [{ page: at.page, rects: part.rects.map((r) => turnRect(r, at.turn)) }] : [];
+        const ratio = ratios[part.page - 1] ?? 1;
+        return at ? [{ page: at.page, rects: part.rects.map((r) => (h.typed ? turnBox(r, at.turn, ratio) : turnRect(r, at.turn))) }] : [];
       })
       .sort((a, b) => a.page - b.page);
     // An unplaced highlight had no page to lose.
     if (!parts.length && h.parts.length) gone.add(h.id);
-    return { ...h, parts };
+    // A text box's letters are sized by the page's width, which a quarter turn changes.
+    const first = h.parts[0];
+    const turned = h.typed && first && (to.get(first.page)?.turn ?? 0) % 180;
+    return { ...h, parts, ...(turned ? { typed: { size: round(h.typed!.size * (ratios[first.page - 1] ?? 1)) } } : {}) };
   });
 
   const inks = p.inks.flatMap((i) => {

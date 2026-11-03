@@ -85,7 +85,7 @@ export function Search() {
   const groups: { title: string; docId?: string; options: Option[] }[] = shown
     ? [
         {
-          title: 'Tagged passages',
+          title: parseQuery(shown.query, project?.tags ?? []).picks.length ? 'Tagged passages' : 'Text boxes',
           options: shown.highlights.map((hit) => ({
             id: `tagged-${hit.highlightId}`,
             go: close(() => showSource(hit.highlightId)),

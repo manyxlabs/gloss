@@ -2,7 +2,8 @@ import { outline, PAGE_PIXELS, PAPER, pathOf } from '../../ink';
 import { cite, commentOf, endsOf } from '../../links';
 import { cardText } from '../../search';
 import { useLinking } from '../../store/links';
-import { useStore } from '../../store/project';
+import { TEXT_LINE, TEXT_PAD, useStore } from '../../store/project';
+import type { Highlight } from '../../types';
 import { paintPhotos } from './photos';
 
 export type PageView = { id: number; div: HTMLElement };
@@ -37,25 +38,61 @@ function layer<T extends Element>(div: HTMLElement, make: () => T, className: st
   return el;
 }
 
-/** Paints a page's highlights (under the text, so it stays selectable) and handwriting (over it). */
+/** The text box chosen, whose toolbar is open, outlined with a handle to resize it. */
+let chosenBox: string | null = null;
+export function chooseBox(id: string | null) {
+  chosenBox = id;
+  for (const el of document.querySelectorAll<HTMLElement>('.text-box')) el.classList.toggle('chosen', el.dataset.boxId === id);
+}
+
+const pct = (v: number) => `${v * 100}%`;
+
+/** A page's text boxes, changed in place rather than drawn again, so the one being typed in keeps its caret. */
+function paintBoxes(layer: HTMLElement, boxes: Highlight[], marks: (h: Highlight) => string) {
+  const ids = new Set(boxes.map((h) => h.id));
+  for (const el of [...layer.children] as HTMLElement[]) if (!ids.has(el.dataset.boxId!)) el.remove();
+  for (const h of boxes) {
+    let el = layer.querySelector<HTMLElement>(`:scope > [data-box-id="${h.id}"]`);
+    if (!el) {
+      el = document.createElement('div');
+      el.dataset.boxId = h.id;
+      Object.assign(el.style, { lineHeight: String(TEXT_LINE), padding: `${TEXT_PAD[1]}em ${TEXT_PAD[0]}em`, color: PAPER.ink });
+      const text = document.createElement('div');
+      Object.assign(text, { className: 'box-text', role: 'textbox', ariaLabel: 'Text box', ariaMultiLine: 'true' });
+      const grip = document.createElement('span');
+      grip.className = 'box-grip';
+      el.append(text, grip);
+      layer.append(el);
+    }
+    const [x, y, w] = h.parts[0]!.rects[0]!;
+    el.className = `text-box hl-${h.color}${h.id === chosenBox ? ' chosen' : ''}${marks(h)}`;
+    Object.assign(el.style, { left: pct(x), top: pct(y), width: pct(w), fontSize: `calc(${h.typed!.size} * 100cqw)` });
+    const text = el.firstElementChild as HTMLElement;
+    if (document.activeElement !== text && text.textContent !== h.text) text.textContent = h.text;
+  }
+}
+
+/** Paints a page's highlights (under the text, so it stays selectable), handwriting (over it) and text boxes. */
 export function paint(view: PageView, flashId: string | null, docId: string | null) {
   const { project } = useStore.getState();
   if (!project) return;
   const { linking } = useLinking.getState();
   const linkingFrom = linking?.kind === 'link' ? linking.from : null;
   const excerpted = new Set(project.cards.flatMap((c) => (c.data.kind === 'excerpt' ? [c.data.highlightId] : [])));
+  const states = (h: Highlight) => `${excerpted.has(h.id) ? ' linked' : ''}${flashId === h.id ? ' flash' : ''}${linkingFrom === h.id ? ' linking' : ''}`;
   paintPhotos(view, docId);
   const marks = layer(view.div, () => document.createElement('div'), 'hl-layer', '.textLayer');
+  const mine = project.highlights.filter((h) => h.docId === docId);
   marks.replaceChildren(
-    ...project.highlights
-      .filter((h) => h.docId === docId)
+    ...mine
+      .filter((h) => !h.typed)
       .flatMap((h) =>
         h.parts
           .filter((p) => p.page === view.id)
           .flatMap((p) =>
             p.rects.map(([x, y, w, hgt]) => {
               const mark = document.createElement('div');
-              mark.className = `hl hl-${h.color}${h.area ? ' area' : ''}${excerpted.has(h.id) ? ' linked' : ''}${flashId === h.id ? ' flash' : ''}${linkingFrom === h.id ? ' linking' : ''}`;
+              mark.className = `hl hl-${h.color}${h.area ? ' area' : ''}${states(h)}`;
               mark.dataset.id = h.id;
               Object.assign(mark.style, {
                 left: `${x * 100}%`,
@@ -133,5 +170,13 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
         path.dataset.inkId = i.id;
         return path;
       }),
+  );
+
+  // Above everything else on the page, so a box takes its clicks.
+  const boxes = layer(view.div, () => document.createElement('div'), 'box-layer', null);
+  paintBoxes(
+    boxes,
+    mine.filter((h) => h.typed && h.parts[0]?.page === view.id),
+    states,
   );
 }
