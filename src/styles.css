@@ -2655,18 +2655,6 @@ button.screens.linked {
   font-size: 13px;
 }
 
-/* On a phone the links under the start buttons wrap, and a dot left at the end of a line would dangle. */
-@media (max-width: 480px) {
-  .more > [aria-hidden='true'] {
-    display: none;
-  }
-
-  .hero .more,
-  .returning .more {
-    column-gap: 18px;
-  }
-}
-
 /* Links between passages, and from passages to cards. */
 
 /* A link's marker, in the left margin so it never meets a comment's in the right. */
@@ -3239,6 +3227,26 @@ section.folder {
   gap: 6px 10px;
   margin: 0 0 12px;
   font-size: 14px;
+}
+
+/* The links under the start buttons wrap on a narrow screen. Each starts with its dot, and the row
+   is moved left by a dot's width and cut there, so the dot that starts a line is out of sight. */
+.hero .more,
+.returning .more {
+  column-gap: 0;
+  margin-left: -18px;
+  clip-path: inset(-8px -8px -8px 18px);
+}
+
+.more > span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.more > span > [aria-hidden='true'] {
+  width: 18px;
+  text-align: center;
 }
 
 .returning .hint {
