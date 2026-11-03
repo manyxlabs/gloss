@@ -2139,6 +2139,29 @@ a.button.primary {
     flex: 1 1 0;
   }
 
+  .bar textarea.name {
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.2;
+    /* No padding above or below at rest, as the clip is at the padding's edge and a third line would peek through it. */
+    max-height: calc(2.4em + 2px);
+    padding: 0 8px;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .bar textarea.name:focus {
+    max-height: calc(2.4em + 8px);
+    padding-block: 3px;
+    overflow-y: auto;
+  }
+
+  /* While the name is edited it takes the header, so the whole of a long one can be read. */
+  .bar:has(textarea.name:focus) > :not(.home, .name) {
+    display: none;
+  }
+
   .search {
     flex: none;
     margin-left: auto;
