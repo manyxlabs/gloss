@@ -83,6 +83,8 @@ export function Canvas() {
         const h = rf.getInternalNode(hit.id)!;
         at.y = Math.round(h.internals.positionAbsolute.y + (h.measured.height ?? 100) + 16);
       }
+      // Below the cards already on screen it can be out of view, where the new card would seem not to have come.
+      if (rf.flowToScreenPosition({ x: at.x, y: at.y + 100 }).y > box.bottom) rf.setCenter(at.x + CARD_WIDTH / 2, at.y + 50, { zoom: rf.getZoom(), duration: 300 });
       return at;
     };
   }, [rf]);
