@@ -188,18 +188,26 @@ export function Library() {
     </div>
   );
   const more = (
+    // Each link carries the dot before it; see .more in styles.css for how a line's first dot is hidden.
     <p className="more">
-      <button className="link" disabled={busy} onClick={() => void start([])}>
-        Start an empty project
-      </button>
-      <span aria-hidden="true">·</span>
-      <button className="link" disabled={busy} onClick={() => folderInput.current!.click()}>
-        Open a folder
-      </button>
-      <span aria-hidden="true">·</span>
-      <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
-        Restore a backup
-      </button>
+      <span>
+        <span aria-hidden="true">·</span>
+        <button className="link" disabled={busy} onClick={() => void start([])}>
+          Start an empty project
+        </button>
+      </span>
+      <span>
+        <span aria-hidden="true">·</span>
+        <button className="link" disabled={busy} onClick={() => folderInput.current!.click()}>
+          Open a folder
+        </button>
+      </span>
+      <span>
+        <span aria-hidden="true">·</span>
+        <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
+          Restore a backup
+        </button>
+      </span>
     </p>
   );
   const hint = (
