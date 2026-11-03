@@ -51,7 +51,7 @@ export function snippets(text: string, query: string) {
   return out;
 }
 
-/** Every page of every document, every card and every comment in a document's margin that mentions the query. */
+/** Every page of every document, every card, every comment in a document's margin and every text box that mentions the query. */
 export async function search(project: Project, raw: string) {
   const { text: query, picks } = parseQuery(raw, project.tags);
   // With tags named, what is found is what carries them: passages and cards, narrowed by any words.
@@ -86,7 +86,11 @@ export async function search(project: Project, raw: string) {
     const h = project.highlights.find((x) => x.commentId === c.id);
     return h && c.text.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, note: c.text }] : [];
   });
-  return { docs, cards, comments, highlights: [] as HighlightHit[] };
+  // Their words are not in the PDF's own text.
+  const highlights: HighlightHit[] = project.highlights.flatMap((h) =>
+    h.typed && h.text.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, text: h.text }] : [],
+  );
+  return { docs, cards, comments, highlights };
 }
 
 /** The words on a card: a note, a group's name, a nested canvas's name, or an excerpt with the comment on it. Handwriting has none. */

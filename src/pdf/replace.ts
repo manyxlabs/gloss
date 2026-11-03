@@ -1,7 +1,7 @@
 // Replacing a document with a newer version of it. Every mark moves from the old text to the same
 // words in the new one, found by its own words and the words around it, so it survives inserted
-// paragraphs, edited sentences and pages that flow differently. Handwriting, figures, squeezes
-// and bookmarks follow the words nearest them.
+// paragraphs, edited sentences and pages that flow differently. Handwriting, figures, text boxes,
+// squeezes and bookmarks follow the words nearest them.
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { Input } from '../convert';
 import { addFiles, deleteVersion, fileKey } from '../store/db';
@@ -159,7 +159,7 @@ const tokens = (finder: Finder, text: string) =>
 export type Placement = {
   highlights: Map<string, Highlight>;
   unplaced: Highlight[];
-  /** Figures and handwriting with no words near them, kept at the same place on the same page. */
+  /** Figures, text boxes and handwriting with no words near them, kept at the same place on the same page. */
   byPage: number;
   /** Squeezes whose ends could not both be found, opened. */
   opened: number;
@@ -205,9 +205,9 @@ export function place(p: Project, docId: string, old: Word[], next: Word[], page
   let byPage = 0;
   for (const h of p.highlights.filter((x) => x.docId === docId)) {
     const first = h.parts[0];
-    if (h.area) {
+    if (h.area || h.typed) {
       if (!first) continue;
-      // A figure keeps its size and moves with the words nearest it.
+      // A figure or a text box keeps its size and moves with the words nearest it.
       const [x, y, w, hgt] = first.rects[0]!;
       const to = spot(first.page, x + w / 2, y + hgt / 2);
       if (!to.byWords) byPage++;
@@ -322,7 +322,7 @@ export async function replaceDoc(docId: string, input: Input): Promise<Replaced>
       await deleteVersion(key);
       return ['The document changed while it was being replaced. Try again.'];
     }
-    const text = [...placed.highlights.values()].filter((h) => !h.area);
+    const text = [...placed.highlights.values()].filter((h) => !h.area && !h.typed);
     done = { problems, placed: text.length, unplaced: placed.unplaced, byPage: placed.byPage, opened: placed.opened };
     return [];
   }).finally(() => opened.close());

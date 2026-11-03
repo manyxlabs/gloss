@@ -15,7 +15,13 @@ export type Part = { page: number; rects: Rect[] };
  * unplaced: its document was replaced by a version where its words were not found, and it waits
  * in the sidebar, with its comment, links and excerpts, to be placed again or deleted.
  */
-export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; commentId?: string; tags?: string[] };
+export type Highlight = { id: string; docId: string; parts: Part[]; text: string; color: Color; area?: boolean; typed?: Typed; commentId?: string; tags?: string[] };
+/**
+ * Makes a highlight a text box: words the reader typed onto the page, in the part's one rect, filled
+ * with the highlight's colour. `size` is the letters' size as a fraction of the page's width, so the
+ * box looks the same at any zoom.
+ */
+export type Typed = { size: number };
 
 /** A label put on passages and cards, to find and filter them by; `category` names the heading it is listed under. */
 export type Tag = { id: string; name: string; category?: string; color?: Color };

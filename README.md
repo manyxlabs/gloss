@@ -29,6 +29,11 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   The five colours Gloss started with keep their names and shades.
 - **Lasso**: with the pen, draw a loop round words on a page to excerpt exactly those words, or round a picture to excerpt it as a figure. A stroke that does not close stays handwriting.
 - **Figures and tables**: pick Snip and draw a box around one. Excerpted, its card shows that part of the page as a picture, drawn from the PDF.
+- **Text boxes**: pick the text box tool and tap the page to type there.
+  Drag a box to move it, even to another page, and its right edge to make it wider or narrower; its height follows its words.
+  Its toolbar sets its colour and its size, small, medium or large, and links, tags, excerpts and deletes it like a highlight; a second tap or Enter types in it again, Escape stops typing, and Delete removes a chosen box.
+  Dragged onto the canvas it becomes an excerpt that leads back to it, or with Alt a note.
+  Boxes stay with their words through zoom, page edits and a replaced document, keep their words upright on a turned page, are found by search, and export as text boxes any reader shows.
 - **Comments in the margin**: comment on a selection or on any highlight. A marker beside the line opens the comment to edit.
   One comment can be attached to several passages, in any of the documents: its marker shows beside each, and editing it beside one edits it everywhere.
   Deleting a passage takes the comment off it, and the comment goes with its last passage.
@@ -49,7 +54,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
   The notes exports show handwriting as pictures.
   On the canvas the eraser also takes away the links it passes over: lines between cards, a card's links to passages, and its links to other canvases; undo brings them back.
 - **Groups**: select cards and group them under a name, or pinch two cards together on a touch screen; drag a card in or out, move the group to move them all, and collapse it to its name (pinch it closed, spread it open) with its links ending on it.
-- **Export the PDF** with your highlights, boxed figures, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them, and your bookmarks in its outline.
+- **Export the PDF** with your highlights, boxed figures, text boxes, comments and handwriting as standard PDF annotations, so any reader shows them and can edit them, and your bookmarks in its outline.
   **Documents as one PDF**, from Export notes, puts the documents you choose, in the order you choose, into one annotated PDF with an outline entry for each, and the canvas on show as a last page if you like.
   Linked passages in the same document become links that go to each other; links to another document are named in the passage's note. A password protected PDF cannot be exported this way; save a copy without the password first.
 - **Several documents in one project**, in tabs, all feeding the same canvas, and two of them side by side (or two places in one), or three on a screen at least 1440 pixels wide, with dividers to drag between them.
@@ -65,7 +70,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
 - **Installable and offline**: install Gloss as an app from the browser; once visited it opens and works with no network, and an installed copy on a computer can open PDFs, Word and PowerPoint files from the file manager. A new version is loaded only when you choose.
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
-- **Search everything**: every page of every PDF, every card and every comment, with Ctrl+K.
+- **Search everything**: every page of every PDF, every card, every comment and every text box, with Ctrl+K.
   Type `#tag` to find what carries a tag, or pick tags from the chips above the results.
 - **Act on all search results**: highlight, tag or excerpt every match at once, in one document or all of them, link them all to a new note or the chosen card, or squeeze the documents down to them.
   Matches become real highlights on their words, placed from the PDF's text positions, across lines; each action is one undo step.
@@ -209,8 +214,9 @@ A password protected PDF cannot be rewritten, so reading it needs a copy without
 ## Annotations from other apps
 
 When a PDF is added, Gloss reads its annotations with pdf.js and asks before bringing them in.
-Highlights, underlines, strike-outs and squiggles become highlights in the nearest of Gloss's five colours, over the words they marked, with the annotation's note and its replies as the comment.
-A sticky note or a text box becomes a comment on the line of text beside it; with no text within an inch, it becomes a note on the canvas, and Gloss says which.
+Highlights, underlines, strike-outs and squiggles become highlights in the nearest of Gloss's 32 colours, over the words they marked, with the annotation's note and its replies as the comment.
+A sticky note becomes a comment on the line of text beside it; with no text within an inch, it becomes a note on the canvas, and Gloss says which.
+A text box becomes a Gloss text box in the same place, with its letters the same size.
 Ink becomes handwriting on the page, in the nearest ink.
 The originals are then taken out of the file, with their pop-ups and replies, in a new version of it, rather than hidden while drawing: so they are not drawn twice, the exported PDF has each annotation once, and other devices in a synced project get the same file.
 Other annotations (links, forms, shapes, stamps) stay in the PDF as they were, and all of it is one step to undo.

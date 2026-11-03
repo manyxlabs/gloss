@@ -125,7 +125,7 @@ export function noteOf(p: Project, doc: DocMeta) {
   const cardNotes = new Map(p.cards.flatMap((c) => (c.data.kind === 'excerpt' && c.data.comment?.trim() ? [[c.data.highlightId, c.data.comment.trim()]] : [])));
   const body = marks.map((h) => {
     const notes = [commentOf(p, h)?.text, cardNotes.get(h.id)].filter(Boolean).map((t) => `<p>${escape(t!)}</p>`);
-    return `<blockquote><p>${escape(h.area ? quoted(h) : `“${h.text}”`)} (${where(h)})</p></blockquote>${notes.join('')}`;
+    return `<blockquote><p>${escape(h.area || h.typed ? quoted(h) : `“${h.text}”`)} (${where(h)})</p></blockquote>${notes.join('')}`;
   });
   return { html: `<h1>Notes from Gloss: ${escape(doc.name)}</h1>${body.join('')}`, count: marks.length };
 }

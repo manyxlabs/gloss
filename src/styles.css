@@ -1295,6 +1295,132 @@ a.button.primary {
   box-shadow: none;
 }
 
+/* Text boxes are set in the Noto Sans the exported PDF embeds, so their lines break alike. */
+@font-face {
+  font-family: 'Gloss Noto Sans';
+  src: url('/fonts/NotoSans-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* The page's width, which a text box's letters are sized by (see paint.ts). */
+.box-layer {
+  position: absolute;
+  inset: 0;
+  container-type: inline-size;
+  pointer-events: none;
+}
+
+.text-box {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 3px;
+  background: var(--hl);
+  mix-blend-mode: multiply;
+  font-family: 'Gloss Noto Sans', 'Noto Sans', sans-serif;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tool-text .text-box {
+  cursor: text;
+}
+
+.tool-pen .text-box,
+.tool-eraser .text-box,
+.tool-snip .text-box {
+  pointer-events: none;
+}
+
+.box-text {
+  min-height: 1lh;
+  outline: none;
+}
+
+.box-text[contenteditable] {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.box-text:empty::before {
+  content: 'Type here';
+  color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.text-box.chosen,
+.text-box.linking,
+.text-box:has(.box-text[contenteditable]) {
+  /* Blending would take the outline's colour from the page. */
+  mix-blend-mode: normal;
+  background: color-mix(in srgb, var(--hl) 92%, #fff);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.text-box.flash {
+  animation: flash 1.6s ease-out;
+}
+
+/* Dragged from the right edge to make the box wider or narrower; its height follows its words. */
+.box-grip {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  width: 10px;
+  height: 22px;
+  translate: 0 -50%;
+  border-radius: 5px;
+  border: 2px solid var(--accent);
+  background: #fff;
+  cursor: ew-resize;
+}
+
+.text-box.chosen .box-grip {
+  display: block;
+}
+
+/* A larger target for a finger, around the same handle. */
+@media (pointer: coarse) {
+  .box-grip::before {
+    content: '';
+    position: absolute;
+    inset: -12px -14px;
+  }
+}
+
+.box-ghost {
+  position: fixed;
+  z-index: 1000;
+  mix-blend-mode: normal;
+  opacity: 0.9;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+.box-ghost[data-drop]:not([data-drop=''])::after {
+  content: attr(data-drop);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font:
+    500 12px/1.4 'Inter Variable',
+    system-ui,
+    sans-serif;
+  white-space: nowrap;
+}
+
 /* A comment's marker, in the page's right margin, level with the highlight's first line. */
 .note-layer {
   position: absolute;
@@ -3010,6 +3136,11 @@ dialog.sheet::backdrop {
     min-height: 32px;
   }
 
+  /* In a narrow pane fingers pinch to zoom, which leaves the toolbar room for its tools; the percentage still fits the page. */
+  .narrow .zoom button.icon {
+    display: none;
+  }
+
   .card .source,
   .card .ghost,
   .card-links button {
@@ -3244,6 +3375,7 @@ button.icon.danger:hover:not(:disabled) {
 
 :root[data-pages='dark'] .pdfViewer .canvasWrapper > canvas,
 :root[data-pages='dark'] .pdfViewer .ink-layer,
+:root[data-pages='dark'] .pdfViewer .box-layer,
 :root[data-pages='dark'] .doc-body > .ink-live,
 :root[data-pages='dark'] .thumb img:not(.thumb-photo) {
   filter: var(--page-dark);
@@ -3260,6 +3392,11 @@ button.icon.danger:hover:not(:disabled) {
 .thumb .thumb-photo {
   position: absolute;
   inset: 0;
+}
+
+/* A box turns with a dark page; see through, as multiplying cannot reach the page through the filter. */
+:root[data-pages='dark'] .text-box:not(.chosen) {
+  background: color-mix(in srgb, var(--hl) 75%, transparent);
 }
 
 /* Multiplied with a dark page a highlight is black; laid over it, thinly, it keeps its hue. */

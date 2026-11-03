@@ -1,4 +1,4 @@
-import { Image, Link2, StickyNote } from 'lucide-react';
+import { Image, Link2, StickyNote, Type } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useEffect, useState } from 'react';
 import { loadDoc } from '../../pdf/pdfjs';
@@ -181,6 +181,7 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
             >
               <span className="what">
                 {h.area && <Image size={14} aria-label="Figure" />}
+                {h.typed && <Type size={14} aria-label="Text box" />}
                 <span className="text">{h.text || (h.area ? 'Figure' : '')}</span>
                 <span className="page">p. {h.parts[0]?.page}</span>
               </span>
