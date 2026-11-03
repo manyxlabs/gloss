@@ -2966,20 +2966,39 @@ section.folder {
   color: var(--muted);
 }
 
-/* Touch screens: everything that can be tapped is at least 32 pixels each way, or reaches that far. */
+/* Touch screens: everything that can be tapped is at least 32 pixels each way, and reaches 40. */
 @media (pointer: coarse) {
-  /* Swatches keep their look and spacing; their reach grows past their edges, into the gaps. */
+  /* Controls keep their look and spacing; a smaller one's reach grows past its edges, into the gaps around it.
+     Not menu items marked as chosen, whose ::after is the check mark: menu rows are tall enough. */
+  :where(button:not([aria-checked]), a[href], [role='tab']) {
+    position: relative;
+  }
+
+  :where(button:not([aria-checked]), a[href], [role='tab'])::after {
+    content: '';
+    position: absolute;
+    inset: min(0px, calc((100% - 40px) / 2));
+  }
+
   .ink-swatch,
   .swatch {
     position: relative;
   }
 
   .ink-swatch::after,
-  .swatch::after,
+  .swatch::after {
+    inset: -9px;
+  }
+
   .canvas .react-flow__handle::after {
     content: '';
     position: absolute;
     inset: -7px;
+  }
+
+  /* Rows one above the other have no gaps to reach into, so they are tall enough themselves. */
+  .menu button:not(.icon, .swatch) {
+    min-height: 40px;
   }
 
   .canvas .react-flow__handle {
