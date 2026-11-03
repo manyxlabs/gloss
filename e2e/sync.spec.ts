@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { ARTIFACTS, card, openProject, select, shot } from './helpers';
+import { ARTIFACTS, card, inkStyle, openProject, select, shot } from './helpers';
 import { encryptedPdf, ESSAY, makePdf } from './pdfs';
 
 // Everything the server saw from or sent to one device.
@@ -85,6 +85,21 @@ test('share a project, edit it together and offline, and keep the server blind',
     await expect(note(a.page, texts[1]!)).toBeVisible();
     // Selection stays with each device.
     await expect(a.page.locator('.react-flow__node.selected')).not.toContainText(texts[1]!);
+  });
+
+  await test.step('A highlighter stroke from A arrives in B as a highlighter, under the text', async () => {
+    const tools = a.page.getByRole('toolbar', { name: 'Document tools' });
+    await tools.getByRole('button', { name: 'Pen' }).click();
+    await inkStyle(a.page, 'Document tools', 'Yellow ink', 'Highlighter');
+    const line = (await a.page.locator('.textLayer span', { hasText: 'Rising sea temperatures' }).first().boundingBox())!;
+    await a.page.mouse.move(line.x, line.y + line.height / 2);
+    await a.page.mouse.down();
+    await a.page.mouse.move(line.x + line.width, line.y + line.height / 2, { steps: 10 });
+    await a.page.mouse.up();
+    await tools.getByRole('button', { name: 'Select' }).click();
+    const marker = b.page.locator('.page:not([data-copy]) .marker-layer path');
+    await expect(marker).toHaveCount(1);
+    await expect(marker).toHaveAttribute('fill-opacity', '0.4');
   });
 
   await test.step('Each sees the other: avatars, where they read, and pointers on the canvas', async () => {

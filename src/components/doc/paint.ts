@@ -1,4 +1,4 @@
-import { outline, PAGE_PIXELS, PAPER, pathOf } from '../../ink';
+import { fillOf, outline, PAGE_PIXELS, PAPER, pathOf } from '../../ink';
 import { cite, commentOf, endsOf } from '../../links';
 import { cardText } from '../../search';
 import { useLinking } from '../../store/links';
@@ -111,27 +111,35 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
 
   // Drawn in a fixed number of units across the page, so strokes keep their shape at any zoom,
   // and enough of them that the path's rounding to hundredths does not show.
+  // Highlighter strokes go under the text, as highlights do, and the pen's over it.
   const ratio = view.div.offsetHeight / view.div.offsetWidth || 1.294;
-  const ink = layer(view.div, () => document.createElementNS(SVG, 'svg'), 'ink-layer', '.annotationLayer');
-  ink.setAttribute('viewBox', `0 0 ${PAGE_PIXELS} ${PAGE_PIXELS * ratio}`);
-  ink.replaceChildren(
-    ...project.inks
-      .filter((i) => i.docId === docId && i.page === view.id)
-      .map((i) => {
-        const path = document.createElementNS(SVG, 'path');
-        path.setAttribute(
-          'd',
-          pathOf(
-            outline(
-              i.points.map(([x, y, p]) => [x * PAGE_PIXELS, y * ratio * PAGE_PIXELS, p]),
-              i.size * PAGE_PIXELS,
-              i.pen,
+  const inks = project.inks.filter((i) => i.docId === docId && i.page === view.id);
+  for (const [className, before, marker] of [
+    ['marker-layer', '.textLayer', true],
+    ['ink-layer', '.annotationLayer', false],
+  ] as const) {
+    const svg = layer(view.div, () => document.createElementNS(SVG, 'svg'), className, before);
+    svg.setAttribute('viewBox', `0 0 ${PAGE_PIXELS} ${PAGE_PIXELS * ratio}`);
+    svg.replaceChildren(
+      ...inks
+        .filter((i) => (i.nib === 'marker') === marker)
+        .map((i) => {
+          const path = document.createElementNS(SVG, 'path');
+          path.setAttribute(
+            'd',
+            pathOf(
+              outline(
+                i.points.map(([x, y, p]) => [x * PAGE_PIXELS, y * ratio * PAGE_PIXELS, p]),
+                { ...i, size: i.size * PAGE_PIXELS },
+              ),
             ),
-          ),
-        );
-        path.setAttribute('fill', PAPER[i.color]);
-        path.dataset.inkId = i.id;
-        return path;
-      }),
-  );
+          );
+          const { fill, fillOpacity } = fillOf(i, PAPER);
+          path.setAttribute('fill', fill);
+          if (fillOpacity) path.setAttribute('fill-opacity', `${fillOpacity}`);
+          path.dataset.inkId = i.id;
+          return path;
+        }),
+    );
+  }
 }

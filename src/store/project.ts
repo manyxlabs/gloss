@@ -5,7 +5,25 @@ import type { ConvertOptions, Input } from '../convert';
 import { dropOrphans } from '../canvases';
 import { migrate, prune } from '../links';
 import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
-import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
+import {
+  INKS,
+  NIBS,
+  type Card,
+  type CardData,
+  type Color,
+  type DocMeta,
+  type Fold,
+  type Handwriting,
+  type Highlight,
+  type Ink,
+  type InkColor,
+  type Link,
+  type Nib,
+  type Part,
+  type Project,
+  type Spot,
+} from '../types';
+import { strokeSize, WIDTHS, type Width } from '../ink';
 import { paneRoom } from '../panes';
 import { passwordAsker } from '../password';
 import { askAbout } from '../annots/ask';
@@ -75,6 +93,8 @@ type State = {
   docTool: DocTool;
   canvasTool: Tool;
   inkColor: InkColor;
+  nib: Nib;
+  inkWidth: Width;
   /** A stylus has been used on this device: from then on a finger or palm scrolls rather than writes. */
   penSeen: boolean;
 };
@@ -85,6 +105,7 @@ const MAX_VERSIONS = 10;
 export const uid = () => crypto.randomUUID();
 
 const PEN_KEY = 'gloss:pen';
+const INK_KEY = 'gloss:ink';
 function remembered(key: string) {
   try {
     return localStorage.getItem(key);
@@ -92,6 +113,30 @@ function remembered(key: string) {
     // Storage can be blocked; the device is then treated as new.
     return null;
   }
+}
+function remember(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Not saved; it still applies for this visit.
+  }
+}
+
+type InkStyle = Pick<State, 'inkColor' | 'nib' | 'inkWidth'>;
+/** The pen as it was last left on this device, with anything unknown, as from a later version, back to the default. */
+function rememberedInk(): InkStyle {
+  let saved: Partial<Record<keyof InkStyle, string>> = {};
+  try {
+    saved = JSON.parse(remembered(INK_KEY) ?? '{}') ?? {};
+  } catch {
+    // Unreadable; the defaults apply.
+  }
+  const pick = <T extends string>(value: string | undefined, choices: readonly T[], fallback: T) => (choices.includes(value as T) ? (value as T) : fallback);
+  return {
+    inkColor: pick(saved.inkColor, INKS, 'ink'),
+    nib: pick(saved.nib, NIBS, 'pressure'),
+    inkWidth: pick(saved.inkWidth, Object.keys(WIDTHS) as Width[], 'medium'),
+  };
 }
 
 export const useStore = create<State>(() => ({
@@ -108,7 +153,7 @@ export const useStore = create<State>(() => ({
   future: [],
   docTool: 'select',
   canvasTool: 'select',
-  inkColor: 'ink',
+  ...rememberedInk(),
   penSeen: remembered(PEN_KEY) === '1',
 }));
 const { getState: get, setState: set } = useStore;
@@ -679,26 +724,32 @@ export function removeCanvas(id: string) {
 }
 export const setView = (view: State['view']) => set({ view });
 
-export const setTools = (tools: Partial<Pick<State, 'docTool' | 'canvasTool' | 'inkColor'>>) => set(tools);
+export const setTools = (tools: Partial<Pick<State, 'docTool' | 'canvasTool'>>) => set(tools);
+export function setInk(style: Partial<InkStyle>) {
+  set(style);
+  const { inkColor, nib, inkWidth } = get();
+  remember(INK_KEY, JSON.stringify({ inkColor, nib, inkWidth }));
+}
 
-export function addInk(docId: string, page: number, points: Point[], size: number, pen: boolean) {
-  const ink: Ink = {
-    id: uid(),
-    docId,
-    page,
-    points,
-    size,
-    pen,
-    color: get().inkColor,
-  };
+/** A stroke as it was drawn, which takes the pen's colour as it is kept. */
+export type Drawn = Omit<Handwriting, 'color'>;
+
+/** A stroke begun with the pen as it is set: `base` is how wide a medium pen draws on that side. */
+export function startStroke(base: number, pen: boolean): Drawn {
+  const { nib, inkWidth } = get();
+  return { points: [], pen, nib, size: strokeSize(base, inkWidth, nib) };
+}
+
+export function addInk(docId: string, page: number, drawn: Drawn) {
+  const ink: Ink = { ...drawn, id: uid(), docId, page, color: get().inkColor };
   edit((p) => ({ inks: [...p.inks, ink] }));
 }
 
 export const removeInk = (id: string) => edit((p) => ({ inks: p.inks.filter((i) => i.id !== id) }));
 
 /** A handwritten stroke on the canvas becomes a card the size of the stroke, so it can be moved, linked and grouped. */
-export function addCanvasInk(points: Point[], size: number, pen: boolean) {
-  const pad = size;
+export function addCanvasInk({ points, ...look }: Drawn) {
+  const pad = look.size;
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
   const [x, y] = [Math.min(...xs) - pad, Math.min(...ys) - pad];
@@ -709,12 +760,11 @@ export function addCanvasInk(points: Point[], size: number, pen: boolean) {
     width: Math.max(...xs) - x + pad,
     height: Math.max(...ys) - y + pad,
     data: {
+      ...look,
       kind: 'ink',
       canvasId: get().canvasId,
       points: points.map(([px, py, pr]) => [px - x, py - y, pr]),
       color: get().inkColor,
-      size,
-      pen,
     },
   };
   edit((p) => ({ cards: [...p.cards, card] }));
@@ -867,11 +917,8 @@ function fitGroup(cards: Card[], groupId: string, shrink: boolean) {
 export function notePen() {
   if (get().penSeen) return;
   set({ penSeen: true });
-  try {
-    localStorage.setItem(PEN_KEY, '1');
-  } catch {
-    // Not remembered; it is noticed again the next time the pen touches.
-  }
+  // Not remembered where storage is blocked; it is noticed again the next time the pen touches.
+  remember(PEN_KEY, '1');
 }
 
 const COLLAPSED_HEIGHT = 48;

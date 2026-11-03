@@ -90,3 +90,12 @@ export async function textBox(page: Page, word: string): Promise<Box> {
     throw new Error(`${word} is not in the text layer`);
   }, word);
 }
+
+/** Opens the pen's style from a toolbar, makes these choices in it by name, and closes it. */
+export async function inkStyle(page: Page, toolbar: 'Document tools' | 'Canvas tools', ...choices: string[]) {
+  await page.getByRole('toolbar', { name: toolbar }).getByRole('button', { name: 'Ink style' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ink style' });
+  for (const name of choices) await dialog.getByRole('button', { name, exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+}

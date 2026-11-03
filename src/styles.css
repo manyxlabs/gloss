@@ -1256,8 +1256,19 @@ a.button.primary {
   pointer-events: none;
 }
 
-.tool-eraser .ink-layer path {
+.tool-eraser .ink-layer path,
+.tool-eraser .marker-layer path {
   pointer-events: visiblePainted;
+}
+
+/* Highlighter strokes, multiplied with the page as highlights are, so the text stays dark. */
+.marker-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: multiply;
 }
 
 .ink-live {
@@ -1369,7 +1380,9 @@ a.button.primary {
   container-type: inline-size;
 }
 
-.tight .zoom .scale {
+/* In a narrow pane the pen's style button takes the zoom percentage's room while the pen is out. */
+.tight .zoom .scale,
+.narrow .inking .zoom .scale {
   display: none;
 }
 
@@ -2304,9 +2317,10 @@ dialog.sheet::backdrop {
   margin: 0;
 }
 
+/* Under an open menu, which the reader asked for and which may sit where a notice shows. */
 .toast {
   position: fixed;
-  z-index: 100;
+  z-index: 59;
   right: 12px;
   top: 60px;
   display: flex;
@@ -3244,6 +3258,7 @@ button.icon.danger:hover:not(:disabled) {
 
 :root[data-pages='dark'] .pdfViewer .canvasWrapper > canvas,
 :root[data-pages='dark'] .pdfViewer .ink-layer,
+:root[data-pages='dark'] .pdfViewer .marker-layer,
 :root[data-pages='dark'] .doc-body > .ink-live,
 :root[data-pages='dark'] .thumb img:not(.thumb-photo) {
   filter: var(--page-dark);
@@ -3266,6 +3281,11 @@ button.icon.danger:hover:not(:disabled) {
 :root[data-pages='dark'] .hl:not(.area) {
   mix-blend-mode: normal;
   opacity: 0.42;
+}
+
+/* Turned with the page as the pen's ink is, and screened, the dark page's multiply, so the text stays light. */
+:root[data-pages='dark'] .marker-layer {
+  mix-blend-mode: screen;
 }
 
 .photo-layer {

@@ -1,6 +1,6 @@
 import type { XYPosition } from '@xyflow/react';
-import type { Background, CanvasMeta, Card, Color, Point, Project, Stroke } from '../types';
-import { canvasSpot, edit, newCard, uid, useStore, without } from './project';
+import type { Background, CanvasMeta, Card, Color, Project, Stroke } from '../types';
+import { canvasSpot, edit, newCard, uid, useStore, without, type Drawn } from './project';
 
 const { getState: get } = useStore;
 
@@ -24,8 +24,8 @@ export function addNestedCanvas(position = canvasSpot.next()) {
 }
 
 /** Adds a stroke to a note or an ink box, in canvas units: it is kept from the card's corner. */
-export function addStroke(cardId: string, points: Point[], at: XYPosition, size: number, pen: boolean) {
-  const stroke: Stroke = { id: uid(), points: points.map(([x, y, p]) => [x - at.x, y - at.y, p]), color: get().inkColor, size, pen };
+export function addStroke(cardId: string, { points, ...look }: Drawn, at: XYPosition) {
+  const stroke: Stroke = { ...look, id: uid(), points: points.map(([x, y, p]) => [x - at.x, y - at.y, p]), color: get().inkColor };
   edit((p) => ({
     cards: p.cards.map((c) =>
       c.id === cardId && (c.data.kind === 'note' || c.data.kind === 'sketch') ? ({ ...c, data: { ...c.data, strokes: [...(c.data.strokes ?? []), stroke] } } as Card) : c,

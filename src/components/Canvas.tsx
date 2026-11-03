@@ -8,6 +8,7 @@ import {
   Position,
   ReactFlow,
   useReactFlow,
+  useViewport,
   type FinalConnectionState,
   type Node as FlowNode,
   type OnBeforeDelete,
@@ -17,7 +18,7 @@ import { ImageDown, SquarePen, SquareStack, StickyNote } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { canvasView } from '../canvasView';
 import { inkAlong } from '../erase';
-import { outline, pathOf, SCREEN } from '../ink';
+import { fillOf, outline, pathOf, ruler, SCREEN, type Ruler } from '../ink';
 import {
   addCanvasInk,
   addHighlight,
@@ -33,7 +34,9 @@ import {
   onCardsChange,
   onLinksChange,
   placeCards,
+  startStroke,
   useStore,
+  type Drawn,
 } from '../store/project';
 import { addNestedCanvas, addSketch, addStroke, erase as eraseOnCanvas, type Erased } from '../store/cards';
 import type { Card, Link, Point } from '../types';
@@ -53,6 +56,15 @@ const PINCH_IN = 0.6;
 const PINCH_OUT = 1.5;
 /** Pen width on the canvas, in canvas units, so writing scales with the canvas like everything else on it. */
 const INK_SIZE = 3.5;
+/** Space between dots, grid lines and ruled lines, in canvas units. */
+const GAP = 24;
+
+/** Ruled lines, as on a notepad, which React Flow's own patterns cannot draw: theirs go both ways. */
+function Ruled() {
+  const { y, zoom } = useViewport();
+  const gap = GAP * zoom;
+  return <div className="react-flow__background ruled" style={{ backgroundSize: `100% ${gap}px`, backgroundPositionY: `${y % gap}px` }} />;
+}
 
 export function Canvas() {
   const project = useStore((s) => s.project);
@@ -63,10 +75,11 @@ export function Canvas() {
   const focus = useStore((s) => s.focus);
   const tool = useStore((s) => s.canvasTool);
   const inkColor = useStore((s) => s.inkColor);
+  const nib = useStore((s) => s.nib);
   const rf = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const live = useRef<SVGPathElement>(null);
-  const stroke = useRef<{ points: Point[]; pen: boolean; from?: string } | null>(null);
+  const stroke = useRef<(Drawn & { ruler: Ruler; from?: string }) | null>(null);
   const [over, setOver] = useState(false);
   // Fitting an empty canvas would happen when its first card appears, moving everything under the reader's pointer.
   const [fit] = useState(() => cards.length > 0);
@@ -273,9 +286,8 @@ export function Canvas() {
       'd',
       pathOf(
         outline(
-          s.points.map(([px, py, pr]) => [px * zoom + x, py * zoom + y, pr]),
-          INK_SIZE * zoom,
-          s.pen,
+          s.ruler.shape(s.points).map(([px, py, pr]) => [px * zoom + x, py * zoom + y, pr]),
+          { ...s, size: s.size * zoom },
         ),
       ),
     );
@@ -320,7 +332,8 @@ export function Canvas() {
     e.currentTarget.setPointerCapture(e.pointerId);
     eraser.current = null;
     if (!writing) return erase(e.clientX, e.clientY);
-    stroke.current = { points: [at(e)], pen: e.pointerType === 'pen', from: linkableAt(e.clientX, e.clientY) };
+    stroke.current = { ...startStroke(INK_SIZE, e.pointerType === 'pen'), ruler: ruler(drawLive), from: linkableAt(e.clientX, e.clientY) };
+    stroke.current.points.push(at(e));
     drawLive();
   };
   const onPointerMoveCapture = (e: ReactPointerEvent) => {
@@ -328,21 +341,24 @@ export function Canvas() {
     if (!stroke.current) return;
     e.stopPropagation();
     for (const m of e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]) stroke.current.points.push(at(m));
+    stroke.current.ruler.move(e);
     drawLive();
   };
   const onPointerUpCapture = (e: ReactPointerEvent) => {
     const s = stroke.current;
     if (!s) return;
     stroke.current = null;
+    s.ruler.stop();
     drawLive();
+    const { ruler: _, from, ...drawn } = { ...s, points: s.ruler.shape(s.points) };
     // A line drawn from one card to another links them, as a hand-drawn arrow would.
     const to = linkableAt(e.clientX, e.clientY);
-    if (s.from && to && to !== s.from) return connect({ source: s.from, sourceHandle: facing(to, s.from), target: to, targetHandle: facing(s.from, to) });
+    if (from && to && to !== from) return connect({ source: from, sourceHandle: facing(to, from), target: to, targetHandle: facing(from, to) });
     // Written on a note or in an ink box, it is kept in the card, and moves with it.
-    const card = s.from ? rf.getInternalNode(s.from) : undefined;
+    const card = from ? rf.getInternalNode(from) : undefined;
     const kind = (card?.data as Card['data'] | undefined)?.kind;
-    if (card && (kind === 'note' || kind === 'sketch')) return addStroke(card.id, s.points, card.internals.positionAbsolute, INK_SIZE, s.pen);
-    addCanvasInk(s.points, INK_SIZE, s.pen);
+    if (card && (kind === 'note' || kind === 'sketch')) return addStroke(card.id, drawn, card.internals.positionAbsolute);
+    addCanvasInk(drawn);
   };
 
   return (
@@ -400,14 +416,18 @@ export function Canvas() {
           fitView={fit}
           fitViewOptions={{ maxZoom: 1 }}
         >
-          {style?.background !== 'plain' && <Background variant={style?.background === 'grid' ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={24} size={1.2} />}
+          {style?.background === 'lined' ? (
+            <Ruled />
+          ) : (
+            style?.background !== 'plain' && <Background variant={style?.background === 'grid' ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={GAP} size={1.2} />
+          )}
           <Controls showInteractive={false} />
           {cards.length > 0 && <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />}
           <Cursors />
           <SelectionBar cards={cards} links={links} />
         </ReactFlow>
         <svg className="ink-live" aria-hidden="true">
-          <path ref={live} fill={SCREEN[inkColor]} />
+          <path ref={live} {...fillOf({ color: inkColor, nib }, SCREEN)} />
         </svg>
         <div className="canvas-tools">
           <button onClick={() => addNote()}>

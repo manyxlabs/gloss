@@ -1,6 +1,6 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { ARTIFACTS, card, openProject, picture, readPdf, select, shot } from './helpers';
+import { ARTIFACTS, card, inkStyle, openProject, picture, readPdf, select, shot } from './helpers';
 import { PICTURE, pictureReport } from './pdfs';
 
 test.use({ viewport: { width: 1600, height: 1000 } });
@@ -118,7 +118,7 @@ test('the canvas exports as a picture of its cards, links and handwriting, witho
   // A link drawn from note to note, and a red stroke of handwriting on its own.
   const tools = page.getByRole('toolbar', { name: 'Canvas tools' });
   await tools.getByRole('button', { name: 'Pen' }).click();
-  await tools.getByRole('button', { name: 'red ink' }).click();
+  await inkStyle(page, 'Canvas tools', 'Red ink');
   const [a, b] = [(await note(page, 'Heat').boundingBox())!, (await note(page, 'Bleaching').boundingBox())!];
   await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
   await page.mouse.down();
