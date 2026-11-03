@@ -1,13 +1,14 @@
 import { openDB } from 'idb';
 import * as Y from 'yjs';
-import { frame, MAX_FILE, MAX_FRAME, parse, PROTOCOL, T } from '../../worker/protocol';
+import { frame, MAX_FILE, MAX_FRAME, MAX_PRESENCE, parse, PROTOCOL, T } from '../../worker/protocol';
 import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db';
 import { panesShowing, useStore } from '../store/project';
 import type { Card, DocMeta, Project } from '../types';
-import { decrypt, deriveKeys, encrypt, newRoom, type Binding, type Keys } from './crypto';
+import { b64, decrypt, deriveKeys, encrypt, newRoom, unb64, type Binding, type Keys } from './crypto';
 import { forget, introduce, publish, record } from './activity';
 import { privateIds } from './privacy';
-import { asPresence, presence, useActivity, useMe, useSync, type Presence, type Status } from './state';
+import { follow, forgetScreen, hop } from './screens';
+import { asPresence, presence, useActivity, useMe, useScreen, useSync, type Presence, type Status } from './state';
 
 // The project as a Yjs document: a map per list, keyed by id, holding each entity as plain JSON,
 // so concurrent edits merge per entity and the last write to one entity wins.
@@ -56,6 +57,19 @@ const parentsFirst = (cards: Card[]) => [...cards.filter((c) => !c.parentId), ..
  */
 type Saved = { state: Uint8Array; at: number };
 const states = openDB('gloss-sync', 1, { upgrade: (d) => void d.createObjectStore('states') });
+/**
+ * What the state gained since its last write finished, kept as the page closes: the browser drops
+ * that write with the page, while the project's own record is kept (see store/project.ts), and a
+ * project newer than its state would send what others wrote back to the room as this person's edits.
+ */
+const UNSAVED = (projectId: string) => `gloss:unsaved-sync:${projectId}`;
+const dropUnsaved = (projectId: string) => {
+  try {
+    localStorage.removeItem(UNSAVED(projectId));
+  } catch {
+    // Storage blocked: nothing was kept either.
+  }
+};
 
 const REMOTE = Symbol('remote');
 /** Once the room's log is this long, a device replaces it with a snapshot. */
@@ -70,6 +84,8 @@ class Session {
   private keys!: Keys;
   /** The project's `updatedAt` the shared state matches; null until the saved state is loaded. */
   private at: number | null = null;
+  /** The state vector of the last state written. */
+  private durable = Y.encodeStateVector(this.doc);
   /** Whether the shared state is known, from this device's saved copy or from the room. */
   private known = false;
   private stopped = false;
@@ -86,7 +102,7 @@ class Session {
   private receiving = Promise.resolve();
   private transfers = new Set<string>();
   private downloaded = new Set<string>();
-  private me: Presence = { ...useMe.getState() };
+  private me: Presence = { ...useMe.getState(), screen: useScreen.getState().group ?? undefined };
   private retries = 0;
   private timers: Partial<Record<'flush' | 'save' | 'presence' | 'retry' | 'publish', ReturnType<typeof setTimeout>>> = {};
   private cleanup: (() => void)[] = [];
@@ -104,11 +120,13 @@ class Session {
     this.at = saved?.at ?? 0;
     if (saved) {
       Y.applyUpdate(this.doc, saved.state);
+      this.durable = Y.encodeStateVector(this.doc);
+      this.at = Math.max(this.at, this.takeUnsaved());
       this.known = true;
       // A project saved after this state has edits it lacks: all of them, for a project just shared.
       // Otherwise this state is the newer, and the project catches up from it below. The saved
       // record is compared, as the open project moves on as soon as React Flow measures its cards.
-      if ((record?.updatedAt ?? 0) > saved.at) this.push(this.shared(project), project);
+      if ((record?.updatedAt ?? 0) > this.at) this.push(this.shared(project), project);
       this.save();
     }
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
@@ -124,7 +142,10 @@ class Session {
         if (s.project?.id !== this.projectId) return;
         if (prev.project?.id === this.projectId && s.project !== prev.project && !this.applying) this.push(prev.project, s.project);
         if (s.activeDocId !== prev.activeDocId || s.project.docs !== prev.project?.docs) this.where();
+        const jump = hop(s, prev);
+        if (jump) this.present({ jump });
       }),
+      useScreen.subscribe(({ group }, prev) => group !== prev.group && this.present({ screen: group ?? undefined })),
       useMe.subscribe(({ name, color }) => {
         this.present({ name, color });
         if (this.ready) introduce(this.doc);
@@ -138,7 +159,10 @@ class Session {
       this.drop(ws);
       ws.close();
     };
-    const leave = () => void this.persist();
+    const leave = () => {
+      this.keepUnsaved();
+      void this.persist();
+    };
     const hidden = () => document.visibilityState === 'hidden' && leave();
     addEventListener('online', online);
     addEventListener('offline', offline);
@@ -164,13 +188,19 @@ class Session {
     this.ws?.close(1000);
     this.ws = null;
     useSync.setState({ status: 'offline', peers: {}, problem: null });
+    forgetScreen();
     useActivity.setState({ people: [], activity: [] });
     await this.persist();
   }
 
   present(p: Partial<Presence>) {
     this.me = { ...this.me, ...p };
-    this.later('presence', 50, () => this.ready && this.send(T.presence, 0, text.encode(JSON.stringify(this.me)), 'presence'));
+    this.later('presence', 50, () => {
+      if (!this.ready) return;
+      const body = text.encode(JSON.stringify(this.me));
+      // The room turns away a larger presence: a jump with a long search or destination is then not followed.
+      this.send(T.presence, 0, body.byteLength + 28 <= MAX_PRESENCE ? body : text.encode(JSON.stringify({ ...this.me, jump: undefined })), 'presence');
+    });
   }
 
   private later(timer: keyof Session['timers'], ms: number, run: () => void) {
@@ -193,7 +223,34 @@ class Session {
     // at once, so it matches the project as it is at this moment.
     const { project } = useStore.getState();
     if (project?.id === this.projectId) this.at = project.updatedAt;
+    const vector = Y.encodeStateVector(this.doc);
     await db.put('states', { state: Y.encodeStateAsUpdate(this.doc), at: this.at } satisfies Saved, this.projectId);
+    this.durable = vector;
+    dropUnsaved(this.projectId);
+  }
+
+  private keepUnsaved() {
+    const { project } = useStore.getState();
+    if (this.at === null || project?.id !== this.projectId) return;
+    try {
+      localStorage.setItem(UNSAVED(this.projectId), JSON.stringify({ at: project.updatedAt, update: b64(Y.encodeStateAsUpdate(this.doc, this.durable)) }));
+    } catch {
+      // Storage blocked or full: the project is then sent as edits, as before there was this copy.
+    }
+  }
+
+  /** Applies the copy kept as the page last closed, once, and gives the project's `updatedAt` it matched. */
+  private takeUnsaved() {
+    try {
+      const kept = localStorage.getItem(UNSAVED(this.projectId));
+      dropUnsaved(this.projectId);
+      if (!kept) return 0;
+      const { at, update } = JSON.parse(kept) as { at: unknown; update: string };
+      Y.applyUpdate(this.doc, unb64(update));
+      return typeof at === 'number' ? at : 0;
+    } catch {
+      return 0;
+    }
   }
 
   /** The project as the shared document has it, with only the PDFs this device holds. */
@@ -402,6 +459,7 @@ class Session {
     this.ready = false;
     this.unacked = 0;
     useSync.setState({ peers: {} });
+    forgetScreen();
     this.status();
     if (!this.stopped) this.timers.retry = setTimeout(this.connect, Math.min(30_000, 1000 * 2 ** this.retries++));
   }
@@ -438,8 +496,11 @@ class Session {
       this.logged();
     } else if (f.type === T.presence) {
       const p = asPresence(JSON.parse(new TextDecoder().decode(await decrypt(this.keys.key, f.body, 'presence'))));
-      if (p && this.ws === ws) useSync.setState((s) => ({ peers: { ...s.peers, [f.n]: p } }));
+      if (!p || this.ws !== ws) return;
+      useSync.setState((s) => ({ peers: { ...s.peers, [f.n]: p } }));
+      follow(f.n, p);
     } else if (f.type === T.leave) {
+      forgetScreen(f.n);
       useSync.setState((s) => ({ peers: Object.fromEntries(Object.entries(s.peers).filter(([peer]) => Number(peer) !== f.n)) }));
     } else if (f.type === T.compacted) {
       this.logSize = Math.max(0, this.lastSeq - f.n);
@@ -527,6 +588,7 @@ export async function share() {
   const id = useStore.getState().project?.id;
   if (!id) return;
   // An empty state older than the project makes the session send the whole project as edits the room lacks.
+  dropUnsaved(id);
   await (await states).put('states', { state: Y.encodeStateAsUpdate(new Y.Doc()), at: 0 } satisfies Saved, id);
   bind(newRoom());
 }
@@ -536,6 +598,7 @@ export async function stopSharing() {
   const id = useStore.getState().project?.id;
   if (!id) return;
   await current?.stop();
+  dropUnsaved(id);
   await (await states).delete('states', id);
   bind();
 }

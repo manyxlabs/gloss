@@ -40,6 +40,8 @@ async function exportText(page: Page, label: string, ext: string) {
 }
 
 test('passages and cards are tagged, filtered and searched by tag, and tags are managed, undone, kept and exported', async ({ page }) => {
+  // Ten seconds alone, but three exports and a dozen steps outlast the default on a machine busy with the rest of the suite.
+  test.setTimeout(60_000);
   await openProject(page);
 
   await test.step('A selection is highlighted with a new tag, and a highlight takes another', async () => {

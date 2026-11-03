@@ -23,10 +23,10 @@ const even = (n: number) => Array.from({ length: n }, () => 1 / n);
 const valid = (s: number[] | undefined, n: number) =>
   !!s && s.length === n && s.every((x) => Number.isFinite(x) && x >= MIN_SHARE) && Math.abs(s.reduce((a, b) => a + b, 0) - 1) < 0.01;
 
-/** The document panes, side by side with a divider between each two to drag. */
-export function DocPanes({ onProblems }: { onProblems: (problems: string[]) => void }) {
+/** The document panes, side by side with a divider between each two to drag, or `only` one of them. */
+export function DocPanes({ onProblems, only }: { onProblems: (problems: string[]) => void; only?: Pane }) {
   const room = usePaneRoom();
-  const count = useStore((s) => Math.min(paneCount(s), room));
+  const count = useStore((s) => (only === undefined ? Math.min(paneCount(s), room) : 1));
   const [sizes, setSizes] = useState(readSizes);
   const box = useRef<HTMLDivElement>(null);
   const shares = valid(sizes[count], count) ? sizes[count]! : even(count);
@@ -58,9 +58,9 @@ export function DocPanes({ onProblems }: { onProblems: (problems: string[]) => v
   return (
     <div className={`docs${count > 1 ? ' split' : ''}`} ref={box} style={{ '--pane-columns': columns } as React.CSSProperties}>
       {Array.from({ length: count }, (_, i) => (
-        <Fragment key={i}>
+        <Fragment key={only ?? i}>
           {i > 0 && <div className="divider pane-divider" role="separator" aria-orientation="vertical" aria-label={`Resize pane ${i}`} onPointerDown={drag(i - 1)} />}
-          <DocPane pane={i as Pane} onProblems={onProblems} />
+          <DocPane pane={(only ?? i) as Pane} onProblems={onProblems} />
         </Fragment>
       ))}
       <LinkBanner />

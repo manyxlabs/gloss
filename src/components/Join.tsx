@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { listProjects, putProject } from '../store/db';
 import type { Binding } from '../sync/crypto';
+import { joinScreens } from '../sync/state';
 
 // One join per room at a time, so a repeated effect cannot make two copies of the project.
 const joins = new Map<string, Promise<string>>();
@@ -15,13 +16,16 @@ async function join(binding: Binding) {
   return project.id;
 }
 
-/** Opens the project a share link is for: the copy on this device, or a new one that fills in from the room. */
-export function Join({ binding }: { binding: Binding }) {
+/** Opens the project a share link is for: the copy on this device, or a new one that fills in from the room; a link to another screen also links this one. */
+export function Join({ binding: { room, key, screen } }: { binding: Binding & { screen?: string } }) {
   useEffect(() => {
-    let pending = joins.get(binding.room);
-    if (!pending) joins.set(binding.room, (pending = join(binding).finally(() => joins.delete(binding.room))));
-    // Replaced rather than added, so the key does not stay in this tab's history.
-    void pending.then((id) => location.replace(`#/p/${id}`));
-  }, [binding]);
+    let pending = joins.get(room);
+    if (!pending) joins.set(room, (pending = join({ room, key }).finally(() => joins.delete(room))));
+    void pending.then((id) => {
+      if (screen) joinScreens(id, screen);
+      // Replaced rather than added, so the key does not stay in this tab's history.
+      location.replace(`#/p/${id}`);
+    });
+  }, [room, key, screen]);
   return null;
 }

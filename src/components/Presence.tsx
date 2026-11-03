@@ -2,7 +2,7 @@ import { useReactFlow, useStore as useFlow, useViewport, ViewportPortal } from '
 import { useEffect, useRef, useState } from 'react';
 import { isLocalCanvas } from '../canvases';
 import { useStore } from '../store/project';
-import { GUEST, presence, setName, useMe, useSync, type Presence } from '../sync/state';
+import { GUEST, presence, setName, useMe, useScreen, useSync, type Presence } from '../sync/state';
 
 const initials = (name: string) =>
   name
@@ -53,25 +53,29 @@ function NameDialog({ onClose }: { onClose: () => void }) {
 /** Everyone in a shared project, with where they are reading; this person's own avatar changes their name. */
 export function Peers() {
   const peers = useSync((s) => s.peers);
+  const group = useScreen((s) => s.group);
   const me = useMe();
   const docs = useStore((s) => s.project?.docs);
-  // Someone who shared the project gave their name as they did; someone who joined is asked here.
-  const [naming, setNaming] = useState(!me.name);
+  // Someone who shared the project gave their name as they did; someone who joined is asked here. A linked screen takes the name its other screens have.
+  const [naming, setNaming] = useState(!me.name && !group);
   const where = (p: Presence) => {
     const doc = docs?.find((d) => d.id === p.docId);
     return doc ? `Reading “${doc.name}”, page ${p.page ?? 1}` : 'Looking around';
   };
   return (
     <div className="peers" aria-label="People in this project">
-      {Object.entries(peers).map(([id, p]) => (
-        <span key={id} className="avatar" style={peerStyle(p.color)} tabIndex={0} aria-label={`${p.name || 'Someone'}: ${where(p)}`}>
-          {initials(p.name)}
-          <span className="tip" role="tooltip">
-            <b>{p.name || 'Someone'}</b>
-            {where(p)}
+      {/* This person's other screens are not someone else. */}
+      {Object.entries(peers)
+        .filter(([, p]) => !group || p.screen !== group)
+        .map(([id, p]) => (
+          <span key={id} className="avatar" style={peerStyle(p.color)} tabIndex={0} aria-label={`${p.name || 'Someone'}: ${where(p)}`}>
+            {initials(p.name)}
+            <span className="tip" role="tooltip">
+              <b>{p.name || 'Someone'}</b>
+              {where(p)}
+            </span>
           </span>
-        </span>
-      ))}
+        ))}
       <button className="avatar" style={peerStyle(me.color)} onClick={() => setNaming(true)} aria-label={`You (${me.name || 'no name yet'}). Change your name`}>
         {initials(me.name)}
         <span className="tip" role="tooltip">
@@ -87,6 +91,7 @@ export function Peers() {
 /** The others' pointers on the canvas, in canvas coordinates; this person's is shared while over it. */
 export function Cursors() {
   const peers = useSync((s) => s.peers);
+  const group = useScreen((s) => s.group);
   const canvasId = useStore((s) => s.canvasId);
   const shared = useStore((s) => !!s.project?.sync);
   const dom = useFlow((s) => s.domNode);
@@ -114,8 +119,9 @@ export function Cursors() {
   return (
     <ViewportPortal>
       {Object.entries(peers).map(
-        ([id, { cursor, color, name }]) =>
-          cursor?.canvasId === canvasId && (
+        ([id, { cursor, color, name, screen }]) =>
+          cursor?.canvasId === canvasId &&
+          (!group || screen !== group) && (
             // Scaled back against the zoom, so a pointer stays the same size on screen.
             <div key={id} className="cursor" style={{ ...peerStyle(color), transform: `translate(${cursor.x}px, ${cursor.y}px) scale(${1 / zoom})` }}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
