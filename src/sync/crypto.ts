@@ -7,22 +7,26 @@ import type { Project } from '../types';
 
 const text = new TextEncoder();
 
-const b64 = (bytes: Uint8Array) =>
-  btoa(String.fromCharCode(...bytes))
+// Byte by byte, as spreading a large array into one call overflows the stack.
+export const b64 = (bytes: Uint8Array) =>
+  btoa(Array.from(bytes, (c) => String.fromCharCode(c)).join(''))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
-const unb64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+export const unb64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
 export type Binding = NonNullable<Project['sync']>;
 export const newRoom = (): Binding => ({ room: b64(random(16)), key: b64(random(32)) });
 
-const LINK = /^#\/join\/([\w-]{22})\.([\w-]{43})$/;
-export const shareLink = ({ room, key }: Binding) => `${location.origin}${location.pathname}#/join/${room}.${key}`;
-export const parseLink = (hash: string): Binding | null => {
+/** A group of one person's screens on a project, named in the link that opens another. */
+export const newScreens = () => b64(random(16));
+
+const LINK = /^#\/join\/([\w-]{22})\.([\w-]{43})(?:\/screen\/([\w-]{22}))?$/;
+export const shareLink = ({ room, key }: Binding, screen?: string) => `${location.origin}${location.pathname}#/join/${room}.${key}${screen ? `/screen/${screen}` : ''}`;
+export const parseLink = (hash: string): (Binding & { screen?: string }) | null => {
   const m = LINK.exec(hash);
-  return m ? { room: m[1]!, key: m[2]! } : null;
+  return m ? { room: m[1]!, key: m[2]!, ...(m[3] ? { screen: m[3] } : {}) } : null;
 };
 
 export type Keys = { key: CryptoKey; auth: string };
