@@ -1,5 +1,5 @@
 import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFPage } from 'pdf-lib';
-import { MARKER_ALPHA, outline, PAGE_PIXELS, PAPER } from '../ink';
+import { MARKER_ALPHA, outline, PAGE_PIXELS, PAPER, smoothed } from '../ink';
 import { cite, commentOf, endsOf } from '../links';
 import { swatchOf } from '../palette';
 import { fileKey, getFile } from '../store/db';
@@ -11,6 +11,11 @@ import { loadDoc } from './pdfjs';
 const BORDER = 1.5;
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 const n = (v: number) => +v.toFixed(3);
+/** A quadratic curve as PDF draws it, as the cubic of the same shape, from where the path is. */
+const cubic = (from: number[], [cx, cy]: number[], [x, y]: number[]) => {
+  const third = (a: number, b: number) => n(a + (2 / 3) * (b - a));
+  return `${third(from[0]!, cx!)} ${third(from[1]!, cy!)} ${third(x!, cx!)} ${third(y!, cy!)} ${n(x!)} ${n(y!)} c`;
+};
 
 /**
  * The document with its highlights and handwriting added as standard PDF annotations, so any
@@ -142,7 +147,10 @@ export async function annotatedPdf(project: Project, docId: string) {
       ink,
       PAGE_PIXELS,
     ).map(([x, y]) => at(x, y / scale));
-    if (shape.length < 3) continue;
+    // Turning to PDF points keeps lines straight, so the curves smoothed from the turned outline match the screen's.
+    const curves = smoothed(shape);
+    if (!curves) continue;
+    const [start, quads] = curves;
     const line = ink.points.map(([x, y]) => at(x, y));
     const marker = ink.nib === 'marker';
     // A highlighter is its colour thinned over white paper, multiplied so the text under it stays dark.
@@ -157,7 +165,7 @@ export async function annotatedPdf(project: Project, docId: string) {
         C: color,
         BS: { W: n(ink.size * width) },
       },
-      `${marker ? '/M gs ' : ''}${color.join(' ')} rg\n${shape.map(([x, y], i) => `${n(x)} ${n(y)} ${i ? 'l' : 'm'}`).join(' ')} h f`,
+      `${marker ? '/M gs ' : ''}${color.join(' ')} rg\n${n(start[0])} ${n(start[1])} m ${quads.map((q, i) => cubic(i ? quads[i - 1]![1] : start, ...q)).join(' ')} h f`,
     );
   }
 

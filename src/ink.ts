@@ -66,13 +66,23 @@ export const fillOf = ({ color, nib }: Pick<Handwriting, 'color' | 'nib'>, colou
 /** Page handwriting is kept in fractions of the page's width; it is shaped as if the page were this many pixels wide. */
 export const PAGE_PIXELS = 800;
 
-/** An SVG path for a polygon, smoothed through the midpoints of its edges. */
-export function pathOf(poly: [number, number][]) {
-  if (poly.length < 3) return '';
-  const mid = (a: [number, number], b: [number, number]) => `${((a[0] + b[0]) / 2).toFixed(2)},${((a[1] + b[1]) / 2).toFixed(2)}`;
-  let d = `M${mid(poly[0]!, poly[1]!)} Q`;
-  for (let i = 1; i < poly.length; i++) d += `${poly[i]![0].toFixed(2)},${poly[i]![1].toFixed(2)} ${mid(poly[i]!, poly[(i + 1) % poly.length]!)} `;
-  return `${d}Z`;
+type At = [number, number];
+/**
+ * A polygon smoothed through the midpoints of its edges: where it starts, then each quadratic curve as
+ * its control point and end. Shared by the screen and the PDF export, so both draw the same shape.
+ */
+export function smoothed(poly: At[]): [At, [At, At][]] | null {
+  if (poly.length < 3) return null;
+  const mid = (a: At, b: At): At => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  return [mid(poly[0]!, poly[1]!), poly.slice(1).map((p, i) => [p, mid(p, poly[(i + 2) % poly.length]!)])];
+}
+
+/** An SVG path for a polygon, smoothed. */
+export function pathOf(poly: At[]) {
+  const s = smoothed(poly);
+  if (!s) return '';
+  const xy = ([x, y]: At) => `${x.toFixed(2)},${y.toFixed(2)}`;
+  return `M${xy(s[0])} Q${s[1].map(([c, end]) => `${xy(c)} ${xy(end)} `).join('')}Z`;
 }
 
 /** Still for this long at the end of a stroke, a pen turns it into a straight line. */

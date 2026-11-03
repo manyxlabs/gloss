@@ -8,8 +8,11 @@ test.describe.configure({ timeout: 90_000 });
 
 type Kind = 'red' | 'blue' | 'yellow' | 'green' | 'dark';
 
-/** For each column of a picture, how many of its pixels are of a kind; a highlighter's green is pale. */
-function columnsOf(page: Page, png: Buffer, kind: Kind) {
+/**
+ * The pixels of a kind in a picture: how many in each column, and their shape as rows of 1s and 0s
+ * cut to where they reach. A highlighter's green is pale.
+ */
+function pixelsOf(page: Page, png: Buffer, kind: Kind) {
   return page.evaluate(
     async ({ b64, kind }) => {
       const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: 'image/png' }));
@@ -26,19 +29,43 @@ function columnsOf(page: Page, png: Buffer, kind: Kind) {
               : kind === 'green'
                 ? gr > 190 && gr < 245 && gr - r > 30 && gr - b > 15
                 : 0.2126 * r + 0.7152 * gr + 0.0722 * b < 50;
-      const out = Array<number>(bitmap.width).fill(0);
-      for (let y = 0; y < bitmap.height; y++)
+      const columns = Array<number>(bitmap.width).fill(0);
+      const rows: string[] = [];
+      for (let y = 0; y < bitmap.height; y++) {
+        let row = '';
         for (let x = 0; x < bitmap.width; x++) {
           const i = (y * bitmap.width + x) * 4;
-          if (is(d[i]!, d[i + 1]!, d[i + 2]!)) out[x]!++;
+          const hit = is(d[i]!, d[i + 1]!, d[i + 2]!);
+          if (hit) columns[x]!++;
+          row += hit ? '1' : '0';
         }
-      return out;
+        rows.push(row);
+      }
+      const used = rows.filter((r) => r.includes('1'));
+      const [left, right] = [Math.min(...used.map((r) => r.indexOf('1'))), Math.max(...used.map((r) => r.lastIndexOf('1')))];
+      return { columns, shape: used.map((r) => r.slice(left, right + 1)) };
     },
     { b64: png.toString('base64'), kind },
   );
 }
 /** The same, of what the screen shows in a box. */
-const columns = async (page: Page, box: Box, kind: Kind) => columnsOf(page, await page.screenshot({ clip: box }), kind);
+const columns = async (page: Page, box: Box, kind: Kind) => (await pixelsOf(page, await page.screenshot({ clip: box }), kind)).columns;
+/** How much two shapes cover each other, 1 for the same shape, laid over each other as well as they go within a pixel either way. */
+function overlap(a: string[], b: string[]) {
+  let best = 0;
+  for (const dy of [-1, 0, 1])
+    for (const dx of [-1, 0, 1]) {
+      let [both, either] = [0, 0];
+      for (let y = -1; y <= Math.max(a.length, b.length); y++)
+        for (let x = -1; x <= Math.max(a[0]!.length, b[0]!.length); x++) {
+          const [p, q] = [a[y]?.[x] === '1', b[y + dy]?.[x + dx] === '1'];
+          if (p && q) both++;
+          if (p || q) either++;
+        }
+      best = Math.max(best, both / either);
+    }
+  return best;
+}
 /** How thick a stroke of a kind is where it crosses a column of the box, as a fraction across. */
 const thickness = async (page: Page, box: Box, kind: Kind, at: number) => (await columns(page, box, kind))[Math.round(box.width * at)]!;
 const total = async (page: Page, box: Box, kind: Kind) => (await columns(page, box, kind)).reduce((a, b) => a + b, 0);
@@ -181,9 +208,9 @@ test('pens on a page: highlighter under the text, calligraphy, widths and straig
   expect([...marker.color]).toEqual([247, 225, 156]);
   const scale = 2;
   const viewport = first.getViewport({ scale });
-  const { canvas, context } = (
-    pdf as unknown as { canvasFactory: { create: (w: number, h: number) => { canvas: { toBuffer: (type: string) => Buffer }; context: CanvasRenderingContext2D } } }
-  ).canvasFactory.create(viewport.width, viewport.height);
+  const factory = (pdf as unknown as { canvasFactory: { create: (w: number, h: number) => { canvas: { toBuffer: (type: string) => Buffer }; context: CanvasRenderingContext2D } } })
+    .canvasFactory;
+  const { canvas, context } = factory.create(viewport.width, viewport.height);
   await first.render({ canvas: canvas as never, viewport }).promise;
   writeFileSync(`${ARTIFACTS}/pens-annotated-page1.png`, canvas.toBuffer('image/png'));
   const item = (await first.getTextContent()).items.find((i) => 'str' in i && i.str.startsWith('Coral reefs occupy')) as { transform: number[]; width: number };
@@ -197,6 +224,35 @@ test('pens on a page: highlighter under the text, calligraphy, widths and straig
   }
   expect(yellow).toBeGreaterThan(data.length / 4 / 3);
   expect(dark).toBeGreaterThan(100);
+
+  // The file draws the calligraphy V with the screen's shape, down to its corner, seen close up at the screen's size.
+  for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  const stroke = inks(page).first();
+  // Clear of the toolbar over the foot of the pane.
+  await stroke.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  // Settled once the zoom has finished moving it.
+  let last = '';
+  await expect
+    .poll(async () => {
+      const [was, now] = [last, (last = JSON.stringify(await stroke.boundingBox()))];
+      return was === now;
+    })
+    .toBe(true);
+  const shown = (await page1(page).locator('canvas').first().boundingBox())!.width;
+  const same = first.getViewport({ scale: shown / first.getViewport({ scale: 1 }).width });
+  const atSize = factory.create(same.width, same.height);
+  await first.render({ canvas: atSize.canvas as never, viewport: same }).promise;
+  const around = (await stroke.boundingBox())!;
+  const closeUp = await page.screenshot({ clip: { x: around.x - 4, y: around.y - 4, width: around.width + 8, height: around.height + 8 } });
+  const rendered = atSize.canvas.toBuffer('image/png');
+  writeFileSync(`${ARTIFACTS}/pens-calligraphy-screen.png`, closeUp);
+  writeFileSync(`${ARTIFACTS}/pens-calligraphy-file.png`, rendered);
+  const onScreen = (await pixelsOf(page, closeUp, 'red')).shape;
+  const inFile = (await pixelsOf(page, rendered, 'red')).shape;
+  expect(overlap(onScreen, inFile)).toBeGreaterThan(0.98);
+  // The corner is where an outline drawn as straight lines, rather than the screen's curves, shows: cut flat.
+  const corner = (rows: string[]) => rows.slice(-Math.round(rows.length / 5));
+  expect(overlap(corner(onScreen), corner(inFile))).toBeGreaterThan(0.985);
 });
 
 test('pens on the canvas: Shift draws straight, nibs show in cards, and the canvas picture and notes carry them', async ({ page }) => {
@@ -247,7 +303,7 @@ test('pens on the canvas: Shift draws straight, nibs show in cards, and the canv
   const [picture] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Export' }).click()]);
   copyFileSync(await picture.path(), `${ARTIFACTS}/pens-canvas.png`);
   const png = readFileSync(await picture.path());
-  const sum = async (kind: Kind) => (await columnsOf(page, png, kind)).reduce((a, b) => a + b, 0);
+  const sum = async (kind: Kind) => (await pixelsOf(page, png, kind)).columns.reduce((a, b) => a + b, 0);
   expect(await sum('green')).toBeGreaterThan(1000);
   expect(await sum('red')).toBeGreaterThan(100);
 
