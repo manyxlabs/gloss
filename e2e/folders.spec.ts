@@ -323,6 +323,27 @@ const covered = (page: Page) =>
     );
   });
 
+/** What the notices on show lie over of what is open beneath them: nothing, as they sit under menus, panels and banners. */
+const over = (page: Page, selectors: string[]) =>
+  page.evaluate((selectors) => {
+    const toasts = [...document.querySelectorAll('.toast')];
+    // Notices let the pointer through, so for this they are made to stop it, to find what is on top.
+    const stack = document.querySelector<HTMLElement>('.toasts')!;
+    stack.style.pointerEvents = 'auto';
+    const found = selectors.flatMap((selector) =>
+      [...document.querySelectorAll(selector)].flatMap((c) => {
+        const a = c.getBoundingClientRect();
+        return toasts.flatMap((t) => {
+          const b = t.getBoundingClientRect();
+          const [left, right, top, bottom] = [Math.max(a.left, b.left), Math.min(a.right, b.right), Math.max(a.top, b.top), Math.min(a.bottom, b.bottom)];
+          return right > left && bottom > top && t.contains(document.elementFromPoint((left + right) / 2, (top + bottom) / 2)) ? [selector] : [];
+        });
+      }),
+    );
+    stack.style.pointerEvents = '';
+    return found;
+  }, selectors);
+
 test('notices never cover the canvas minimap or any controls, and a slow export shows it is being made', async ({ browser }) => {
   // Three devices, each making exports, take a while on a machine busy with other tests.
   test.setTimeout(120_000);
@@ -364,10 +385,33 @@ test('notices never cover the canvas minimap or any controls, and a slow export 
         expect(await covered(page)).toEqual([]);
         await shot(page, `notices-${label}${view ? `-${view.toLowerCase()}` : ''}-${theme}`);
       }
+      if (view === 'Canvas') continue;
+      // What opens from the document's toolbar stays above the notices.
+      await page.getByRole('button', { name: 'Page colours' }).click();
+      await expect(page.getByRole('menu', { name: 'Page colours' })).toBeVisible();
+      expect(await over(page, ['.menu', '.doc-banners > *'])).toEqual([]);
+      await page.keyboard.press('Escape');
+      const squeeze = page.getByRole('button', { name: 'Squeeze around highlights or words' });
+      if (await squeeze.isVisible()) await squeeze.click();
+      else {
+        await page.getByRole('button', { name: 'More for this document' }).click();
+        await page.getByRole('menuitem', { name: 'Squeeze and defined terms…' }).click();
+      }
+      await expect(page.getByRole('dialog', { name: 'Squeeze the document' })).toBeVisible();
+      expect(await over(page, ['.collapse-panel'])).toEqual([]);
+      await shot(page, `notices-${label}-squeeze`);
+      await page.keyboard.press('Escape');
     }
     release();
     expect((await downloaded).suggestedFilename()).toBe('Reef essay.pdf');
     await expect(making).toHaveCount(0);
+
+    // On the start page, the notice still on show keeps clear of the links under the start buttons and the footer.
+    await page.getByRole('link', { name: 'All projects' }).click();
+    await expect(page.getByRole('button', { name: 'Restore a backup' })).toBeVisible();
+    await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+    expect(await over(page, ['.more', '.foot'])).toEqual([]);
+    await shot(page, `notices-${label}-start-page`);
     await context.close();
   }
 });

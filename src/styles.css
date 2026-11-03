@@ -2533,10 +2533,11 @@ button.screens.linked {
 
 /* Notices stack at the foot, clear of the problems shown at the top right, and high enough to clear
    the canvas's minimap and zoom buttons (15px from the edge and up to 119px tall with a finger's
-   larger buttons) and the document toolbar; under an open menu, which may sit where a notice shows. */
+   larger buttons) and the document toolbar. They sit under the toolbars and everything that opens
+   from them, menus, panels and banners, which may open where a notice shows, but over the pages and cards. */
 .toasts {
   position: fixed;
-  z-index: 59;
+  z-index: 9;
   right: 12px;
   bottom: 128px;
   display: flex;
@@ -2558,17 +2559,34 @@ button.screens.linked {
   font-size: 14px;
 }
 
+/* Its words take the room, so its buttons end at its right edge however wide it is. */
+.toast > span {
+  flex: 1;
+}
+
 /* Only a notice's buttons take the pointer; a click or a double-click anywhere else on it reaches the canvas or page beneath. */
 .toast button {
   pointer-events: auto;
 }
 
-/* Where one side shows at a time, notices sit in the middle. */
+/* Where one side shows at a time, notices sit in the middle, all as wide as each other. */
 @media (max-width: 900px) {
   .toasts {
-    left: 12px;
-    align-items: center;
+    right: auto;
+    left: 50%;
+    translate: -50% 0;
+    width: min(440px, calc(100vw - 24px));
+    align-items: stretch;
   }
+}
+
+/* The start page has no toolbar to clear: notices sit at its foot, in room it keeps for them under its links. */
+.library ~ .toasts {
+  bottom: 16px;
+}
+
+.library:has(~ .toasts .toast) {
+  padding-bottom: calc(var(--notices) + 16px);
 }
 
 .library .install {
