@@ -2461,6 +2461,21 @@ button.screens.linked {
   }
 }
 
+/* On a phone the header's buttons are a fingertip wide, and who is here is listed in its More instead. */
+@media (max-width: 760px) and (pointer: coarse) {
+  .workspace .bar {
+    gap: 0;
+  }
+
+  .workspace .bar .peers {
+    padding: 0;
+  }
+
+  .workspace .bar .peers > .avatar {
+    display: none;
+  }
+}
+
 /* Export notes: a button opening a list of formats. */
 .menu-wrap {
   position: relative;

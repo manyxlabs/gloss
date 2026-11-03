@@ -88,6 +88,41 @@ export function Peers() {
   );
 }
 
+/**
+ * Who is here, and changing this person's name, as items in the header's More on a phone, where the
+ * avatars have no room.
+ */
+export function PeopleItems() {
+  const peers = useSync((s) => s.peers);
+  const group = useScreen((s) => s.group);
+  const me = useMe();
+  const [naming, setNaming] = useState(false);
+  return (
+    <>
+      <div className="menu-group" role="group" aria-label="People in this project">
+        <h4>People here</h4>
+        {Object.entries(peers)
+          .filter(([, p]) => !group || p.screen !== group)
+          .map(([id, p]) => (
+            <button key={id} role="menuitem" disabled>
+              <span className="avatar" style={peerStyle(p.color)} aria-hidden="true">
+                {initials(p.name)}
+              </span>
+              {p.name || 'Someone'}
+            </button>
+          ))}
+        <button role="menuitem" onClick={() => setNaming(true)}>
+          <span className="avatar" style={peerStyle(me.color)} aria-hidden="true">
+            {initials(me.name)}
+          </span>
+          You{me.name ? `, ${me.name}` : ''}: change your name…
+        </button>
+      </div>
+      {naming && <NameDialog onClose={() => setNaming(false)} />}
+    </>
+  );
+}
+
 /** The others' pointers on the canvas, in canvas coordinates; this person's is shared while over it. */
 export function Cursors() {
   const peers = useSync((s) => s.peers);
