@@ -7,12 +7,13 @@ import type { Project } from '../types';
 
 const text = new TextEncoder();
 
-const b64 = (bytes: Uint8Array) =>
-  btoa(String.fromCharCode(...bytes))
+// Byte by byte, as spreading a large array into one call overflows the stack.
+export const b64 = (bytes: Uint8Array) =>
+  btoa(Array.from(bytes, (c) => String.fromCharCode(c)).join(''))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
-const unb64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+export const unb64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
 export type Binding = NonNullable<Project['sync']>;
