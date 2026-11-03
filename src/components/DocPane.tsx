@@ -134,7 +134,9 @@ function selectionPopup(c: HTMLElement, touch: boolean, docId: string | null): P
   const first = boxes[0];
   const last = boxes.at(-1);
   if (!first || !last) return null;
-  const below = touch || first.top - c.getBoundingClientRect().top < 60;
+  // Narrower than the toolbar, the pane has it wrap onto a second row, which needs twice the room above.
+  const room = c.clientWidth < 2 * POPUP_HALF_WIDTH ? 120 : 60;
+  const below = touch || first.top - c.getBoundingClientRect().top < room;
   const line = below ? last : first;
   return { docId, anchor, below, ...inScroller(c, line.left + line.width / 2, below ? line.bottom : line.top) };
 }
