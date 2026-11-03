@@ -61,8 +61,9 @@
   color: var(--edge);
 }
 
-/* A toolbar wider than a phone goes onto two rows rather than off the screen. */
-.popup[role='toolbar'] {
+/* A toolbar or comment editor wider than a phone goes onto two rows rather than off the screen. */
+.popup[role='toolbar'],
+.popup:has(> .note-editor) {
   width: max-content;
   /* Inside its pane too, as one of three may be narrower than the screen. */
   max-width: min(100vw - 16px, 100cqw - 12px);
