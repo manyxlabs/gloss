@@ -17,6 +17,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Share links.** A share link from Google Drive (including Google Docs, Slides and Sheets, exported as PDFs), Dropbox, OneDrive or SharePoint, or Box adds the file itself rather than the page that shows it, as does a link straight to a file.
   The file is then converted like any file opened from the computer.
   A private link is refused with a reason: share the file so that anyone with the link can view it.
+- **Whole folders.** Drop a folder, or choose one with **Open a folder** (in a project, **Choose a folder** or the folder button in the list of documents), and every file Gloss opens in it and in the folders inside it is added, with its progress shown.
+  The folders inside become folders of documents, and on the start page they can instead become a project each.
+  Files Gloss cannot open are named and left out; hidden files are skipped.
 - **Page tools** in the sidebar's Pages tab: rotate, move, duplicate and delete pages, and insert pages from any file Gloss opens, before or after a page.
   Pick several pages with Ctrl or Shift, use a page's menu, or drag pages to a new place.
   Highlights, figures, comments, handwriting and excerpts move with their pages, and turn with them; deleting pages that hold any asks first, with counts.
@@ -63,7 +66,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Copy links** to a passage, card, comment, canvas or document. Opening one opens the project there; pasted into a note or a comment, it shows as a chip with a few words of what it leads to, in this project or another one on the same device.
   In a shared project a link names the project's room, so it works for everyone who has the project, and only for them.
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
-- **Installable and offline**: install Gloss as an app from the browser; once visited it opens and works with no network, and an installed copy on a computer can open PDFs, Word and PowerPoint files from the file manager. A new version is loaded only when you choose.
+- **Installable and offline**: install Gloss as an app from the browser; once visited it opens and works with no network, and an installed copy on a computer can open PDFs, Word and PowerPoint files from the file manager, and on a phone or tablet takes files shared to it from other apps. A new version is loaded only when you choose.
 - **Backups**: download a project with its PDFs as one `.gloss` file, and restore it in any browser.
 - **Search everything**: every page of every PDF, every card and every comment, with Ctrl+K.
   Type `#tag` to find what carries a tag, or pick tags from the chips above the results.
@@ -84,6 +87,8 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Folders** on the start page: file projects in folders from a project's folder button or by dragging, rename, collapse and delete them (their projects are kept).
   Projects are listed by when they were last opened.
 - **Export notes** as Markdown, PDF or Word, with groups as sections, each excerpt's source and page, its tags, and the passages linked to it.
+- **Send** to another app through the system's share sheet: a document, as it is or with its annotations, from its menu, and the notes and documents as one PDF from Export notes.
+  Where the browser cannot share files, they are downloaded instead.
 - **Export the canvas as a picture** from the Export menu (on a phone, from the canvas tools): PNG at 1×, 2× or 3×, PDF on one page the size of the canvas or across A4 or Letter pages, or SVG.
   All of the canvas or only the selected cards, cropped to them with a margin, in the light theme or matching the one in use.
   It shows excerpts, notes, figures, handwriting, groups (a collapsed one as its name), links and linked passages, but not handles, selection, the minimap or the controls.

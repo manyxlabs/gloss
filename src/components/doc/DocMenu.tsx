@@ -9,7 +9,7 @@ import { Menu } from '../Menu';
 import { useSqueeze } from './Collapse';
 
 /** The open document's tab menu: copy a link to it, keep it on this device only, and its own actions (see DocActions). */
-export function DocMenu({ doc }: { doc: DocMeta }) {
+export function DocMenu({ doc, onProblems }: { doc: DocMeta; onProblems: (problems: string[]) => void }) {
   const [button, setButton] = useState<HTMLElement | null>(null);
   return (
     <>
@@ -41,7 +41,7 @@ export function DocMenu({ doc }: { doc: DocMeta }) {
           <button role="menuitem" onClick={() => (setButton(null), useSqueeze.setState({ docId: doc.id }))}>
             <ListCollapse size={16} /> Squeeze and defined terms…
           </button>
-          <DocActions doc={doc} onClose={() => setButton(null)} />
+          <DocActions doc={doc} onClose={() => setButton(null)} onProblems={onProblems} />
         </Menu>
       )}
     </>

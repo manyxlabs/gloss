@@ -397,15 +397,19 @@ export async function importFiles(project: Project, inputs: Input[], options: Co
 }
 
 /** Adds documents to the open project, each with `extra` to know it by, such as where it came from. */
-export async function addDocs(files: Input[], options: ConvertOptions = {}, extra: Pick<DocMeta, 'zotero'> = {}) {
+export const addDocs = (files: Input[], options: ConvertOptions = {}, extra: Pick<DocMeta, 'zotero'> = {}) => addImported((p) => importFiles(p, files, options), extra);
+
+/** Adds to the open project the documents, and the folders they are in, that `run` imports into it. */
+export async function addImported(run: (p: Project) => Promise<{ project: Project; problems: string[] }>, extra: Pick<DocMeta, 'zotero'> = {}) {
   const { project } = get();
   if (!project) return [];
-  const { project: next, problems } = await importFiles(project, files, options);
+  const { project: next, problems } = await run(project);
   const added = next.docs.slice(project.docs.length).map((d) => ({ ...d, ...extra }));
+  const folders = next.docFolders.slice(project.docFolders.length);
   const first = added[0];
-  // Another edit may have landed while the files were read; only the documents are taken from `next`.
+  // Another edit may have landed while the files were read; only the documents and folders are taken from `next`.
   // An empty project still unnamed takes the name of what it was given first.
-  if (first) edit((p) => ({ docs: [...p.docs, ...added], ...(!p.docs.length && p.name === UNTITLED ? { name: first.name } : {}) }));
+  if (first) edit((p) => ({ docs: [...p.docs, ...added], docFolders: [...p.docFolders, ...folders], ...(!p.docs.length && p.name === UNTITLED ? { name: first.name } : {}) }));
   if (first) set({ activeDocId: first.id });
   return problems;
 }

@@ -240,7 +240,7 @@ test('a box snipped around a figure becomes a card showing that region, kept, se
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Export notes' }).click();
-  const [notes] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
+  const [notes] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await notes.path(), `${ARTIFACTS}/snip-notes.md`);
   expect(readFileSync(`${ARTIFACTS}/snip-notes.md`, 'utf8')).toContain('> [Figure: Figure 1: coral cover by depth]\n> (Figure report, p. 1)');
 
@@ -329,7 +329,7 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
   await expect(page.locator('.hl.flash').first()).toBeInViewport();
 
   await page.getByRole('button', { name: 'Export notes' }).click();
-  const [notes] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
+  const [notes] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await notes.path(), `${ARTIFACTS}/comment-notes.md`);
   const md = readFileSync(`${ARTIFACTS}/comment-notes.md`, 'utf8');
   expect(md).toContain('> (Reef essay, p. 1)\n\nComment: Compare with the eastern slope survey.\n\nTiny area, huge share.');
@@ -341,7 +341,7 @@ test('comments sit in the margin, are edited in place, and reach the sidebar, se
     ['Word (.docx)', 'docx'],
   ]) {
     await page.getByRole('button', { name: 'Export notes' }).click();
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: label }).click()]);
     const out = `${ARTIFACTS}/comment-notes.${ext}`;
     copyFileSync(await download.path(), out);
     let text = '';

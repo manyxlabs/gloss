@@ -35,7 +35,7 @@ export function Collapse({ docId }: { docId: string }) {
 
   useEffect(() => {
     if (!open) return;
-    const close = (e: Event) => (e instanceof KeyboardEvent ? e.key === 'Escape' : !root.current?.contains(e.target as Node)) && setOpen(false);
+    const close = (e: Event) => (e instanceof KeyboardEvent ? e.key === 'Escape' : !root.current?.contains(e.target as Node)) && useSqueeze.setState({ docId: null });
     addEventListener('pointerdown', close);
     addEventListener('keydown', close);
     return () => {

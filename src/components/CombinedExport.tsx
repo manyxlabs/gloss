@@ -1,6 +1,6 @@
-import { ArrowDown, ArrowUp, FileDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileDown, Share } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { download } from '../export';
+import { download, send } from '../download';
 import { combinedPdf } from '../pdf/combine';
 import { orderedDocs } from '../store/docs';
 import { useStore } from '../store/project';
@@ -28,6 +28,7 @@ export function CombinedExport({ onClose }: { onClose: () => void }) {
         method="dialog"
         onSubmit={async (e) => {
           e.preventDefault();
+          const hand = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'send' ? send : download;
           setBusy(true);
           setProblems([]);
           try {
@@ -36,7 +37,7 @@ export function CombinedExport({ onClose }: { onClose: () => void }) {
               picked.map((d) => d.id),
               withCanvas ? canvasId : null,
             );
-            download(`${project.name} (combined).pdf`, blob);
+            await hand(`${project.name} (combined).pdf`, blob);
             if (problems.length) setProblems(problems);
             else ref.current?.close();
           } catch (err) {
@@ -76,6 +77,9 @@ export function CombinedExport({ onClose }: { onClose: () => void }) {
         <footer>
           <button type="button" disabled={busy} onClick={() => ref.current?.close()}>
             {problems.length ? 'Close' : 'Cancel'}
+          </button>
+          <button type="submit" value="send" disabled={busy || !picked.length}>
+            <Share size={16} /> Send
           </button>
           <button type="submit" className="primary" disabled={busy || !picked.length}>
             <FileDown size={16} /> {busy ? 'Exporting…' : 'Export PDF'}
