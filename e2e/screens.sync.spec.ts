@@ -81,8 +81,12 @@ test('a second screen shows its own part of the project, follows jumps both ways
     await expect(b.locator('.peers .avatar')).toHaveCount(1);
   });
 
-  await test.step('each screen keeps its own view', async () => {
+  await test.step('each screen keeps its own view, and the place it was at', async () => {
+    // The document widens and zooms to fit, with the passage last excerpted still in view.
+    const kelp = a.locator('.textLayer span', { hasText: 'Kelp forests grow' });
+    await expect(kelp).toBeInViewport();
     await showOnly(a, 'Document');
+    await expect(kelp).toBeInViewport({ ratio: 0.99 });
     await showOnly(b, 'Canvas');
     expect(await widths(a)).toEqual([1, 0]);
     expect(await widths(b)).toEqual([0, 1]);
@@ -136,6 +140,7 @@ test('a second screen shows its own part of the project, follows jumps both ways
     await shot(a, 'screens-laptop-one-pane');
     await showOnly(a, 'Document');
     await expect(a.locator('.doc-pane')).toHaveCount(2);
+    await expect(a.locator('.doc-pane').nth(1).locator('.textLayer span', { hasText: 'Kelp forests grow' })).toBeInViewport({ ratio: 0.99 });
     await a.getByRole('button', { name: 'Close this pane' }).click();
     await expect(a.locator('.doc-pane')).toHaveCount(1);
   });
@@ -160,15 +165,19 @@ test('a second screen shows its own part of the project, follows jumps both ways
   });
 
   await test.step('a screen that loses its connection shows everything until it is back', async () => {
+    const coral = a.locator('.textLayer span', { hasText: 'Coral reefs occupy' });
+    await expect(coral).toBeInViewport();
     await tablet.context.setOffline(true);
     await expect(screensButton(b)).toHaveAccessibleName('Screens');
     expect(await widths(b)).toEqual([0.5, 0.5]);
     await expect(screensButton(a)).toHaveAccessibleName('Screens', { timeout: 15_000 });
     expect(await widths(a)).toEqual([0.5, 0.5]);
+    await expect(coral).toBeInViewport({ ratio: 0.99 });
     await tablet.context.setOffline(false);
     await expect(screensButton(a)).toHaveAccessibleName('Screens, 1 other linked', { timeout: 30_000 });
     await expect.poll(() => widths(b)).toEqual([0, 1]);
     await expect.poll(() => widths(a)).toEqual([1, 0]);
+    await expect(coral).toBeInViewport({ ratio: 0.99 });
   });
 
   await test.step('a screen closed for good gives the laptop everything back', async () => {
