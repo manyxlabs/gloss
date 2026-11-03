@@ -47,6 +47,36 @@ test('search results are walked with the arrow keys, opened with Enter and close
   await expect(results).toHaveCount(0);
 });
 
+test('on a phone, a long project name wraps onto two lines and takes the header while it is renamed', async ({ browser }) => {
+  const context = await browser.newContext(PHONE);
+  const page = await context.newPage();
+  await openProject(page);
+  const name = page.getByRole('textbox', { name: 'Project name' });
+  const header = page.locator('header.bar');
+  const before = (await header.boundingBox())!.height;
+  const long = 'Coral reef bleaching and recovery study across the Andaman islands 2026';
+  await name.tap();
+  await name.fill(long);
+  // While it is renamed the header's other buttons step aside, so the name has the width to be read.
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeHidden();
+  expect((await name.boundingBox())!.width).toBeGreaterThan(300);
+  await shot(page, 'phone-name-editing');
+  // Enter finishes rather than starting a new line.
+  await name.press('Enter');
+  await expect(name).not.toBeFocused();
+  await expect(name).toHaveValue(long);
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
+  // At rest it shows two lines, and neither the header nor the page grows for it.
+  const lineHeight = await name.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+  expect(await name.evaluate((el) => el.clientHeight)).toBeCloseTo(2 * lineHeight, 0);
+  expect((await header.boundingBox())!.height).toBe(before);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await shot(page, 'phone-name-long');
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue(long);
+  await context.close();
+});
+
 test('on a phone, search opens over the header and its results stay on the screen', async ({ browser }) => {
   const context = await browser.newContext(PHONE);
   const page = await context.newPage();

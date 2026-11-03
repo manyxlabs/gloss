@@ -1,6 +1,6 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { take } from '../notices';
 import { takeArrival } from '../arrive';
 import { closeProject, openProject, redo, rename, setView, showCard, showPage, showSource, undo, useStore } from '../store/project';
@@ -117,22 +117,7 @@ export function Workspace({ id }: { id: string }) {
         <a className="home" href="#/" aria-label="All projects" title="All projects">
           <ArrowLeft size={18} />
         </a>
-        <input
-          className="name"
-          aria-label="Project name"
-          defaultValue={project.name}
-          key={`${project.id}:${project.name}`}
-          onBlur={(e) => {
-            const name = e.target.value.trim();
-            // A project cannot be left without a name: an empty one goes back to what it was.
-            if (name) rename(name);
-            e.target.value = name || project.name;
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') e.currentTarget.value = project.name;
-            if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
-          }}
-        />
+        <ProjectName name={project.name} id={project.id} wrap={compact} />
         <span className="history">
           <button className="icon" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
             <Undo2 size={17} />
@@ -198,4 +183,49 @@ export function Workspace({ id }: { id: string }) {
       <Palette />
     </div>
   );
+}
+
+/**
+ * The project's name, renamed in place. On a phone, where the header leaves it little room, it wraps onto
+ * a second line, and while it is being edited the header's other buttons step aside for it.
+ */
+function ProjectName({ name, id, wrap }: { name: string; id: string; wrap: boolean }) {
+  const area = useRef<HTMLTextAreaElement>(null);
+  // A textarea has no height of its own content, so it is fitted to its lines (CSS caps it at two) as its width or words change.
+  useLayoutEffect(() => {
+    const el = area.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    el.addEventListener('input', fit);
+    return () => {
+      observer.disconnect();
+      el.removeEventListener('input', fit);
+    };
+  }, [wrap, name, id]);
+  const props = {
+    className: 'name',
+    'aria-label': 'Project name',
+    defaultValue: name,
+    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const next = e.target.value.replace(/\s+/g, ' ').trim();
+      // A project cannot be left without a name: an empty one goes back to what it was.
+      if (next) rename(next);
+      e.target.value = next || name;
+      e.target.scrollTop = 0;
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (e.key === 'Escape') e.currentTarget.value = name;
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        e.currentTarget.blur();
+      }
+    },
+  };
+  return wrap ? <textarea key={`${id}:${name}`} ref={area} rows={1} {...props} /> : <input key={`${id}:${name}`} {...props} />;
 }
