@@ -253,14 +253,15 @@ test('notes export as Markdown, PDF and Word with the same sections and sources'
 
   const save = async (label: string, file: string) => {
     await page.getByRole('button', { name: 'Export notes' }).click();
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: label }).click()]);
     expect(download.suggestedFilename()).toBe(`Reef essay.${file.split('.').pop()}`);
     copyFileSync(await download.path(), `${ARTIFACTS}/${file}`);
     return readFileSync(`${ARTIFACTS}/${file}`);
   };
   await page.getByRole('button', { name: 'Export notes' }).click();
-  // The three formats, then the canvas as a picture and the documents as one PDF.
-  await expect(page.getByRole('menuitem')).toHaveText(['Markdown (.md)', 'PDF (.pdf)', 'Word (.docx)', 'Canvas as a picture…', 'Documents as one PDF…']);
+  // The three formats to download and to send, then the canvas as a picture and the documents as one PDF.
+  const formats = ['Markdown (.md)', 'PDF (.pdf)', 'Word (.docx)'];
+  await expect(page.getByRole('menuitem')).toHaveText([...formats, ...formats, 'Canvas as a picture…', 'Documents as one PDF…']);
   await shot(page, 'export-menu');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);

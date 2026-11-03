@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { ACCEPT } from './src/convert/formats';
 
 export default defineConfig({
   plugins: [
@@ -36,6 +37,13 @@ export default defineConfig({
             },
           },
         ],
+        // Installed on a phone or tablet, Gloss is offered in the share sheet of other apps; public/share-target.js takes what they send.
+        share_target: {
+          action: '/share',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: { files: [{ name: 'files', accept: ACCEPT.split(',') }] },
+        },
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png}', 'pdfjs/standard_fonts/*', 'pdfjs/wasm/*', 'pdfjs/iccs/*'],
@@ -43,6 +51,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ['share-target.js'],
         runtimeCaching: [
           { urlPattern: ({ url }) => /^\/(pdfjs|fonts|ocr)\//.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-data' } },
           { urlPattern: ({ url }) => /\/heic[^/]*\.js$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-heic' } },

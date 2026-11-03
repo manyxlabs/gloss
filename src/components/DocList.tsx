@@ -6,6 +6,7 @@ import type { DocFolder, DocMeta } from '../types';
 import { byline } from '../zotero';
 import { Menu } from './Menu';
 import { DocActions, openDocDialog } from './DocActions';
+import { FilePicker } from './FilePicker';
 
 /** Dragged between tabs and rows of the list to reorder documents. */
 export const DOC_MIME = 'application/x-gloss-doc';
@@ -18,7 +19,7 @@ export const confirmRemove = (d: DocMeta) =>
  * folder, then the rest. Documents are opened in this pane, pinned, filed, reordered by dragging or
  * from their menu, replaced with a newer version, and imported from Zotero.
  */
-export function DocList({ pane }: { pane: Pane }) {
+export function DocList({ pane, onProblems }: { pane: Pane; onProblems: (problems: string[]) => void }) {
   const [open, setOpen] = useState<HTMLElement | null>(null);
   return (
     <>
@@ -34,14 +35,14 @@ export function DocList({ pane }: { pane: Pane }) {
       </button>
       {open && (
         <Menu anchor={open} label="All documents" role="dialog" className="doc-list" onClose={() => setOpen(null)}>
-          <Panel pane={pane} onDone={() => setOpen(null)} />
+          <Panel pane={pane} onDone={() => setOpen(null)} onProblems={onProblems} />
         </Menu>
       )}
     </>
   );
 }
 
-function Panel({ pane, onDone }: { pane: Pane; onDone: () => void }) {
+function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; onProblems: (problems: string[]) => void }) {
   const project = useStore((s) => s.project);
   const current = useStore((s) => s[PANES[pane]]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -138,7 +139,7 @@ function Panel({ pane, onDone }: { pane: Pane; onDone: () => void }) {
         <button role="menuitem" disabled={i === docs.length - 1} onClick={() => (moveDoc(d.id, docs[i + 2]?.id ?? null, { pinned: !!docs[i + 1]!.pinned }), close())}>
           <ArrowDown size={16} /> Move down
         </button>
-        <DocActions doc={d} onClose={close} />
+        <DocActions doc={d} onClose={close} onProblems={onProblems} />
         <hr />
         <button role="menuitem" className="danger" onClick={() => (close(), confirmRemove(d))}>
           <Trash2 size={16} /> Remove from project
@@ -154,6 +155,7 @@ function Panel({ pane, onDone }: { pane: Pane; onDone: () => void }) {
         <button className="icon" aria-label="New folder" title="New folder" onClick={() => setRenaming(addDocFolder('New folder'))}>
           <FolderPlus size={16} />
         </button>
+        <FilePicker label="Add a folder of files" kind="icon" folder onProblems={onProblems} />
         <button className="icon" aria-label="Add from Zotero" title="Add from your Zotero library" onClick={() => (onDone(), openDocDialog({ zotero: true }))}>
           <BookOpen size={16} />
         </button>
