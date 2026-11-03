@@ -153,6 +153,11 @@ a {
   backdrop-filter: blur(18px) saturate(170%);
 }
 
+/* Nearly opaque, like popups, as notices too float over white pages that thin glass shows as grey in the dark theme. */
+.toast {
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .glass,
   .bar,
@@ -2253,6 +2258,11 @@ dialog.sheet::backdrop {
   min-width: 170px;
   padding: 5px;
   border-radius: 12px;
+}
+
+/* Opaque where it drops from the frosted header: inside one frosted panel another has nothing to frost, so what is under it would show through sharp. */
+.menu:not(.floating) {
+  background: var(--panel);
 }
 
 .menu button {
@@ -4389,7 +4399,8 @@ dialog.tags-dialog {
   width: min(300px, calc(100vw - 32px));
   padding: 12px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  /* Opaque: inside the frosted toolbar its own blur has nothing to frost, so the page would show through sharp. */
+  background: var(--panel);
   color: var(--text);
   font-size: 14px;
 }
