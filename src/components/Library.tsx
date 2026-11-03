@@ -2,11 +2,14 @@ import { FolderOpen, MonitorDown, FileDown, FoldVertical, Link2, Lock, PenLine, 
 import { useEffect, useRef, useState } from 'react';
 import { BackupError, isBackup, restore } from '../backup';
 import type { ConvertOptions, Input } from '../convert';
+import { chosenFolder, droppedFolder, groupBy, openable, type FolderFile } from '../convert/folder';
 import { ACCEPT } from '../convert/formats';
 import { leave } from '../notices';
 import { listProjects, putProject } from '../store/db';
+import { withProgress } from '../store/progress';
 import type { Project } from '../types';
 import { AllSearch } from './AllSearch';
+import { FolderChoice } from './FolderChoice';
 import { Logo } from './Logo';
 import { Projects } from './Projects';
 import { ThemeToggle } from './ThemeToggle';
@@ -59,7 +62,9 @@ export function Library() {
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [dropping, setDropping] = useState(false);
+  const [choice, setChoice] = useState<{ name?: string; projects: number; answer: (many: boolean | null) => void } | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
   const restoreInput = useRef<HTMLInputElement>(null);
   const install = useInstall();
 
@@ -107,6 +112,42 @@ export function Library() {
       setBusy(false);
     }
   };
+  /** A folder becomes one project, its subfolders becoming folders of documents, or a project for each subfolder. */
+  const startFolder = async (read: Promise<FolderFile[]>) => {
+    setBusy(true);
+    try {
+      const { files, problems } = openable(await withProgress('Finding the files…', () => read));
+      // One folder on its own names the project, and only what is inside it is arranged.
+      const root = new Set(files.map((f) => f.path[0])).size === 1 ? files[0]?.path[0] : undefined;
+      const inside = root ? files.map((f) => ({ ...f, path: f.path.slice(1) })) : files;
+      const tops = groupBy(inside, (f) => f.path[0] ?? '');
+      const many = inside.some((f) => f.path.length) && (await new Promise<boolean | null>((answer) => setChoice({ name: root, projects: tops.size, answer })));
+      setChoice(null);
+      if (many === null) return;
+      const plans = many ? [...tops].map(([name, group]) => ({ name: name || root, files: group.map((f) => ({ ...f, path: f.path.slice(1) })) })) : [{ name: root, files: inside }];
+      const { importFolder } = await import('../store/docs');
+      const { newProject, UNTITLED } = await import('../store/project');
+      const made: string[] = [];
+      await withProgress('Adding files', async (step) => {
+        let done = 0;
+        step(0, files.length);
+        for (const plan of plans) {
+          const { project, problems: more } = await importFolder(newProject(plan.name ?? UNTITLED), plan.files, (n) => step(done + n, files.length));
+          done += plan.files.length;
+          problems.push(...more);
+          if (!project.docs.length) continue;
+          await putProject({ ...project, name: plan.name ?? project.docs[0]!.name });
+          made.push(project.id);
+        }
+      });
+      setProblems(problems);
+      if (made.length !== 1) return setProjects(await listProjects());
+      leave(problems);
+      location.hash = `#/p/${made[0]}`;
+    } finally {
+      setBusy(false);
+    }
+  };
   const startRef = useRef(start);
   useEffect(() => {
     startRef.current = start;
@@ -117,6 +158,23 @@ export function Library() {
     queue?.setConsumer(async ({ files }) => {
       if (files.length) void startRef.current(await Promise.all(files.map((f) => f.getFile())));
     });
+  }, []);
+
+  // Shared to Gloss from another app: the files wait in a cache, put there by public/share-target.js.
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).has('shared')) return;
+    history.replaceState(null, '', `/${location.hash}`);
+    void (async () => {
+      const cache = await caches.open('gloss-shared');
+      const files = await Promise.all(
+        (await cache.keys()).map(async (key) => {
+          const res = (await cache.match(key))!;
+          return new File([await res.blob()], decodeURIComponent(res.headers.get('x-name') ?? ''), { type: res.headers.get('content-type') ?? '' });
+        }),
+      );
+      await caches.delete('gloss-shared');
+      if (files.length) void startRef.current(files);
+    })();
   }, []);
 
   // Someone with projects comes back to them first; the introduction is for a first visit.
@@ -135,6 +193,10 @@ export function Library() {
         Start an empty project
       </button>
       <span aria-hidden="true">·</span>
+      <button className="link" disabled={busy} onClick={() => folderInput.current!.click()}>
+        Open a folder
+      </button>
+      <span aria-hidden="true">·</span>
       <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
         Restore a backup
       </button>
@@ -142,7 +204,7 @@ export function Library() {
   );
   const hint = (
     <p className="hint">
-      <span className="mouse-only">Or drop files anywhere here:</span>
+      <span className="mouse-only">Or drop files or folders anywhere here:</span>
       <span className="touch-only">Opens:</span>
       {['PDF', 'Word', 'PowerPoint', 'Images', 'Text', 'Markdown', 'Web pages', '.gloss backup'].map((f) => (
         <span key={f} className="chip">
@@ -169,9 +231,10 @@ export function Library() {
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropping(false)}
       onDrop={(e) => {
         setDropping(false);
-        if (!e.dataTransfer.files.length) return;
+        const folder = droppedFolder(e.dataTransfer);
+        if (!folder && !e.dataTransfer.files.length) return;
         e.preventDefault();
-        void start([...e.dataTransfer.files]);
+        void (folder ? startFolder(folder) : start([...e.dataTransfer.files]));
       }}
     >
       <header className="bar">
@@ -240,6 +303,19 @@ export function Library() {
             if (files.length) void start(files);
           }}
         />
+        <input
+          ref={folderInput}
+          type="file"
+          // Spread, as React's types do not know the attribute that picks a folder.
+          {...{ webkitdirectory: '' }}
+          hidden
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            void startFolder(Promise.resolve(chosenFolder(files)));
+          }}
+        />
+        {choice && <FolderChoice {...choice} />}
         <input
           ref={input}
           type="file"

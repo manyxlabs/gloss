@@ -83,7 +83,7 @@ test('an ink box and handwriting on a note: written, resized, erased, undone, ke
   // Text where there is text, pictures where there is handwriting.
   const exported = async (label: string, ext: string) => {
     await page.getByRole('button', { name: 'Export notes' }).click();
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: label }).click()]);
     const file = `${ARTIFACTS}/ink-notes.${ext}`;
     copyFileSync(await download.path(), file);
     return file;

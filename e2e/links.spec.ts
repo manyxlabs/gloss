@@ -28,7 +28,7 @@ async function highlight(page: Page, from: string, to = from, color = 'yellow') 
 
 async function exportMarkdown(page: Page, name: string) {
   await page.getByRole('button', { name: 'Export notes' }).click();
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'Markdown (.md)' }).click()]);
   copyFileSync(await download.path(), `${ARTIFACTS}/${name}`);
   return readFileSync(`${ARTIFACTS}/${name}`, 'utf8');
 }

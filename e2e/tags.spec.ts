@@ -28,7 +28,7 @@ async function openHighlight(page: Page, text: string) {
 
 async function exportText(page: Page, label: string, ext: string) {
   await page.getByRole('button', { name: 'Export notes' }).click();
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: label }).click()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: label }).click()]);
   const out = `${ARTIFACTS}/tag-notes.${ext}`;
   copyFileSync(await download.path(), out);
   if (ext === 'md') return readFileSync(out, 'utf8');
