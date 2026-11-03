@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { send } from '../download';
 import { annotatedPdf } from '../pdf/annotate';
 import { fileKey, getFile } from '../store/db';
+import { withProgress } from '../store/progress';
 import { placeDoc } from '../store/docs';
 import { useStore } from '../store/project';
 import type { DocMeta, ZoteroItem } from '../types';
@@ -26,7 +27,7 @@ export function DocDialogs({ onProblems }: { onProblems: (problems: string[]) =>
 /** Sends a document's PDF, as it is or with its highlights, comments and handwriting written in, to another app. */
 async function sendDoc(doc: DocMeta, annotated: boolean, onProblems: (problems: string[]) => void) {
   try {
-    if (annotated) return await send(`${doc.name} (annotated).pdf`, await annotatedPdf(useStore.getState().project!, doc.id));
+    if (annotated) return await send(`${doc.name} (annotated).pdf`, await withProgress('Making the annotated PDF…', () => annotatedPdf(useStore.getState().project!, doc.id)));
     const file = await getFile(fileKey(doc));
     // Stored as it was added, a PDF may have no type, which the share sheet needs.
     if (file) await send(`${doc.name}.pdf`, file.slice(0, file.size, 'application/pdf'));

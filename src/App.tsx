@@ -4,7 +4,7 @@ import { Library } from './components/Library';
 import { Lost } from './components/Lost';
 import { OpenShared } from './components/OpenLink';
 import { AppUpdates } from './components/AppUpdates';
-import { ImportProgress } from './components/ImportProgress';
+import { ProgressNotice } from './components/ProgressNotice';
 import { Unsent } from './components/Unsent';
 import { PasswordDialog } from './components/PasswordDialog';
 import { parseLink } from './sync/crypto';
@@ -54,7 +54,7 @@ export function App() {
       <PasswordDialog />
       <div className="toasts">
         <AppUpdates />
-        <ImportProgress />
+        <ProgressNotice />
         <Unsent />
       </div>
     </>
