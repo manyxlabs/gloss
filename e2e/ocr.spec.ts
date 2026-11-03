@@ -3,6 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
 import { ARTIFACTS, card, inside, readPdf, shot, textBox, type Box } from './helpers';
 
+// Reading a scan takes a while on a machine busy with other tests, and some tests read two.
+test.describe.configure({ timeout: 180_000 });
+
 const LINES = [
   'Lighthouse keepers recorded every passing ship',
   'and the weather at dawn, noon and dusk.',
