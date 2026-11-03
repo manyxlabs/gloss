@@ -12,8 +12,8 @@
   padding: 12px;
   border-radius: 14px;
   white-space: normal;
-  /* Nearly opaque, like the toolbar it comes from, as it floats over the page's text. */
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  /* Opaque: inside the frosted toolbar it opens from, its own blur has nothing to frost, so the page would show through sharp. */
+  background: var(--panel);
 }
 
 .palette-grid {
