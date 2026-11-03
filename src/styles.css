@@ -2461,6 +2461,17 @@ button.screens.linked {
   }
 }
 
+/* Where one side shows at a time, a problem sits at the foot above the notices, as at the top it would
+   cover the Document and Canvas switch and the tabs under it. */
+@media (max-width: 900px) {
+  .workspace > .problems {
+    top: auto;
+    bottom: calc(152px + var(--notices, 0px));
+    left: 12px;
+    margin-inline: auto;
+  }
+}
+
 /* On a phone the header's buttons are a fingertip wide, and who is here is listed in its More instead. */
 @media (max-width: 760px) and (pointer: coarse) {
   .workspace .bar {
@@ -3373,6 +3384,17 @@ section.folder {
   .foot a {
     display: inline-flex;
     align-items: center;
+  }
+
+  /* A box to tick is tapped anywhere on its label. */
+  label:has(> input[type='checkbox']) {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+  }
+
+  .doc-banners select {
+    min-height: 40px;
   }
 
   /* Swatches keep their size: their spacing and reach make them a fingertip wide. */
