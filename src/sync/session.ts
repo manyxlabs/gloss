@@ -1,13 +1,14 @@
 import { openDB } from 'idb';
 import * as Y from 'yjs';
-import { frame, MAX_FILE, MAX_FRAME, parse, PROTOCOL, T } from '../../worker/protocol';
+import { frame, MAX_FILE, MAX_FRAME, MAX_PRESENCE, parse, PROTOCOL, T } from '../../worker/protocol';
 import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db';
 import { panesShowing, useStore } from '../store/project';
 import type { Card, DocMeta, Project } from '../types';
 import { b64, decrypt, deriveKeys, encrypt, newRoom, unb64, type Binding, type Keys } from './crypto';
 import { forget, introduce, publish, record } from './activity';
 import { privateIds } from './privacy';
-import { asPresence, presence, useActivity, useMe, useSync, type Presence, type Status } from './state';
+import { follow, forgetScreen, hop } from './screens';
+import { asPresence, presence, useActivity, useMe, useScreen, useSync, type Presence, type Status } from './state';
 
 // The project as a Yjs document: a map per list, keyed by id, holding each entity as plain JSON,
 // so concurrent edits merge per entity and the last write to one entity wins.
@@ -101,7 +102,7 @@ class Session {
   private receiving = Promise.resolve();
   private transfers = new Set<string>();
   private downloaded = new Set<string>();
-  private me: Presence = { ...useMe.getState() };
+  private me: Presence = { ...useMe.getState(), screen: useScreen.getState().group ?? undefined };
   private retries = 0;
   private timers: Partial<Record<'flush' | 'save' | 'presence' | 'retry' | 'publish', ReturnType<typeof setTimeout>>> = {};
   private cleanup: (() => void)[] = [];
@@ -141,7 +142,10 @@ class Session {
         if (s.project?.id !== this.projectId) return;
         if (prev.project?.id === this.projectId && s.project !== prev.project && !this.applying) this.push(prev.project, s.project);
         if (s.activeDocId !== prev.activeDocId || s.project.docs !== prev.project?.docs) this.where();
+        const jump = hop(s, prev);
+        if (jump) this.present({ jump });
       }),
+      useScreen.subscribe(({ group }, prev) => group !== prev.group && this.present({ screen: group ?? undefined })),
       useMe.subscribe(({ name, color }) => {
         this.present({ name, color });
         if (this.ready) introduce(this.doc);
@@ -184,13 +188,19 @@ class Session {
     this.ws?.close(1000);
     this.ws = null;
     useSync.setState({ status: 'offline', peers: {}, problem: null });
+    forgetScreen();
     useActivity.setState({ people: [], activity: [] });
     await this.persist();
   }
 
   present(p: Partial<Presence>) {
     this.me = { ...this.me, ...p };
-    this.later('presence', 50, () => this.ready && this.send(T.presence, 0, text.encode(JSON.stringify(this.me)), 'presence'));
+    this.later('presence', 50, () => {
+      if (!this.ready) return;
+      const body = text.encode(JSON.stringify(this.me));
+      // The room turns away a larger presence: a jump with a long search or destination is then not followed.
+      this.send(T.presence, 0, body.byteLength + 28 <= MAX_PRESENCE ? body : text.encode(JSON.stringify({ ...this.me, jump: undefined })), 'presence');
+    });
   }
 
   private later(timer: keyof Session['timers'], ms: number, run: () => void) {
@@ -449,6 +459,7 @@ class Session {
     this.ready = false;
     this.unacked = 0;
     useSync.setState({ peers: {} });
+    forgetScreen();
     this.status();
     if (!this.stopped) this.timers.retry = setTimeout(this.connect, Math.min(30_000, 1000 * 2 ** this.retries++));
   }
@@ -485,8 +496,11 @@ class Session {
       this.logged();
     } else if (f.type === T.presence) {
       const p = asPresence(JSON.parse(new TextDecoder().decode(await decrypt(this.keys.key, f.body, 'presence'))));
-      if (p && this.ws === ws) useSync.setState((s) => ({ peers: { ...s.peers, [f.n]: p } }));
+      if (!p || this.ws !== ws) return;
+      useSync.setState((s) => ({ peers: { ...s.peers, [f.n]: p } }));
+      follow(f.n, p);
     } else if (f.type === T.leave) {
+      forgetScreen(f.n);
       useSync.setState((s) => ({ peers: Object.fromEntries(Object.entries(s.peers).filter(([peer]) => Number(peer) !== f.n)) }));
     } else if (f.type === T.compacted) {
       this.logSize = Math.max(0, this.lastSeq - f.n);

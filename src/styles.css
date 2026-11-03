@@ -685,6 +685,28 @@ a.button.primary {
   display: none;
 }
 
+/* A screen showing one side, as phones do below: the other stays laid out behind it, so the canvas can still place and centre cards. */
+.panes.alone {
+  position: relative;
+  display: block;
+}
+
+.panes.alone > .docs,
+.panes.alone > .canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.panes.alone > .divider {
+  display: none;
+}
+
+.alone.show-doc > .canvas,
+.alone.show-canvas > .docs {
+  clip-path: inset(0 0 100% 0);
+  pointer-events: none;
+}
+
 .search {
   position: relative;
   flex: 1 1 320px;
@@ -2179,6 +2201,57 @@ dialog.sheet::backdrop {
   text-overflow: ellipsis;
 }
 
+button.screens.linked {
+  color: var(--accent);
+}
+
+.screen-link {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.screen-link > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.qr {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.screen-show {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 10px;
+  padding: 0;
+  border: 0;
+}
+
+.screen-show legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  .screen-link {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .screen-link > div {
+    width: 100%;
+  }
+}
+
 .share-problem {
   color: var(--danger) !important;
   font-size: 14px;
@@ -2235,6 +2308,11 @@ dialog.sheet::backdrop {
   }
 
   .peers .avatar:nth-child(n + 4):not(:last-child) {
+    display: none;
+  }
+
+  /* No room in the header: the Share dialog opens it instead. */
+  .workspace .bar > .screens {
     display: none;
   }
 }
@@ -3175,6 +3253,9 @@ button.icon.danger:hover:not(:disabled) {
 
 .segmented input {
   position: absolute;
+  /* Kept inside its label, so the last one does not widen a narrow dialog. */
+  inset: 0;
+  margin: 0;
   opacity: 0;
   pointer-events: none;
 }

@@ -7,6 +7,7 @@ import { migrate, prune } from '../links';
 import { closeDocs, files, forgetFile, openPdf, PdfPasswordError } from '../pdf/pdfjs';
 import type { Card, CardData, Color, DocMeta, Fold, Highlight, Ink, InkColor, Link, Part, Point, Project, Spot } from '../types';
 import { paneRoom } from '../panes';
+import { screenShown } from '../sync/state';
 import { passwordAsker } from '../password';
 import { askAbout } from '../annots/ask';
 import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
@@ -342,6 +343,9 @@ export const closePane = (pane: 1 | 2) => set((s) => (pane === 1 ? { sideDocId: 
 /** The pane showing a document, the leftmost where several do; the main one where none does. */
 export const paneOf = (docId: string): Pane => {
   const s = get();
+  const shown = screenShown();
+  // A screen showing one pane takes every jump there.
+  if (typeof shown === 'number' && shown < shownPanes(s)) return shown;
   const at = PANES.slice(0, shownPanes(s)).findIndex((k) => s[k] === docId);
   return (at < 0 ? 0 : at) as Pane;
 };
