@@ -4,7 +4,7 @@ import { frame, MAX_FILE, MAX_FRAME, parse, PROTOCOL, T } from '../../worker/pro
 import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db';
 import { panesShowing, useStore } from '../store/project';
 import type { Card, DocMeta, Project } from '../types';
-import { decrypt, deriveKeys, encrypt, newRoom, type Binding, type Keys } from './crypto';
+import { b64, decrypt, deriveKeys, encrypt, newRoom, unb64, type Binding, type Keys } from './crypto';
 import { forget, introduce, publish, record } from './activity';
 import { privateIds } from './privacy';
 import { asPresence, presence, useActivity, useMe, useSync, type Presence, type Status } from './state';
@@ -56,6 +56,19 @@ const parentsFirst = (cards: Card[]) => [...cards.filter((c) => !c.parentId), ..
  */
 type Saved = { state: Uint8Array; at: number };
 const states = openDB('gloss-sync', 1, { upgrade: (d) => void d.createObjectStore('states') });
+/**
+ * What the state gained since its last write finished, kept as the page closes: the browser drops
+ * that write with the page, while the project's own record is kept (see store/project.ts), and a
+ * project newer than its state would send what others wrote back to the room as this person's edits.
+ */
+const UNSAVED = (projectId: string) => `gloss:unsaved-sync:${projectId}`;
+const dropUnsaved = (projectId: string) => {
+  try {
+    localStorage.removeItem(UNSAVED(projectId));
+  } catch {
+    // Storage blocked: nothing was kept either.
+  }
+};
 
 const REMOTE = Symbol('remote');
 /** Once the room's log is this long, a device replaces it with a snapshot. */
@@ -70,6 +83,8 @@ class Session {
   private keys!: Keys;
   /** The project's `updatedAt` the shared state matches; null until the saved state is loaded. */
   private at: number | null = null;
+  /** The state vector of the last state written. */
+  private durable = Y.encodeStateVector(this.doc);
   /** Whether the shared state is known, from this device's saved copy or from the room. */
   private known = false;
   private stopped = false;
@@ -104,11 +119,13 @@ class Session {
     this.at = saved?.at ?? 0;
     if (saved) {
       Y.applyUpdate(this.doc, saved.state);
+      this.durable = Y.encodeStateVector(this.doc);
+      this.at = Math.max(this.at, this.takeUnsaved());
       this.known = true;
       // A project saved after this state has edits it lacks: all of them, for a project just shared.
       // Otherwise this state is the newer, and the project catches up from it below. The saved
       // record is compared, as the open project moves on as soon as React Flow measures its cards.
-      if ((record?.updatedAt ?? 0) > saved.at) this.push(this.shared(project), project);
+      if ((record?.updatedAt ?? 0) > this.at) this.push(this.shared(project), project);
       this.save();
     }
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
@@ -138,7 +155,10 @@ class Session {
       this.drop(ws);
       ws.close();
     };
-    const leave = () => void this.persist();
+    const leave = () => {
+      this.keepUnsaved();
+      void this.persist();
+    };
     const hidden = () => document.visibilityState === 'hidden' && leave();
     addEventListener('online', online);
     addEventListener('offline', offline);
@@ -193,7 +213,34 @@ class Session {
     // at once, so it matches the project as it is at this moment.
     const { project } = useStore.getState();
     if (project?.id === this.projectId) this.at = project.updatedAt;
+    const vector = Y.encodeStateVector(this.doc);
     await db.put('states', { state: Y.encodeStateAsUpdate(this.doc), at: this.at } satisfies Saved, this.projectId);
+    this.durable = vector;
+    dropUnsaved(this.projectId);
+  }
+
+  private keepUnsaved() {
+    const { project } = useStore.getState();
+    if (this.at === null || project?.id !== this.projectId) return;
+    try {
+      localStorage.setItem(UNSAVED(this.projectId), JSON.stringify({ at: project.updatedAt, update: b64(Y.encodeStateAsUpdate(this.doc, this.durable)) }));
+    } catch {
+      // Storage blocked or full: the project is then sent as edits, as before there was this copy.
+    }
+  }
+
+  /** Applies the copy kept as the page last closed, once, and gives the project's `updatedAt` it matched. */
+  private takeUnsaved() {
+    try {
+      const kept = localStorage.getItem(UNSAVED(this.projectId));
+      dropUnsaved(this.projectId);
+      if (!kept) return 0;
+      const { at, update } = JSON.parse(kept) as { at: unknown; update: string };
+      Y.applyUpdate(this.doc, unb64(update));
+      return typeof at === 'number' ? at : 0;
+    } catch {
+      return 0;
+    }
   }
 
   /** The project as the shared document has it, with only the PDFs this device holds. */
@@ -527,6 +574,7 @@ export async function share() {
   const id = useStore.getState().project?.id;
   if (!id) return;
   // An empty state older than the project makes the session send the whole project as edits the room lacks.
+  dropUnsaved(id);
   await (await states).put('states', { state: Y.encodeStateAsUpdate(new Y.Doc()), at: 0 } satisfies Saved, id);
   bind(newRoom());
 }
@@ -536,6 +584,7 @@ export async function stopSharing() {
   const id = useStore.getState().project?.id;
   if (!id) return;
   await current?.stop();
+  dropUnsaved(id);
   await (await states).delete('states', id);
   bind();
 }
