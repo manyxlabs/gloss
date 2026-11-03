@@ -1,5 +1,9 @@
-import { BookOpen, FileUp, FolderInput, Pin, PinOff } from 'lucide-react';
+import { BookOpen, FileUp, FolderInput, Pin, PinOff, Share } from 'lucide-react';
 import { create } from 'zustand';
+import { send } from '../download';
+import { annotatedPdf } from '../pdf/annotate';
+import { fileKey, getFile } from '../store/db';
+import { withProgress } from '../store/progress';
 import { placeDoc } from '../store/docs';
 import { useStore } from '../store/project';
 import type { DocMeta, ZoteroItem } from '../types';
@@ -20,8 +24,21 @@ export function DocDialogs({ onProblems }: { onProblems: (problems: string[]) =>
   return <ZoteroDialog send={'send' in dialog ? dialog.send : undefined} onClose={close} onProblems={onProblems} />;
 }
 
-/** A document's own menu items: pinning, its folder, replacing it with a newer version, and sending its notes to Zotero. */
-export function DocActions({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
+/** Sends a document's PDF, as it is or with its highlights, comments and handwriting written in, to another app. */
+async function sendDoc(doc: DocMeta, annotated: boolean, onProblems: (problems: string[]) => void) {
+  try {
+    if (annotated) return await send(`${doc.name} (annotated).pdf`, await withProgress('Making the annotated PDF…', () => annotatedPdf(useStore.getState().project!, doc.id)));
+    const file = await getFile(fileKey(doc));
+    // Stored as it was added, a PDF may have no type, which the share sheet needs.
+    if (file) await send(`${doc.name}.pdf`, file.slice(0, file.size, 'application/pdf'));
+    else onProblems(['This PDF is missing from this browser’s storage.']);
+  } catch (err) {
+    onProblems([`The PDF could not be sent: ${(err as Error).message}`]);
+  }
+}
+
+/** A document's own menu items: pinning, its folder, sending it, replacing it with a newer version, and sending its notes to Zotero. */
+export function DocActions({ doc, onClose, onProblems }: { doc: DocMeta; onClose: () => void; onProblems: (problems: string[]) => void }) {
   const folders = useStore((s) => s.project?.docFolders) ?? [];
   const inFolder = folders.some((f) => f.id === doc.folder);
   const zotero = doc.zotero;
@@ -42,6 +59,12 @@ export function DocActions({ doc, onClose }: { doc: DocMeta; onClose: () => void
         </button>
       )}
       <hr />
+      <button role="menuitem" onClick={() => (onClose(), void sendDoc(doc, false, onProblems))}>
+        <Share size={16} /> Send document…
+      </button>
+      <button role="menuitem" onClick={() => (onClose(), void sendDoc(doc, true, onProblems))}>
+        <Share size={16} /> Send with annotations…
+      </button>
       <button role="menuitem" onClick={() => (onClose(), openDocDialog({ replace: doc }))}>
         <FileUp size={16} /> Replace with a newer version…
       </button>

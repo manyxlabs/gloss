@@ -75,7 +75,7 @@ test('on a phone, search opens over the header and its results stay on the scree
   const menu = page.getByRole('menu');
   await expect(menu).toBeInViewport({ ratio: 1 });
   await shot(page, 'phone-export-menu');
-  const [download] = await Promise.all([page.waitForEvent('download'), menu.getByRole('menuitem', { name: 'Markdown (.md)' }).tap()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), menu.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'Markdown (.md)' }).tap()]);
   copyFileSync(await download.path(), `${ARTIFACTS}/phone-notes.md`);
   expect(readFileSync(`${ARTIFACTS}/phone-notes.md`, 'utf8')).toContain('Notes from a phone');
   await context.close();

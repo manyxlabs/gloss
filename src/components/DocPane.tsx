@@ -75,7 +75,9 @@ import { chooseBox, paint, type PageView } from './doc/paint';
 import { attachBoxes, editBox, sizeBox } from './doc/boxes';
 import { Sidebar, type Tab } from './doc/Sidebar';
 import { addBookmark } from '../store/bookmarks';
-import { moveDoc, orderedDocs } from '../store/docs';
+import { addFolder, moveDoc, orderedDocs } from '../store/docs';
+import { withProgress } from '../store/progress';
+import { droppedFolder } from '../convert/folder';
 import { confirmRemove, DOC_MIME, DocList } from './DocList';
 import { DefinedTerms } from './doc/Terms';
 import { TagPicker, TagRow } from './Tags';
@@ -224,7 +226,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
   // Escape puts a toolbar away, with the selection it was for; a selection gone by other means takes its toolbar with it.
   const toolbar = popup && !popup.editing && !('tagging' in popup && popup.tagging) ? popup : null;
-  // Listening from the moment the toolbar is drawn, as a key pressed on sight may beat a passive effect.
+  // Before paint, so an Escape pressed the moment the toolbar shows is not missed.
   useLayoutEffect(() => {
     if (!toolbar) return;
     const onKey = (e: KeyboardEvent) => {
@@ -714,10 +716,11 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
   const onDrop = async (e: DragEvent) => {
     setDropping(false);
+    const folder = droppedFolder(e.dataTransfer);
     const files = [...e.dataTransfer.files];
-    if (!files.length) return;
+    if (!folder && !files.length) return;
     e.preventDefault();
-    onProblems(await addDocs(files));
+    onProblems(await (folder ? addFolder(folder) : addDocs(files)));
   };
 
   const zoom = (how: 'in' | 'out' | 'fit') => {
@@ -732,7 +735,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (!project || !active) return;
     setExporting(true);
     try {
-      download(`${active.name} (annotated).pdf`, await annotatedPdf(project, active.id));
+      download(`${active.name} (annotated).pdf`, await withProgress('Making the annotated PDF…', () => annotatedPdf(project, active.id)));
     } catch (err) {
       onProblems([`The PDF could not be exported: ${(err as Error).message}`]);
     } finally {
@@ -833,7 +836,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
             <PanelLeft size={16} />
           </button>
         )}
-        {docs.length > 0 && <DocList pane={pane} />}
+        {docs.length > 0 && <DocList pane={pane} onProblems={onProblems} />}
         {/* Only the tabs scroll; the buttons around them stay in reach however many documents there are. */}
         <div
           className="tab-list"
@@ -885,7 +888,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 {d.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
                 {d.name}
               </button>
-              {d.id === activeDocId && <DocMenu doc={d} />}
+              {d.id === activeDocId && <DocMenu doc={d} onProblems={onProblems} />}
               <button className="close" aria-label={`Remove ${d.name}`} tabIndex={d.id === activeDocId ? 0 : -1} onClick={() => confirmRemove(d)}>
                 ×
               </button>
@@ -1121,11 +1124,12 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         {!docs.length && !pane && (
           <div className="empty">
             <p>
-              <span className="mouse-only">Drop PDFs, Word or PowerPoint files, images or text here, or add a web page, to start reading.</span>
-              <span className="touch-only">Add PDFs, Word or PowerPoint files, images, text or a web page to start reading.</span>
+              <span className="mouse-only">Drop PDFs, Word or PowerPoint files, images, text or whole folders here, or add a web page, to start reading.</span>
+              <span className="touch-only">Add PDFs, Word or PowerPoint files, images, text, a folder or a web page to start reading.</span>
             </p>
             <div className="actions">
-              <FilePicker label="Choose files" primary onProblems={onProblems} />
+              <FilePicker label="Choose files" kind="primary" onProblems={onProblems} />
+              <FilePicker label="Choose a folder" kind="text" folder onProblems={onProblems} />
               <WebPicker kind="text" add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
             </div>
           </div>
