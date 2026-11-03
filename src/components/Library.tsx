@@ -116,7 +116,7 @@ export function Library() {
   const startFolder = async (read: Promise<FolderFile[]>) => {
     setBusy(true);
     try {
-      const { files, problems } = openable(await withProgress(() => read));
+      const { files, problems } = openable(await withProgress('Finding the files…', () => read));
       // One folder on its own names the project, and only what is inside it is arranged.
       const root = new Set(files.map((f) => f.path[0])).size === 1 ? files[0]?.path[0] : undefined;
       const inside = root ? files.map((f) => ({ ...f, path: f.path.slice(1) })) : files;
@@ -128,7 +128,7 @@ export function Library() {
       const { importFolder } = await import('../store/docs');
       const { newProject, UNTITLED } = await import('../store/project');
       const made: string[] = [];
-      await withProgress(async (step) => {
+      await withProgress('Adding files', async (step) => {
         let done = 0;
         step(0, files.length);
         for (const plan of plans) {

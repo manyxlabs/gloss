@@ -2304,12 +2304,14 @@ dialog.sheet::backdrop {
   margin: 0;
 }
 
-/* Notices stack at the foot, clear of the problems shown at the top right. */
+/* Notices stack at the foot, clear of the problems shown at the top right, and high enough to clear
+   the canvas's minimap and zoom buttons (15px from the edge and up to 119px tall with a finger's
+   larger buttons) and the document toolbar. */
 .toasts {
   position: fixed;
   z-index: 100;
   right: 12px;
-  bottom: 16px;
+  bottom: 128px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -2327,13 +2329,16 @@ dialog.sheet::backdrop {
   padding: 8px 8px 8px 16px;
   border-radius: 14px;
   font-size: 14px;
+}
+
+/* Only a notice's buttons take the pointer; a click or a double-click anywhere else on it reaches the canvas or page beneath. */
+.toast button {
   pointer-events: auto;
 }
 
-/* Where one side shows at a time, notices sit in the middle, above the document toolbar. */
+/* Where one side shows at a time, notices sit in the middle. */
 @media (max-width: 900px) {
   .toasts {
-    bottom: 72px;
     left: 12px;
     align-items: center;
   }
@@ -2343,11 +2348,11 @@ dialog.sheet::backdrop {
   font-size: 14px;
 }
 
-.import-progress {
+.progress-notice {
   padding-right: 16px;
 }
 
-.import-progress progress {
+.progress-notice progress {
   appearance: none;
   width: 120px;
   height: 6px;
@@ -2358,16 +2363,23 @@ dialog.sheet::backdrop {
   background: var(--panel-2);
 }
 
-.import-progress progress::-webkit-progress-bar {
+.progress-notice progress::-webkit-progress-bar {
   background: var(--panel-2);
 }
 
-.import-progress progress::-webkit-progress-value {
+.progress-notice progress::-webkit-progress-value {
   background: var(--accent);
 }
 
-.import-progress progress::-moz-progress-bar {
+.progress-notice progress::-moz-progress-bar {
   background: var(--accent);
+}
+
+/* Work whose length is not known pulses, as syncing does. */
+.progress-notice progress:indeterminate,
+.progress-notice progress:indeterminate::-webkit-progress-bar {
+  background: var(--accent);
+  animation: pulse 1s ease-in-out infinite alternate;
 }
 
 .folder-options {

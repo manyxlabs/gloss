@@ -83,8 +83,8 @@ export async function importFolder(project: Project, files: FolderFile[], onProg
 
 /** Adds what was dropped or chosen as a folder to the open project, in one step of undo. */
 export async function addFolder(read: Promise<FolderFile[]>) {
-  const { files, problems } = openable(await withProgress(() => read));
-  return withProgress(async (step) => {
+  const { files, problems } = openable(await withProgress('Finding the files…', () => read));
+  return withProgress('Adding files', async (step) => {
     step(0, files.length);
     return [...problems, ...(await addImported((p) => importFolder(p, files, (n) => step(n, files.length))))];
   });

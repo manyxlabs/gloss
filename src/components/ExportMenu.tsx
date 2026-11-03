@@ -2,6 +2,7 @@ import { ChevronDown, NotebookText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { send } from '../download';
 import { download, outline, toMarkdown } from '../export';
+import { withProgress } from '../store/progress';
 import { useStore } from '../store/project';
 import { openCanvasExport } from './CanvasExport';
 import { CombinedExport } from './CombinedExport';
@@ -61,7 +62,7 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
                     setOpen(false);
                     setBusy(true);
                     try {
-                      await hand(`${useStore.getState().project!.name}.${ext}`, await make());
+                      await hand(`${useStore.getState().project!.name}.${ext}`, await withProgress('Making the notes…', make));
                     } catch (err) {
                       onProblems([`The notes could not be exported: ${(err as Error).message}`]);
                     } finally {

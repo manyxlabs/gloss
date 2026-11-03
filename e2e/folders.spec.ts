@@ -122,7 +122,7 @@ test('a folder dropped into a project shows its progress, lands in folders of do
   await drop(page, page.locator('.doc-pane'), [folder]);
   const progress = page.getByRole('status').filter({ hasText: 'Adding files' });
   await expect(progress).toHaveText(/^Adding files: [1-3] of 4$/);
-  await expect(progress.getByRole('progressbar', { name: 'Files added' })).toBeVisible();
+  await expect(progress.getByRole('progressbar', { name: 'Adding files' })).toBeVisible();
   await shot(page, 'folder-progress-desktop');
   release();
   await expect(progress).toHaveCount(0, { timeout: 20_000 });
@@ -308,6 +308,66 @@ test('folder import and sending look right on a desktop, a tablet and a phone, i
       await shot(page, `send-doc-menu-${label}-${theme}`);
       await page.keyboard.press('Escape');
     }
+    await context.close();
+  }
+});
+
+/** What the notices on show cover of the controls around them: nothing, when they are placed right. */
+const covered = (page: Page) =>
+  page.evaluate(() => {
+    const boxes = (selector: string) => [...document.querySelectorAll(selector)].map((e) => [selector, e.getBoundingClientRect()] as const).filter(([, b]) => b.width && b.height);
+    const toasts = boxes('.toast');
+    const controls = ['.react-flow__minimap', '.react-flow__controls', '.doc-status', '.canvas-tools', '.problems', '.switch', '.bar'].flatMap(boxes);
+    return toasts.flatMap(([, t]) =>
+      controls.flatMap(([name, c]) => (Math.min(t.right, c.right) > Math.max(t.left, c.left) && Math.min(t.bottom, c.bottom) > Math.max(t.top, c.top) ? [name] : [])),
+    );
+  });
+
+test('notices never cover the canvas minimap or any controls, and a slow export shows it is being made', async ({ browser }) => {
+  // Three devices, each making exports, take a while on a machine busy with other tests.
+  test.setTimeout(120_000);
+  for (const [label, options] of [
+    ['desktop', { viewport: { width: 1280, height: 800 } }],
+    ['tablet', { viewport: { width: 820, height: 1180 }, hasTouch: true }],
+    ['phone', PHONE],
+  ] as const) {
+    const context = await browser.newContext(options);
+    const page = await context.newPage();
+    await shareSheet(page, true);
+    await openProject(page);
+    await excerptSomething(page);
+    await page.getByRole('button', { name: 'More for this document' }).click();
+    await page.getByRole('menuitem', { name: 'Send with annotations…' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'is ready' })).toBeVisible();
+
+    // The notes PDF waits on its fonts, held here to see it being made.
+    let release = () => {};
+    const held = new Promise<void>((r) => (release = r));
+    await page.route('**/fonts/**', async (route) => (await held, route.continue()));
+    await page.getByRole('button', { name: 'Export notes' }).click();
+    const downloaded = page.waitForEvent('download');
+    await page.getByRole('group', { name: 'Download' }).getByRole('menuitem', { name: 'PDF (.pdf)' }).click();
+    const making = page.getByRole('status').filter({ hasText: 'Making the notes…' });
+    await expect(making.getByRole('progressbar', { name: 'Making the notes…' })).toBeVisible();
+
+    const views = label === 'desktop' ? [''] : ['Document', 'Canvas'];
+    for (const view of views) {
+      if (view)
+        await page
+          .getByRole('tablist', { name: 'Show' })
+          .getByRole('tab', { name: new RegExp(`^${view}`) })
+          .click();
+      if (label === 'desktop') await expect(page.getByRole('img', { name: 'Map of the canvas' })).toBeVisible();
+      for (const theme of ['light', 'dark'] as const) {
+        await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+        await page.waitForTimeout(300);
+        expect(await covered(page)).toEqual([]);
+        await shot(page, `notices-${label}${view ? `-${view.toLowerCase()}` : ''}-${theme}`);
+      }
+    }
+    release();
+    expect((await downloaded).suggestedFilename()).toBe('Reef essay.pdf');
+    await expect(making).toHaveCount(0);
     await context.close();
   }
 });

@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { useEffect, useEffectEvent, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
 import { outline, PAPER, pathOf } from '../ink';
@@ -71,6 +71,7 @@ import { paint, type PageView } from './doc/paint';
 import { Sidebar, type Tab } from './doc/Sidebar';
 import { addBookmark } from '../store/bookmarks';
 import { addFolder, moveDoc, orderedDocs } from '../store/docs';
+import { withProgress } from '../store/progress';
 import { droppedFolder } from '../convert/folder';
 import { confirmRemove, DOC_MIME, DocList } from './DocList';
 import { DefinedTerms } from './doc/Terms';
@@ -217,7 +218,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
 
   // Escape puts a toolbar away, with the selection it was for; a selection gone by other means takes its toolbar with it.
   const toolbar = popup && !popup.editing && !('tagging' in popup && popup.tagging) ? popup : null;
-  useEffect(() => {
+  // Before paint, so an Escape pressed the moment the toolbar shows is not missed.
+  useLayoutEffect(() => {
     if (!toolbar) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -712,7 +714,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (!project || !active) return;
     setExporting(true);
     try {
-      download(`${active.name} (annotated).pdf`, await annotatedPdf(project, active.id));
+      download(`${active.name} (annotated).pdf`, await withProgress('Making the annotated PDF…', () => annotatedPdf(project, active.id)));
     } catch (err) {
       onProblems([`The PDF could not be exported: ${(err as Error).message}`]);
     } finally {
