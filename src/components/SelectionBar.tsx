@@ -73,7 +73,7 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
         </button>
       )}
       {nodes.length === 1 && !edges.length && nodes[0]!.data.kind !== 'group' && <CanvasLinkButton card={nodes[0]!} />}
-      {nodes.length === 1 && !edges.length && <CopyLink target={{ kind: 'c', id: nodes[0]!.id }} className="" text="Copy link" />}
+      {nodes.length === 1 && !edges.length && <CopyLink target={{ kind: 'c', id: nodes[0]!.id }} />}
       <button aria-label={`Delete ${what}`} title={`Delete ${what}`} onClick={() => void rf.deleteElements({ nodes, edges })}>
         <Trash2 size={16} /> Delete
       </button>
