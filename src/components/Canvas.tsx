@@ -98,6 +98,7 @@ export function Canvas() {
       }
       return at;
     };
+    canvasSpot.at = (x, y) => (wrapper.current?.contains(document.elementFromPoint(x, y)) ? rf.screenToFlowPosition({ x, y }) : null);
   }, [rf]);
 
   // Two fingers on two cards brought together group them; on one group, together closes it and

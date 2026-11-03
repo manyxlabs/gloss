@@ -42,7 +42,7 @@ export function ReplaceDialog({ doc, onClose }: { doc: DocMeta; onClose: () => v
           <div role="status" className="replace-report">
             <p>
               Replaced. {plural(done.placed, 'highlight is', 'highlights are')} on the same words in the new version.
-              {done.byPage > 0 && ` ${plural(done.byPage, 'figure or stroke', 'figures and strokes')} with no words near stayed in place on the same page.`}
+              {done.byPage > 0 && ` ${plural(done.byPage, 'figure, text box or stroke', 'figures, text boxes and strokes')} with no words near stayed in place on the same page.`}
               {done.opened > 0 && ` ${plural(done.opened, 'squeeze was', 'squeezes were')} opened.`}
             </p>
             {done.unplaced.length > 0 && (

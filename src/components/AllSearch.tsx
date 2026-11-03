@@ -1,16 +1,16 @@
-import { FileText, FolderOpen, MessageSquare, Search, StickyNote } from 'lucide-react';
+import { FileText, FolderOpen, MessageSquare, Search, StickyNote, Type } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AllHit } from '../allSearch';
 import { arriveAt } from '../arrive';
 
-const ICONS = { project: FolderOpen, page: FileText, card: StickyNote, comment: MessageSquare } as const;
+const ICONS = { project: FolderOpen, page: FileText, card: StickyNote, comment: MessageSquare, box: Type } as const;
 
 /** Opens a project at what was found in it. */
 function open(hit: AllHit) {
   const projectId = hit.project.id;
   if (hit.kind === 'page') arriveAt({ projectId, docId: hit.docId, page: hit.page, query: hit.snippet?.match });
   else if (hit.kind === 'card') arriveAt({ projectId, cardId: hit.cardId });
-  else if (hit.kind === 'comment') arriveAt({ projectId, highlightId: hit.highlightId });
+  else if (hit.kind === 'comment' || hit.kind === 'box') arriveAt({ projectId, highlightId: hit.highlightId });
   location.hash = `#/p/${projectId}`;
 }
 

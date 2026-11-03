@@ -24,7 +24,7 @@ const overlap = (a: Rect, b: Rect) => {
 
 /** The highlight already marking a match, so acting twice on the same search does not mark it twice. */
 const marking = (highlights: Highlight[], docId: string, m: Match) =>
-  highlights.find((h) => h.docId === docId && !h.area && m.rects.every((r) => h.parts.some((p) => p.page === m.page && p.rects.some((x) => overlap(r, x) > 0.8))));
+  highlights.find((h) => h.docId === docId && !h.area && !h.typed && m.rects.every((r) => h.parts.some((p) => p.page === m.page && p.rects.some((x) => overlap(r, x) > 0.8))));
 
 /** Rough height of an excerpt card before it is drawn, for laying cards out; the group is fitted once they are measured. */
 const guessHeight = (text: string) => 74 + Math.min(10, Math.ceil(text.length / 34)) * 22;
