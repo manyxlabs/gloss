@@ -24,7 +24,7 @@ import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-di
 import { useEffect, useEffectEvent, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkAlong } from '../erase';
 import { download } from '../export';
-import { outline, PAPER, pathOf } from '../ink';
+import { fillOf, outline, PAPER, pathOf, ruler, type Ruler } from '../ink';
 import { commentOf } from '../links';
 import { highlightAt, locate, pageAt, pointOnPage, selectionAnchor, textBoxes, type Anchor } from '../pdf/anchor';
 import { annotatedPdf } from '../pdf/annotate';
@@ -52,11 +52,13 @@ import {
   setActiveDoc,
   showCard,
   shownPanes,
+  startStroke,
   useStore,
+  type Drawn,
   type Pane,
 } from '../store/project';
 import { commentSelection, detachComment, pick, pickSelection, setComment, startLinking, useLinking } from '../store/links';
-import type { Color, Point, Rect } from '../types';
+import type { Color, Rect } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { CopyLink } from './LinkChips';
 import { DocMenu } from './doc/DocMenu';
@@ -93,7 +95,7 @@ for (const type of ['keyup', 'selectionchange'])
 type Viewer = { viewer: PDFViewer; bus: EventBus; links: PDFLinkService };
 /** A toolbar for a selection or a highlight, or with `editing` the comment on it, or with `tagging` its tags. */
 type Popup = { docId: string; x: number; y: number; below?: boolean; editing?: boolean } & ({ anchor: Anchor } | { highlightId: string; links?: boolean; tagging?: boolean });
-type Stroke = { page: number; box: DOMRect; points: Point[]; pen: boolean };
+type Stroke = Drawn & { page: number; box: DOMRect; ruler: Ruler };
 /** A box being drawn on a page, kept to the stretch of the page in view where it started. */
 type Snip = { page: number; box: DOMRect; from: number; to: number; x: number; y: number };
 
@@ -172,6 +174,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
   const jump = useStore((s) => s.jump);
   const tool = useStore((s) => s.docTool);
   const inkColor = useStore((s) => s.inkColor);
+  const nib = useStore((s) => s.nib);
   // Pictures are put back over dark pages as they are, which a repaint does.
   const pictures = useReading((s) => shownLook(s) === 'dark' && s.keepImages);
 
@@ -496,9 +499,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const d = s
       ? pathOf(
           outline(
-            s.points.map(([x, y, pr]) => [s.box.left + x * s.box.width - bodyBox.left, s.box.top + y * s.box.height - bodyBox.top, pr]),
-            INK_SIZE * s.box.width,
-            s.pen,
+            s.ruler.shape(s.points).map(([x, y, pr]) => [s.box.left + x * s.box.width - bodyBox.left, s.box.top + y * s.box.height - bodyBox.top, pr]),
+            { ...s, size: s.size * s.box.width },
           ),
         )
       : '';
@@ -534,12 +536,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       snip.current = { page: hit.page, box: hit.box, from: hit.from, to: hit.to, x: e.clientX, y: e.clientY };
       return drawSnip(snip.current, e.clientX, e.clientY);
     }
-    const s: Stroke = {
-      page: hit.page,
-      box: hit.box,
-      pen: e.pointerType === 'pen',
-      points: [],
-    };
+    const s: Stroke = { ...startStroke(INK_SIZE, e.pointerType === 'pen'), page: hit.page, box: hit.box, ruler: ruler(() => drawLive(stroke.current)) };
     s.points.push([(e.clientX - s.box.left) / s.box.width, (e.clientY - s.box.top) / s.box.height, e.pressure || 0.5]);
     stroke.current = s;
     drawLive(s);
@@ -555,6 +552,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     // Coalesced events keep a fast stroke smooth: the screen may report fewer moves than the pen made.
     for (const m of e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent])
       s.points.push([(m.clientX - s.box.left) / s.box.width, (m.clientY - s.box.top) / s.box.height, m.pressure || 0.5]);
+    s.ruler.move(e);
     drawLive(s);
   };
 
@@ -563,8 +561,11 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const s = stroke.current;
     stroke.current = null;
     drawLive(null);
+    s?.ruler.stop();
+    if (!s || !activeDocId) return;
+    const { ruler: _, ...drawn } = s;
     // Strokes are kept in fractions of the page's width and height; a loop excerpts what it goes round.
-    if (s && activeDocId) void keepStroke(scroller.current!, activeDocId, active?.password, s, INK_SIZE, color);
+    void keepStroke(scroller.current!, activeDocId, active?.password, { ...drawn, points: s.ruler.shape(s.points) }, color);
   };
 
   /** The box being snipped as page fractions, kept to the page and to the stretch of it in view. */
@@ -1070,7 +1071,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         )}
         <div className="snip-live" ref={snipLive} style={{ display: 'none' }} />
         <svg className="ink-live" aria-hidden="true">
-          <path ref={live} fill={PAPER[inkColor]} />
+          <path ref={live} {...fillOf({ color: inkColor, nib }, PAPER)} />
         </svg>
         {band && (
           <div className={`squeeze-band${band.ready ? ' ready' : ''}`} style={{ top: band.top, height: band.height }}>
@@ -1099,7 +1100,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
       </div>
 
       {ready && (
-        <div className="doc-status">
+        <div className={`doc-status${tool === 'pen' ? ' inking' : ''}`}>
           <Tools side="docTool" />
           <span className="page-no" aria-live="polite">
             <span className="long">Page </span>

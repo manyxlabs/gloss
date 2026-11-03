@@ -45,6 +45,7 @@ export function CanvasPath() {
 const BACKGROUNDS: [Background, string][] = [
   ['dots', 'Dots'],
   ['grid', 'Grid'],
+  ['lined', 'Lined'],
   ['plain', 'Plain'],
 ];
 
@@ -63,7 +64,7 @@ export function CanvasStyleMenu({ children }: { children?: ReactNode }) {
       </button>
       {anchor && (
         <Menu anchor={anchor} label="Canvas style" role="dialog" onClose={() => setAnchor(null)}>
-          <div className="canvas-style">
+          <div className="style-panel">
             <h3>Background</h3>
             <div className="segmented" role="group" aria-label="Background">
               {BACKGROUNDS.map(([id, label]) => (

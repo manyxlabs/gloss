@@ -1,4 +1,4 @@
-import { addHighlight, addInk, excerpt } from '../store/project';
+import { addHighlight, addInk, excerpt, type Drawn } from '../store/project';
 import type { Color, Point, Rect } from '../types';
 import { cleanText, mergeLines } from './anchor';
 import { textIn } from './pdfjs';
@@ -72,29 +72,22 @@ function layerWords(root: HTMLElement, page: number): Word[] | null {
 /**
  * Keeps a pen stroke on a page. A closed loop excerpts what it encloses: the words whose middles
  * are inside it, or where words are few, the region as a figure, as Snip would. Anything else is
- * handwriting.
+ * handwriting, as is a highlighter's loop, which marks the words rather than taking them.
  */
-export async function keepStroke(
-  root: HTMLElement,
-  docId: string,
-  password: string | undefined,
-  s: { page: number; box: DOMRect; points: Point[]; pen: boolean },
-  size: number,
-  color: Color,
-) {
-  const loop = loopOf(s.points, s.box);
-  if (!loop) return addInk(docId, s.page, s.points, size, s.pen);
+export async function keepStroke(root: HTMLElement, docId: string, password: string | undefined, { page, box, ...drawn }: Drawn & { page: number; box: DOMRect }, color: Color) {
+  const loop = drawn.nib !== 'marker' && loopOf(drawn.points, box);
+  if (!loop) return addInk(docId, page, drawn);
   const fx = loop.map((p) => Math.min(1, Math.max(0, p[0])));
   const fy = loop.map((p) => Math.min(1, Math.max(0, p[1])));
   const bounds: Rect = [Math.min(...fx), Math.min(...fy), Math.max(...fx) - Math.min(...fx), Math.max(...fy) - Math.min(...fy)];
-  const all = layerWords(root, s.page);
+  const all = layerWords(root, page);
   // Without its text layer, the page's words cannot be placed closely enough to pick them out, so the loop is taken as a figure.
-  if (!all) return excerpt(addHighlight(docId, [{ page: s.page, rects: [bounds] }], await textIn(docId, password, s.page, [bounds]).catch(() => ''), color, { area: true }).id);
+  if (!all) return excerpt(addHighlight(docId, [{ page: page, rects: [bounds] }], await textIn(docId, password, page, [bounds]).catch(() => ''), color, { area: true }).id);
   const words = all.filter((w) => inside(loop, w.mid));
-  const covered = words.reduce((sum, w) => sum + w.box[2] * w.box[3] * s.box.width * s.box.height, 0);
-  const figure = covered < WORDY * area(loop.map(([x, y]) => [x * s.box.width, y * s.box.height]));
+  const covered = words.reduce((sum, w) => sum + w.box[2] * w.box[3] * box.width * box.height, 0);
+  const figure = covered < WORDY * area(loop.map(([x, y]) => [x * box.width, y * box.height]));
   const h = figure
-    ? addHighlight(docId, [{ page: s.page, rects: [bounds] }], joined(words), color, { area: true })
-    : addHighlight(docId, [{ page: s.page, rects: mergeLines(words.map((w) => w.box)) }], joined(words), color);
+    ? addHighlight(docId, [{ page: page, rects: [bounds] }], joined(words), color, { area: true })
+    : addHighlight(docId, [{ page: page, rects: mergeLines(words.map((w) => w.box)) }], joined(words), color);
   excerpt(h.id);
 }

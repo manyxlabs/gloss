@@ -252,14 +252,14 @@
   background-color: color-mix(in srgb, var(--card-tint) 30%, var(--panel));
 }
 
-.canvas-style {
+.style-panel {
   display: grid;
   gap: 8px;
   padding: 6px 6px 8px;
   width: 248px;
 }
 
-.canvas-style h3 {
+.style-panel h3 {
   margin: 4px 0 0;
   font-size: 12px;
   font-weight: 600;
@@ -268,26 +268,48 @@
   text-transform: uppercase;
 }
 
-.canvas-style .palette-grid {
+.style-panel .palette-grid {
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
 }
 
-.canvas-style .palette-grid .swatch {
+.style-panel .palette-grid .swatch {
   width: 100%;
   aspect-ratio: 1;
   height: auto;
 }
 
-.menu.floating .canvas-style button.default {
+.menu.floating .style-panel button.default {
   justify-content: flex-start;
   padding: 4px 8px;
   font-size: 13px;
 }
 
-.canvas-style .default[aria-pressed='true'] {
+.style-panel .default[aria-pressed='true'] {
   color: var(--text);
   background: var(--panel-2);
+}
+
+.ink-colours {
+  display: flex;
+  gap: 8px;
+  padding: 2px 6px;
+}
+
+.ink-colours .ink-swatch {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.nibs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.menu.floating .style-panel .nibs button {
+  gap: 8px;
 }
 
 .segmented {
@@ -313,6 +335,12 @@
 
 .canvas .react-flow {
   --xy-background-pattern-lines-color-default: light-dark(#e4e5eb, #1e1e25);
+}
+
+.canvas .ruled {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--xy-background-pattern-lines-color-default) 1px, transparent 1px);
 }
 
 /* Gloss links in a note or comment, each leading to what it names. */
@@ -419,7 +447,8 @@
   translate: 12px 0;
 }
 
-.private-switch p {
+.private-switch p,
+.style-panel > p {
   margin: 0 8px;
   color: var(--muted);
   font-size: 12px;

@@ -1,7 +1,7 @@
 import { NodeResizer } from '@xyflow/react';
 import { ArrowRight, SquareStack } from 'lucide-react';
 import { useMemo } from 'react';
-import { outline, pathOf, SCREEN } from '../ink';
+import { fillOf, outline, pathOf, SCREEN } from '../ink';
 import { checkpoint, renameCanvas, setCanvas, useStore } from '../store/project';
 import type { CanvasCardData, CardData, SketchData, Stroke } from '../types';
 import { CardLinks } from './CardLinks';
@@ -10,11 +10,11 @@ import { useDimmed } from './useDimmed';
 
 /** Handwriting inside a card, over whatever else it holds. Each stroke can be erased on its own. */
 export function CardInk({ strokes }: { strokes: Stroke[] }) {
-  const paths = useMemo(() => strokes.map((s) => ({ id: s.id, d: pathOf(outline(s.points, s.size, s.pen)), fill: SCREEN[s.color] })), [strokes]);
+  const paths = useMemo(() => strokes.map((s) => ({ id: s.id, d: pathOf(outline(s.points, s)), ...fillOf(s, SCREEN) })), [strokes]);
   return (
     <svg className="card-ink" aria-hidden="true">
       {paths.map((p) => (
-        <path key={p.id} data-stroke={p.id} d={p.d} fill={p.fill} />
+        <path key={p.id} data-stroke={p.id} d={p.d} fill={p.fill} fillOpacity={p.fillOpacity} />
       ))}
     </svg>
   );

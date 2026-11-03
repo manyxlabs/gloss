@@ -69,21 +69,19 @@ export type Bookmark = { id: string; docId: string; page: number; y: number; nam
 /** `link` is a file fetched from a share link as it was, without converting. */
 export type DocSource = { kind: 'image' | 'docx' | 'pptx' | 'text' | 'web' | 'link'; name?: string; url?: string };
 
-export const INKS = ['ink', 'red', 'blue', 'green'] as const;
+export const INKS = ['ink', 'red', 'blue', 'green', 'yellow'] as const;
 export type InkColor = (typeof INKS)[number];
+/** `marker` is a highlighter: wide, even and see-through. */
+export const NIBS = ['pressure', 'ballpoint', 'calligraphy', 'marker'] as const;
+export type Nib = (typeof NIBS)[number];
 /** x, y and pen pressure (0 to 1). */
 export type Point = [number, number, number];
 
+/** A stroke as drawn. `pen` is whether a stylus wrote it; strokes from before nibs have none and are drawn by pressure. */
+export type Handwriting = { points: Point[]; color: InkColor; size: number; pen: boolean; nib?: Nib };
+
 /** Handwriting on a page, in fractions of the page's width (x and size) and height (y). */
-export type Ink = {
-  id: string;
-  docId: string;
-  page: number;
-  points: Point[];
-  color: InkColor;
-  size: number;
-  pen: boolean;
-};
+export type Ink = Handwriting & { id: string; docId: string; page: number };
 
 /** A squeezed stretch of a document: everything from one spot to another is folded out of view. */
 export type Spot = { page: number; y: number };
@@ -97,17 +95,11 @@ export type ExcerptData = {
 /** `strokes` are handwriting over the note. */
 export type NoteData = { kind: 'note'; text: string; strokes?: Stroke[] };
 /** Handwriting on the canvas, in canvas units from the card's corner. */
-export type InkData = {
-  kind: 'ink';
-  points: Point[];
-  color: InkColor;
-  size: number;
-  pen: boolean;
-};
+export type InkData = Handwriting & { kind: 'ink' };
 /** A collapsed group shows only its name and how many cards it holds; `openHeight` is its height when open. */
 export type GroupData = { kind: 'group'; title: string; collapsed?: boolean; openHeight?: number };
 /** A stroke written inside a card, in canvas units from the card's corner. */
-export type Stroke = { id: string; points: Point[]; color: InkColor; size: number; pen: boolean };
+export type Stroke = Handwriting & { id: string };
 /** A box to write in by hand, sized by the reader. */
 export type SketchData = { kind: 'sketch'; strokes: Stroke[] };
 /** Opens canvas `target`, which is nested in the canvas this card is on and goes with the card. */
@@ -118,7 +110,7 @@ export type CanvasCardData = { kind: 'canvas'; target: string };
  * `tags` are the card's own; an excerpt shows its passage's tags instead.
  */
 export type CardData = (ExcerptData | NoteData | InkData | GroupData | SketchData | CanvasCardData) & { canvasId?: string; canvasLinks?: string[]; tags?: string[] };
-export type Background = 'dots' | 'grid' | 'plain';
+export type Background = 'dots' | 'grid' | 'lined' | 'plain';
 /**
  * A canvas, at the top level or nested in `parentId` through a canvas card. Its look: the pattern
  * behind the cards, the colour notes take, and an accent for what is chosen and for links. `local`

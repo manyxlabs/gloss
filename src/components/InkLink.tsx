@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { outline, PAPER, pathOf } from '../ink';
+import { fillOf, outline, PAPER, pathOf, ruler, type Ruler } from '../ink';
 import { highlightAt, pageAt } from '../pdf/anchor';
 import { linkCard } from '../store/links';
-import { addInk, PANES, useStore } from '../store/project';
-import type { Card, Point } from '../types';
+import { addInk, PANES, startStroke, useStore, type Drawn } from '../store/project';
+import type { Card } from '../types';
 import { INK_SIZE } from './DocPane';
 
-type Gesture = { id: number; docId: string; highlightId: string; page: number; box: DOMRect; points: Point[]; pen: boolean; over?: HTMLElement };
+type Gesture = { id: number; docId: string; highlightId: string; page: number; box: DOMRect; drawn: Drawn; ruler: Ruler; over?: HTMLElement };
 
 /** The card under a point that a passage can be linked to: any but a group. */
 function cardAt(x: number, y: number) {
@@ -23,6 +23,7 @@ function cardAt(x: number, y: number) {
 export function InkLink() {
   const path = useRef<SVGPathElement>(null);
   const inkColor = useStore((s) => s.inkColor);
+  const nib = useStore((s) => s.nib);
 
   useEffect(() => {
     let g: Gesture | null = null;
@@ -30,9 +31,8 @@ export function InkLink() {
       const d = g
         ? pathOf(
             outline(
-              g.points.map(([x, y, p]) => [g!.box.left + x * g!.box.width, g!.box.top + y * g!.box.height, p]),
-              INK_SIZE * g.box.width,
-              g.pen,
+              g.ruler.shape(g.drawn.points).map(([x, y, p]) => [g!.box.left + x * g!.box.width, g!.box.top + y * g!.box.height, p]),
+              { ...g.drawn, size: g.drawn.size * g.box.width },
             ),
           )
         : '';
@@ -45,7 +45,8 @@ export function InkLink() {
       g.over = el;
     };
     const add = (e: PointerEvent) => {
-      for (const m of e.getCoalescedEvents?.() ?? [e]) g!.points.push([(m.clientX - g!.box.left) / g!.box.width, (m.clientY - g!.box.top) / g!.box.height, m.pressure || 0.5]);
+      for (const m of e.getCoalescedEvents?.() ?? [e])
+        g!.drawn.points.push([(m.clientX - g!.box.left) / g!.box.width, (m.clientY - g!.box.top) / g!.box.height, m.pressure || 0.5]);
     };
 
     // Taken in the capture phase, before the document pane would start a stroke of its own.
@@ -54,7 +55,8 @@ export function InkLink() {
       const { docTool, project } = state;
       const target = e.target as HTMLElement;
       const scroller = target.closest?.<HTMLElement>('.doc-scroll');
-      if (docTool !== 'pen' || !scroller || !project || target.closest('.popup, .fold-bar') || e.button > 0) return;
+      // A highlighter passes over highlights to mark them too, rather than to link them.
+      if (docTool !== 'pen' || state.nib === 'marker' || !scroller || !project || target.closest('.popup, .fold-bar') || e.button > 0) return;
       const docId = state[PANES[[...document.querySelectorAll('.doc-pane')].indexOf(scroller.closest('.doc-pane')!)] ?? 'activeDocId'];
       const hit = pageAt(scroller, e.clientX, e.clientY);
       const h = docId && hit && highlightAt(project.highlights, docId, hit.page, (e.clientX - hit.box.left) / hit.box.width, (e.clientY - hit.box.top) / hit.box.height);
@@ -62,7 +64,7 @@ export function InkLink() {
       e.stopPropagation();
       e.preventDefault();
       scroller.setPointerCapture(e.pointerId);
-      g = { id: e.pointerId, docId: docId!, highlightId: h.id, page: hit!.page, box: hit!.box, points: [], pen: e.pointerType === 'pen' };
+      g = { id: e.pointerId, docId: docId!, highlightId: h.id, page: hit!.page, box: hit!.box, drawn: startStroke(INK_SIZE, e.pointerType === 'pen'), ruler: ruler(draw) };
       add(e);
       draw();
     };
@@ -70,6 +72,7 @@ export function InkLink() {
       if (e.pointerId !== g?.id) return;
       e.stopPropagation();
       add(e);
+      g.ruler.move(e);
       hover(cardAt(e.clientX, e.clientY));
       draw();
     };
@@ -79,10 +82,11 @@ export function InkLink() {
       const done = g;
       hover(undefined);
       g = null;
+      done.ruler.stop();
       draw();
       const card = e.type === 'pointerup' && cardAt(e.clientX, e.clientY);
       if (card) linkCard(done.highlightId, card.dataset.id!);
-      else addInk(done.docId, done.page, done.points, INK_SIZE, done.pen);
+      else addInk(done.docId, done.page, { ...done.drawn, points: done.ruler.shape(done.drawn.points) });
     };
     const opts = { capture: true };
     addEventListener('pointerdown', onDown, opts);
@@ -99,7 +103,7 @@ export function InkLink() {
 
   return (
     <svg className="ink-link" aria-hidden="true">
-      <path ref={path} fill={PAPER[inkColor]} />
+      <path ref={path} {...fillOf({ color: inkColor, nib }, PAPER)} />
     </svg>
   );
 }

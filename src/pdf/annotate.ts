@@ -1,5 +1,5 @@
 import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFPage } from 'pdf-lib';
-import { outline, PAGE_PIXELS, PAPER } from '../ink';
+import { MARKER_ALPHA, outline, PAGE_PIXELS, PAPER } from '../ink';
 import { cite, commentOf, endsOf } from '../links';
 import { swatchOf } from '../palette';
 import { fileKey, getFile } from '../store/db';
@@ -139,13 +139,14 @@ export async function annotatedPdf(project: Project, docId: string) {
     // Strokes are kept in fractions of the page's width and height; the outline is drawn in width units.
     const shape = outline(
       ink.points.map(([x, y, p]) => [x, y * scale, p]),
-      ink.size,
-      ink.pen,
+      ink,
       PAGE_PIXELS,
     ).map(([x, y]) => at(x, y / scale));
     if (shape.length < 3) continue;
     const line = ink.points.map(([x, y]) => at(x, y));
-    const color = rgb(PAPER[ink.color]);
+    const marker = ink.nib === 'marker';
+    // A highlighter is its colour thinned over white paper, multiplied so the text under it stays dark.
+    const color = rgb(PAPER[ink.color]).map((c) => (marker ? 1 - MARKER_ALPHA * (1 - c) : c));
     const rect = bounds([...shape, ...line]);
     add(
       pdf.getPage(ink.page - 1),
@@ -156,7 +157,7 @@ export async function annotatedPdf(project: Project, docId: string) {
         C: color,
         BS: { W: n(ink.size * width) },
       },
-      `${color.join(' ')} rg\n${shape.map(([x, y], i) => `${n(x)} ${n(y)} ${i ? 'l' : 'm'}`).join(' ')} h f`,
+      `${marker ? '/M gs ' : ''}${color.join(' ')} rg\n${shape.map(([x, y], i) => `${n(x)} ${n(y)} ${i ? 'l' : 'm'}`).join(' ')} h f`,
     );
   }
 

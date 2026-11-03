@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { outline, pathOf, SCREEN } from '../ink';
+import { fillOf, outline, pathOf, SCREEN } from '../ink';
 import { where } from '../links';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
@@ -140,11 +140,11 @@ function Figure({ highlight, password }: { highlight: Highlight; password?: stri
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
 function InkCard({ id, data, selected }: { id: string; data: InkData; selected: boolean }) {
-  const d = useMemo(() => pathOf(outline(data.points, data.size, data.pen)), [data]);
+  const d = useMemo(() => pathOf(outline(data.points, data)), [data]);
   const dim = useDimmed(id);
   return (
     <svg className={`ink-card${selected ? ' selected' : ''}${dim ? ' dim' : ''}`} data-ink-card>
-      <path d={d} fill={SCREEN[data.color]} />
+      <path d={d} {...fillOf(data, SCREEN)} />
     </svg>
   );
 }

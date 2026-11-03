@@ -1,6 +1,6 @@
 import { copyFileSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { ARTIFACTS, card, openProject, readPdf, select, shot } from './helpers';
+import { ARTIFACTS, card, inkStyle, openProject, readPdf, select, shot } from './helpers';
 
 /** A note's text is in a field, which a text match does not see; the field's sizer carries it. */
 const note = (page: Page, text: string) => page.locator('.react-flow__node').filter({ has: page.locator(`.grow[data-value^="${text}"]`) });
@@ -118,7 +118,7 @@ test('handwriting on a page and on the canvas can be erased, undone and is kept'
   await openProject(page);
   const docTools = page.getByRole('toolbar', { name: 'Document tools' });
   await docTools.getByRole('button', { name: 'Pen' }).click();
-  await docTools.getByRole('button', { name: 'red ink' }).click();
+  await inkStyle(page, 'Document tools', 'Red ink');
   const pageBox = (await page.locator('.page[data-page-number="1"]').boundingBox())!;
   const [x, y] = [pageBox.x + pageBox.width * 0.2, pageBox.y + pageBox.height * 0.6];
   await page.mouse.move(x, y);

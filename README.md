@@ -44,7 +44,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Annotations from other apps**: highlights, underlines, strike-outs, squiggles, sticky notes, text boxes and ink that Acrobat, Preview and others left in a PDF can be brought in as Gloss's own, when the PDF is added or later from the Highlights tab.
 - **Password protected PDFs** open after you enter the password, which is kept with the project (and, in a shared project, travels with it end-to-end encrypted).
 - **Squeeze** the text between two passages out of view to read them side by side: pinch two fingers held one above the other, or select what is in between and press Squeeze. A bar marks each squeeze and opens it again.
-- **Handwriting** on pages and on the canvas, with a pen, an eraser and four inks. A stylus writes even while the select tool is chosen, and once one has been used, a finger or palm scrolls and pans instead of drawing.
+- **Handwriting** on pages and on the canvas, with a pen and an eraser. A stylus writes even while the select tool is chosen, and once one has been used, a finger or palm scrolls and pans instead of drawing.
+  The pen's style, remembered on each device, has five inks, three widths and four nibs: pressure, an even ballpoint, calligraphy with a slanted nib, and a highlighter that sits under the text.
+  Rest the pen at the end of a stroke, or hold Shift, to make it a straight line.
   An **ink box** is a card to write in, resized from its corners, and writing on a note keeps the strokes in the note.
   The notes exports show handwriting as pictures.
   On the canvas the eraser also takes away the links it passes over: lines between cards, a card's links to passages, and its links to other canvases; undo brings them back.
@@ -59,7 +61,7 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Several canvases per project**, one per line of thought; showing a card opens the canvas it is on.
   A **nested canvas** card opens a canvas inside the one it is on, with a path back up; the tabs show the top level, and each tab's menu the canvases in it.
   A card can link to any canvas, with a chip that opens it, and deleting a nested canvas's card takes the canvas and everything in it, until undone.
-- **Canvas style**: each canvas has its own background (dots, grid or plain), note colour and accent, which travel with it to the other devices.
+- **Canvas style**: each canvas has its own background (dots, grid, lined or plain), note colour and accent, which travel with it to the other devices.
 - **Copy links** to a passage, card, comment, canvas or document. Opening one opens the project there; pasted into a note or a comment, it shows as a chip with a few words of what it leads to, in this project or another one on the same device.
   In a shared project a link names the project's room, so it works for everyone who has the project, and only for them.
 - **Notes and links.** Double-click the canvas to write a note, and drag from a card's edge onto another card to connect them, or draw a line between them with the pen.
