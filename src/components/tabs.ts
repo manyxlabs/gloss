@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { useEffect, type KeyboardEvent, type RefObject } from 'react';
 
 /** Arrow keys, Home and End move between the tabs of a tab list and open the one reached; only the open tab is in the Tab order. */
 export function onTabKeys(e: KeyboardEvent<HTMLElement>) {
@@ -20,4 +20,15 @@ export function revealTab(list: HTMLElement | null) {
   const [left, right] = [tab.offsetLeft, tab.offsetLeft + tab.offsetWidth];
   if (left < list.scrollLeft) list.scrollLeft = left - 8;
   else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth + 8;
+}
+
+/** Keeps a tab list's open tab in view as the list is resized, as when what is beside it comes and goes. */
+export function useRevealOnResize(list: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = list.current;
+    if (!el) return;
+    const sized = new ResizeObserver(() => revealTab(el));
+    sized.observe(el);
+    return () => sized.disconnect();
+  }, [list]);
 }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { nestedIn, pathTo } from '../canvases';
 import { addCanvas, canvasOf, removeCanvas, renameCanvas, setCanvas, useStore } from '../store/project';
 import { Menu } from './Menu';
-import { onTabKeys, revealTab } from './tabs';
+import { onTabKeys, revealTab, useRevealOnResize } from './tabs';
 
 /**
  * The project's top-level canvases, one per line of thought; double-click a name to rename it. A
@@ -18,6 +18,7 @@ export function CanvasTabs() {
   const [nested, setNested] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => revealTab(list.current), [current, canvases.length]);
+  useRevealOnResize(list);
 
   const remove = (id: string, name: string) => {
     const { project } = useStore.getState();

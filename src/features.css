@@ -65,8 +65,9 @@
 .popup[role='toolbar'],
 .popup:has(> .note-editor) {
   width: max-content;
-  /* Inside its pane too, as one of three may be narrower than the screen. */
-  max-width: min(100vw - 16px, 100cqw - 12px);
+  /* Inside its pane too, as one of three may be narrower than the screen, and no wider than the room
+     DocPane keeps for it beside the pane's edges (POPUP_HALF_WIDTH), so wider buttons wrap. */
+  max-width: min(480px, 100vw - 16px, 100cqw - 12px);
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -401,7 +402,7 @@
 
 @media (pointer: coarse) {
   .link-chips a {
-    min-height: 32px;
+    min-height: 40px;
   }
 }
 
@@ -592,10 +593,23 @@
   .canvas-path .icon,
   .canvas-card footer button,
   .notices a {
-    min-height: 34px;
+    min-height: 40px;
   }
 
+  /* A grid of swatches spaces them 40 pixels apart by its gaps, which their reach fills. */
   .palette-grid {
-    gap: 10px;
+    gap: 18px;
+  }
+
+  .palette-grid .swatch {
+    margin: 0;
+  }
+
+  .style-panel {
+    width: 328px;
+  }
+
+  .style-panel .palette-grid {
+    gap: 18px;
   }
 }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { SWATCHES } from '../src/palette';
 import { noteCard } from './cards';
-import { card, openProject, select, shot } from './helpers';
+import { card, fromToolbar, openProject, select, shot, useTheme } from './helpers';
 
 const tabs = (page: Page) => page.getByRole('tablist', { name: 'Canvases' });
 const path = (page: Page) => page.getByRole('navigation', { name: 'Canvas path' });
@@ -11,7 +11,7 @@ const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i
 
 /** Makes a nested canvas on the canvas on show, names it, and opens it. */
 async function nest(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Nested canvas' }).click();
+  await fromToolbar(page, 'Nested canvas', 'More canvas tools');
   const box = page.getByRole('textbox', { name: 'Nested canvas name' }).last();
   await box.fill(name);
   await box.press('Enter');
@@ -175,13 +175,13 @@ test('nested canvases, their path and their style on a phone, light and dark', a
   expect(bar.width).toBeLessThanOrEqual(390);
   for (const b of await path(page).getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(30);
   await shot(page, 'nested-phone');
-  await page.getByRole('button', { name: 'Canvas style' }).click();
+  await fromToolbar(page, 'Canvas style', 'More canvas tools');
   const style = (await page.getByRole('dialog', { name: 'Canvas style' }).boundingBox())!;
   expect(style.x).toBeGreaterThanOrEqual(0);
   expect(style.x + style.width).toBeLessThanOrEqual(390);
   await shot(page, 'canvas-style-phone');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await useTheme(page, 'dark');
   await shot(page, 'nested-phone-dark');
   await context.close();
 });

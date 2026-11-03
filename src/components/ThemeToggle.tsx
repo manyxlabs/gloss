@@ -14,7 +14,8 @@ export function initialTheme(): Theme {
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function ThemeToggle() {
+/** The theme's switch: a button of its own, or an item in a menu where the header has no room for it. */
+export function ThemeToggle({ item = false }: { item?: boolean }) {
   const [theme, setTheme] = useState<Theme>(() => (document.documentElement.dataset.theme as Theme) ?? initialTheme());
   const flip = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -26,9 +27,15 @@ export function ThemeToggle() {
       // Not saved; the theme still applies for this visit.
     }
   };
-  return (
-    <button className="icon" onClick={flip} aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'} title={theme === 'dark' ? 'Light theme' : 'Dark theme'}>
-      {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+  const label = theme === 'dark' ? 'Use light theme' : 'Use dark theme';
+  const Icon = theme === 'dark' ? Sun : Moon;
+  return item ? (
+    <button role="menuitem" onClick={flip}>
+      <Icon size={16} /> {label}
+    </button>
+  ) : (
+    <button className="icon" onClick={flip} aria-label={label} title={theme === 'dark' ? 'Light theme' : 'Dark theme'}>
+      <Icon size={17} />
     </button>
   );
 }

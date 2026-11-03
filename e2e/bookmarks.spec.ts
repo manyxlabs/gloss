@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { ARTIFACTS, openProject, readPdf, shot } from './helpers';
+import { ARTIFACTS, openProject, readPdf, shot, useTheme } from './helpers';
 
 const sidebar = (page: Page) => page.getByRole('complementary', { name: 'Contents, pages and highlights' });
 const marks = (page: Page) => sidebar(page).getByRole('list', { name: 'Bookmarks' }).getByRole('listitem');
@@ -134,7 +134,7 @@ test('on a phone, the toolbar bookmarks and the sidebar lists them over the page
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await openProject(page);
-  await page.getByRole('button', { name: 'Use dark theme' }).tap();
+  await useTheme(page, 'dark');
   await page.getByRole('button', { name: 'Bookmark this place' }).tap();
   await page.getByRole('button', { name: 'Contents, pages and highlights' }).first().tap();
   await expect(marks(page)).toHaveText([/^The ocean covers.*p\. 1$/]);

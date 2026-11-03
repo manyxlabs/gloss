@@ -10,6 +10,28 @@ const LOOKS: Record<PageLook, [string, typeof Sun]> = {
   theme: ['Follow the app theme', SunMoon],
 };
 
+/** The page colours to choose from, as menu items; `close` is called once one is chosen. */
+export function PageLookItems({ close }: { close: () => void }) {
+  const reading = useReading();
+  return (
+    <>
+      {PAGE_LOOKS.map((look) => {
+        const [label, Icon] = LOOKS[look];
+        return (
+          <button key={look} role="menuitemradio" aria-checked={reading.look === look} onClick={() => (setPageLook(look), close())}>
+            <Icon size={16} /> {label}
+          </button>
+        );
+      })}
+      <hr />
+      {/* Stays open, as one may want to see the page each way. */}
+      <button role="menuitemcheckbox" aria-checked={reading.keepImages} onClick={() => setKeepImages(!reading.keepImages)} title="On dark pages, show pictures as printed">
+        <Image size={16} /> Keep images as they are
+      </button>
+    </>
+  );
+}
+
 /** Chooses how pages are shown on this device: light, dark, sepia, or following the app's theme. */
 export function PageLookMenu() {
   const reading = useReading();
@@ -18,7 +40,7 @@ export function PageLookMenu() {
   return (
     <>
       <button
-        className="icon"
+        className="icon overflow"
         aria-label="Page colours"
         title="Page colours"
         aria-haspopup="menu"
@@ -29,19 +51,7 @@ export function PageLookMenu() {
       </button>
       {button && (
         <Menu anchor={button} label="Page colours" onClose={() => setButton(null)}>
-          {PAGE_LOOKS.map((look) => {
-            const [label, Icon] = LOOKS[look];
-            return (
-              <button key={look} role="menuitemradio" aria-checked={reading.look === look} onClick={() => (setPageLook(look), setButton(null))}>
-                <Icon size={16} /> {label}
-              </button>
-            );
-          })}
-          <hr />
-          {/* Stays open, as one may want to see the page each way. */}
-          <button role="menuitemcheckbox" aria-checked={reading.keepImages} onClick={() => setKeepImages(!reading.keepImages)} title="On dark pages, show pictures as printed">
-            <Image size={16} /> Keep images as they are
-          </button>
+          <PageLookItems close={() => setButton(null)} />
         </Menu>
       )}
     </>

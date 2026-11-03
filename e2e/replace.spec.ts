@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { card, inside, openProject, pdf, select, shot, type Box } from './helpers';
+import { card, inside, openProject, pdf, select, shot, type Box, useTheme } from './helpers';
 import { ESSAY } from './pdfs';
 
 /**
@@ -165,7 +165,7 @@ test('a document replaced on a phone reports in a dialog that fits the screen', 
   await openProject(page);
   await select(page, 'Coral reefs occupy');
   await selection(page).getByRole('button', { name: 'Highlight blue' }).click();
-  await page.getByRole('button', { name: 'Use dark theme' }).tap();
+  await useTheme(page, 'dark');
   const dialog = await replaceWith(page, REVISED);
   await expect(dialog.getByRole('status')).toContainText('1 highlight is on the same words');
   const box = (await dialog.boundingBox())!;

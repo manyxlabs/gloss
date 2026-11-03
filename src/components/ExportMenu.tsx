@@ -1,5 +1,5 @@
-import { ChevronDown, NotebookText } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Ellipsis, NotebookText } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { send } from '../download';
 import { download, outline, toMarkdown } from '../export';
 import { withProgress } from '../store/progress';
@@ -19,7 +19,11 @@ const WAYS = [
   ['Send', send],
 ] as const;
 
-export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProblems: (problems: string[]) => void }) {
+/**
+ * Exporting the notes. Where the header has no room for all its buttons, as on a phone, it is the
+ * header's More instead, with the notes' exports and then `more`, and it opens even with nothing to export.
+ */
+export function ExportMenu({ disabled, onProblems, more }: { disabled: boolean; onProblems: (problems: string[]) => void; more?: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [combining, setCombining] = useState(false);
@@ -39,25 +43,32 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
 
   return (
     <div className="export menu-wrap" ref={root}>
-      <button
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={busy ? 'Exporting notes' : 'Export notes'}
-        title="Download the canvas and highlights as notes"
-        disabled={disabled || busy}
-        onClick={() => setOpen(!open)}
-      >
-        <NotebookText size={16} /> <span>{busy ? 'Exporting…' : 'Export notes'}</span> <ChevronDown size={14} />
-      </button>
+      {more ? (
+        <button className="icon" aria-haspopup="menu" aria-expanded={open} aria-label="More" title="More" onClick={() => setOpen(!open)}>
+          <Ellipsis size={17} />
+        </button>
+      ) : (
+        <button
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={busy ? 'Exporting notes' : 'Export notes'}
+          title="Download the canvas and highlights as notes"
+          disabled={disabled || busy}
+          onClick={() => setOpen(!open)}
+        >
+          <NotebookText size={16} /> <span>{busy ? 'Exporting…' : 'Export notes'}</span> <ChevronDown size={14} />
+        </button>
+      )}
       {open && (
         <div className="menu glass" role="menu">
           {WAYS.map(([how, hand]) => (
             <div key={how} className="menu-group" role="group" aria-label={how}>
-              <h4>{how}</h4>
+              <h4>{more ? `${how} notes` : how}</h4>
               {FORMATS.map(([label, ext, make]) => (
                 <button
                   key={ext}
                   role="menuitem"
+                  disabled={disabled || busy}
                   onClick={async () => {
                     setOpen(false);
                     setBusy(true);
@@ -82,6 +93,12 @@ export function ExportMenu({ disabled, onProblems }: { disabled: boolean; onProb
           <button role="menuitem" onClick={() => (setOpen(false), setCombining(true))}>
             Documents as one PDF…
           </button>
+          {more && (
+            <>
+              <hr />
+              {more}
+            </>
+          )}
         </div>
       )}
       {combining && <CombinedExport onClose={() => setCombining(false)} />}
