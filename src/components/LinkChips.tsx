@@ -1,13 +1,14 @@
-import { Bookmark, Check, FileText, Highlighter, Link, MessageSquare, SquareStack, StickyNote } from 'lucide-react';
+import { Bookmark, Check, Copy, FileText, Highlighter, MessageSquare, SquareStack, StickyNote } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getProject, listProjects } from '../store/db';
 import { useStore } from '../store/project';
 import { hashOf, IN_TEXT, isIn, KINDS, linkTo, parseLink, snippetOf, type GlossLink, type Kind, type Target } from '../targets';
 import type { Project } from '../types';
 
-const ICONS: Record<Kind, typeof Link> = { h: Highlighter, c: StickyNote, m: MessageSquare, v: SquareStack, d: FileText, b: Bookmark };
+const ICONS: Record<Kind, typeof Copy> = { h: Highlighter, c: StickyNote, m: MessageSquare, v: SquareStack, d: FileText, b: Bookmark };
 
-/** Copies a link to something in the open project, which opens the project there wherever it is pasted. */
+/** Copies a link to something in the open project, which opens the project there wherever it is pasted.
+ * Its icon is the one for copying, as the share link's is, not a chain, which is the button that links one passage to another. */
 export function CopyLink({ target, className = 'icon', text, role }: { target: Target; className?: string; text?: string; role?: 'menuitem' }) {
   const [copied, setCopied] = useState(false);
   const label = `Copy link to this ${KINDS[target.kind]}`;
@@ -26,7 +27,7 @@ export function CopyLink({ target, className = 'icon', text, role }: { target: T
         setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {copied ? <Check size={16} /> : <Link size={16} />}
+      {copied ? <Check size={16} /> : <Copy size={16} />}
       {text && <span>{copied ? 'Copied' : text}</span>}
     </button>
   );
