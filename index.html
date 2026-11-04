@@ -3,15 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gloss · Read, excerpt and connect PDFs</title>
+    <title>Gloss · Free PDF reader with a canvas for your notes</title>
     <meta
       name="description"
-      content="Read PDFs next to an infinite canvas. Pull out passages, connect ideas, and jump back to the source. Free, and your files never leave your device."
+      content="Read PDFs, Word files and web pages next to a canvas. Pull out passages, connect them, write by hand and jump back to the source. Free, private, no account."
     />
+    <meta name="theme-color" content="#5145e5" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gloss by Manyx Labs" />
+    <meta property="og:title" content="Gloss · Read your documents next to a canvas for your thinking" />
+    <meta
+      property="og:description"
+      content="Pull passages out of PDFs, arrange and connect them, write by hand, and jump back to the exact line. Free, private, in your browser."
+    />
+    <meta property="og:url" content="https://gloss.manyxlabs.com/" />
+    <meta property="og:image" content="https://gloss.manyxlabs.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Gloss: a document with highlighted passages linked to cards on a canvas" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Gloss",
+        "url": "https://gloss.manyxlabs.com/",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any (web browser)",
+        "browserRequirements": "A modern web browser",
+        "description": "A free web app for active reading: read PDFs, Word and PowerPoint files and web pages next to an infinite canvas, excerpt passages into linked cards, handwrite, search everything and export annotated PDFs. Works offline, with end-to-end encrypted sharing.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "publisher": { "@type": "Organization", "name": "Manyx Labs", "url": "https://manyxlabs.com/" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <!-- What crawlers and visitors without JavaScript see; the app replaces nothing here. -->
+    <noscript>
+      <h1>Gloss: read your documents next to a canvas for your thinking</h1>
+      <p>
+        Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from. Free, private, in your browser, with no
+        account.
+      </p>
+      <ul>
+        <li>Excerpts that remember: every card opens the document at the passage it came from.</li>
+        <li>Squeeze the pages between: read two distant passages side by side.</li>
+        <li>Write by hand on the page or the canvas with a finger, mouse or stylus.</li>
+        <li>Search every page of every PDF and every note.</li>
+        <li>Export the PDF with highlights and handwriting, or your notes as Markdown, PDF or Word.</li>
+        <li>Open PDFs, Word, PowerPoint, images and web pages, from your device, Google Drive or Dropbox.</li>
+        <li>Private by design: files stay in your browser; shared projects are end-to-end encrypted.</li>
+      </ul>
+      <p>Gloss needs JavaScript. <a href="/privacy">Privacy policy</a> · Made by <a href="https://manyxlabs.com/">Manyx Labs</a></p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
