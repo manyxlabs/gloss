@@ -124,7 +124,7 @@ Each project is a [Yjs](https://yjs.dev) document with a map per kind of thing, 
 Selection, undo history and the page you were reading on stay with each device.
 Beside the project, the shared document keeps who has been in it, by a random id each device makes and the name they gave, and a month of who added, changed or removed what, one entry per person and thing.
 Mentions, replies and the activity list come from these, and which of them are read is kept on each device; the server relays them like any other change, encrypted.
-The Worker relays changes through a Durable Object per shared project, over a WebSocket that hibernates while nobody is editing, and keeps the PDFs in R2.
+The Worker relays changes through a Durable Object per shared project, over a WebSocket that hibernates while nobody is editing, and keeps the encrypted files in its SQLite storage alongside the log.
 It keeps a log of changes, which devices replace with a snapshot once it grows long.
 An edit to a document's pages stores a new version of its file under a new name; the document's entry names that version, so the other devices fetch it, and switch to it once it has arrived.
 
@@ -150,8 +150,7 @@ npm install
 npm run dev
 ```
 
-Sync needs the Worker, which `npm run worker` builds and runs locally with wrangler, emulating the Durable Object and R2.
-Deploying needs the R2 bucket first: `npx wrangler r2 bucket create gloss-files`.
+Sync needs the Worker, which `npm run worker` builds and runs locally with wrangler, emulating the Durable Object.
 
 Checks:
 
