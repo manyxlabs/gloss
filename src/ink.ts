@@ -1,5 +1,8 @@
 import { getStroke } from 'perfect-freehand';
-import type { Handwriting, InkColor, Nib, Point } from './types';
+import type { Card, Handwriting, InkColor, Nib, Point } from './types';
+
+/** A stroke written on the canvas is stored as a card, but to the reader it is handwriting, so counts of cards leave it out. */
+export const isCard = (c: Card) => c.data.kind !== 'ink';
 
 /** Colours for paper (PDF pages and exported files) and for the canvas, where "ink" follows the theme. */
 export const PAPER: Record<InkColor, string> = {

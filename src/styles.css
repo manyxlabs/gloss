@@ -979,7 +979,8 @@ a.button.primary {
   display: flex;
   align-items: center;
   border-radius: 9px;
-  max-width: 220px;
+  /* No wider than the strip, which on a phone is narrower than 220px, so the open tab can be shown whole. */
+  max-width: min(220px, 100%);
   flex: none;
 }
 
@@ -1002,6 +1003,7 @@ a.button.primary {
 }
 
 .tab button.close {
+  flex: none;
   padding: 5px 8px;
   opacity: 0;
 }
@@ -1920,17 +1922,22 @@ a.button.primary {
   margin-top: 9px;
 }
 
+/* Only the document's name gives way, so the page stays in sight. */
 .card .source {
-  display: block;
+  justify-content: flex-start;
+  gap: 0;
   border: 0;
   background: var(--panel-2);
   border-radius: 7px;
   padding: 2px 8px;
   font-size: 12px;
   color: var(--muted);
+  min-width: 0;
+}
+
+.card .source span {
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 }
 
 .card .source:hover {

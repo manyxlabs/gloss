@@ -2,6 +2,7 @@ import { ChevronRight, Download, Ellipsis, Folder as FolderIcon, FolderInput, Fo
 import { useEffect, useState, type DragEvent, type ReactNode } from 'react';
 import { backupOf } from '../backup';
 import { download } from '../download';
+import { isCard } from '../ink';
 import { deleteFolder, deleteProject, listFolders, moveProject, putFolder } from '../store/db';
 import type { Folder, Project } from '../types';
 import { Menu } from './Menu';
@@ -139,7 +140,9 @@ export function Projects({
       <a href={`#/p/${p.id}`} draggable={false}>
         <strong>{p.name}</strong>
         {/* Wrapped only between the facts, never inside one such as "just now". */}
-        <span>{[plural(p.docs.length, 'document'), plural(p.cards.length, 'card'), ago(p.openedAt ?? p.updatedAt)].map((s) => s.replaceAll(' ', '\u00a0')).join(' · ')}</span>
+        <span>
+          {[plural(p.docs.length, 'document'), plural(p.cards.filter(isCard).length, 'card'), ago(p.openedAt ?? p.updatedAt)].map((s) => s.replaceAll(' ', '\u00a0')).join(' · ')}
+        </span>
       </a>
       <button
         className="icon"
