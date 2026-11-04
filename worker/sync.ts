@@ -15,6 +15,72 @@ export class Room extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS log (seq INTEGER NOT NULL, part INTEGER NOT NULL, snapshot INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (seq, part))');
+    // Each upload writes its own parts, and a document points at its last finished upload, so a
+    // reader never sees a half-written file and a failed upload leaves the old one in place.
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS file (doc TEXT PRIMARY KEY, upload INTEGER NOT NULL, size INTEGER NOT NULL)');
+    ctx.storage.sql.exec(
+      'CREATE TABLE IF NOT EXISTS file_part (doc TEXT NOT NULL, upload INTEGER NOT NULL, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (doc, upload, part))',
+    );
+  }
+
+  async putFile(doc: string, body: ReadableStream<Uint8Array>) {
+    const sql = this.ctx.storage.sql;
+    const upload = (this.ctx.storage.kv.get<number>('upload') ?? 0) + 1;
+    this.ctx.storage.kv.put('upload', upload);
+    let part = 0;
+    let size = 0;
+    const pending = new Uint8Array(CHUNK);
+    let filled = 0;
+    const flush = () => {
+      sql.exec('INSERT INTO file_part (doc, upload, part, data) VALUES (?, ?, ?, ?)', doc, upload, part++, pending.slice(0, filled).buffer);
+      filled = 0;
+    };
+    try {
+      for await (const chunk of body) {
+        size += chunk.byteLength;
+        for (let at = 0; at < chunk.byteLength;) {
+          const n = Math.min(CHUNK - filled, chunk.byteLength - at);
+          pending.set(chunk.subarray(at, at + n), filled);
+          filled += n;
+          at += n;
+          if (filled === CHUNK) flush();
+        }
+      }
+      if (filled) flush();
+    } catch (e) {
+      sql.exec('DELETE FROM file_part WHERE doc = ? AND upload = ?', doc, upload);
+      throw e;
+    }
+    this.ctx.storage.transactionSync(() => {
+      const current = sql.exec<{ upload: number }>('SELECT upload FROM file WHERE doc = ?', doc).toArray()[0];
+      // Two uploads of one document can overlap; the one that started last wins whichever ends first.
+      if (current && current.upload > upload) return sql.exec('DELETE FROM file_part WHERE doc = ? AND upload = ?', doc, upload);
+      sql.exec('DELETE FROM file_part WHERE doc = ? AND upload < ?', doc, upload);
+      sql.exec('INSERT OR REPLACE INTO file (doc, upload, size) VALUES (?, ?, ?)', doc, upload, size);
+    });
+  }
+
+  getFile(doc: string) {
+    const sql = this.ctx.storage.sql;
+    const file = sql.exec<{ upload: number; size: number }>('SELECT upload, size FROM file WHERE doc = ?', doc).toArray()[0];
+    if (!file) return null;
+    let part = 0;
+    const body = new ReadableStream({
+      type: 'bytes',
+      pull(controller) {
+        const row = sql.exec<{ data: ArrayBuffer }>('SELECT data FROM file_part WHERE doc = ? AND upload = ? AND part = ?', doc, file.upload, part++).toArray()[0];
+        if (row) controller.enqueue(new Uint8Array(row.data));
+        else controller.close();
+      },
+    });
+    return { size: file.size, body };
+  }
+
+  deleteFile(doc: string) {
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec('DELETE FROM file WHERE doc = ?', doc);
+      this.ctx.storage.sql.exec('DELETE FROM file_part WHERE doc = ?', doc);
+    });
   }
 
   /**
@@ -129,7 +195,7 @@ function join(parts: ArrayBuffer[]) {
   return out;
 }
 
-/** `/api/sync/<room>` is the room's WebSocket; `/api/sync/<room>/files/<doc>` holds each encrypted PDF. */
+/** `/api/sync/<room>` is the room's WebSocket; `/api/sync/<room>/files/<doc>` holds each encrypted file, in the room's own storage. */
 export async function handleSync(request: Request, env: Env): Promise<Response> {
   const match = route(new URL(request.url).pathname);
   if (!match) return new Response('Not found', { status: 404 });
@@ -138,9 +204,8 @@ export async function handleSync(request: Request, env: Env): Promise<Response> 
   if (!docId) return room.fetch(request);
 
   if (!(await room.authorize(request.headers.get('Authorization')?.replace(/^Bearer /, '') ?? ''))) return new Response('Forbidden', { status: 403 });
-  const key = `${roomId}/${docId}`;
   if (request.method === 'GET') {
-    const file = await env.FILES.get(key);
+    const file = await room.getFile(docId);
     return file
       ? new Response(file.body, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(file.size) } })
       : new Response('Not found', { status: 404 });
@@ -151,11 +216,11 @@ export async function handleSync(request: Request, env: Env): Promise<Response> 
     if (size > MAX_FILE) return new Response('Too large', { status: 413 });
     // The stream fails if the body is longer or shorter than declared, so the limit holds.
     const { readable, writable } = new FixedLengthStream(size);
-    await Promise.all([request.body.pipeTo(writable), env.FILES.put(key, readable)]);
+    await Promise.all([request.body.pipeTo(writable), room.putFile(docId, readable)]);
     return new Response(null, { status: 204 });
   }
   if (request.method === 'DELETE') {
-    await env.FILES.delete(key);
+    await room.deleteFile(docId);
     return new Response(null, { status: 204 });
   }
   return new Response('Method not allowed', { status: 405 });

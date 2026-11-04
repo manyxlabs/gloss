@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import base from './playwright.config';
 
-// Sync runs against the real Worker, with its Durable Object and R2 emulated by wrangler.
+// Sync runs against the real Worker, with its Durable Object emulated by wrangler.
 const port = Number(process.env.PORT ?? 4351);
 
 export default defineConfig({

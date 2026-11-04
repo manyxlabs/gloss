@@ -8,7 +8,6 @@ import { handlePage } from './page';
 export interface Env {
   ASSETS: Fetcher;
   ROOMS: DurableObjectNamespace<Room>;
-  FILES: R2Bucket;
   /** "1" lets /api/page and /api/file fetch private hosts such as localhost; only the local tests set it. */
   ALLOW_PRIVATE_HOSTS?: string;
   /** A local server that stands in for the cloud storage providers; only the local tests set it. */

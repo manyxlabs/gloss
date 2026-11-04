@@ -12,5 +12,4 @@
   },
   "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
-  "r2_buckets": [{ "binding": "FILES", "bucket_name": "gloss-files" }],
 }
