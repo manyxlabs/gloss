@@ -408,8 +408,13 @@ test('notices never cover the canvas minimap or any controls, and a slow export 
     // On the start page, the notice still on show keeps clear of the links under the start buttons and the footer.
     await page.getByRole('link', { name: 'All projects' }).click();
     await expect(page.getByRole('button', { name: 'Restore a backup' })).toBeVisible();
-    await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
-    expect(await over(page, ['.more', '.foot'])).toEqual([]);
+    // The page grows as its projects load and as it makes room for the notice, so it is scrolled to its foot until it settles.
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+        return over(page, ['.more', '.foot']);
+      })
+      .toEqual([]);
     await shot(page, `notices-${label}-start-page`);
     await context.close();
   }
