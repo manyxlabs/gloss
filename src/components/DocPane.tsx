@@ -82,6 +82,7 @@ import { confirmRemove, DOC_MIME, DocList } from './DocList';
 import { DefinedTerms } from './doc/Terms';
 import { TagPicker, TagRow } from './Tags';
 import { EXCERPT_MIME } from './dnd';
+import { CloudPicker } from './CloudPicker';
 import { FilePicker } from './FilePicker';
 import { onTabKeys, revealTab, useRevealOnResize } from './tabs';
 import { WebPicker } from './WebPicker';
@@ -744,6 +745,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     onProblems(await (folder ? addFolder(folder) : addDocs(files)));
   };
 
+  const addFromCloud = async (files: File[], problems: string[]) => onProblems([...problems, ...(await addDocs(files))]);
+
   const zoom = (how: 'in' | 'out' | 'fit') => {
     const p = pdf.current;
     if (how === 'in') p?.viewer.increaseScale();
@@ -1152,6 +1155,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <FilePicker label="Choose files" kind="primary" onProblems={onProblems} />
               <FilePicker label="Choose a folder" kind="text" folder onProblems={onProblems} />
               <WebPicker kind="text" add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
+            </div>
+            <div className="actions">
+              <CloudPicker provider="Google Drive" kind="text" add={addFromCloud} />
+              <CloudPicker provider="Dropbox" kind="text" add={addFromCloud} />
             </div>
           </div>
         )}

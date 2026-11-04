@@ -9,6 +9,7 @@ import { listProjects, putProject } from '../store/db';
 import { withProgress } from '../store/progress';
 import type { Project } from '../types';
 import { AllSearch } from './AllSearch';
+import { CloudPicker } from './CloudPicker';
 import { FolderChoice } from './FolderChoice';
 import { Logo } from './Logo';
 import { Projects } from './Projects';
@@ -73,14 +74,15 @@ export function Library() {
     void listProjects().then(setProjects);
   }, []);
 
-  const start = async (all: Input[], how: ConvertOptions = {}) => {
+  /** `earlier` holds problems met before, such as files that could not be downloaded, to show with any others. */
+  const start = async (all: Input[], how: ConvertOptions = {}, earlier: string[] = []) => {
     setBusy(true);
     try {
+      const failed = [...earlier];
       // Backups come back as the projects they hold; anything else starts a new project.
       const backups = all.filter((i): i is File => i instanceof File && isBackup(i));
       const inputs = all.filter((i) => !(i instanceof File && isBackup(i)));
       const restored: string[] = [];
-      const failed: string[] = [];
       for (const b of backups) {
         try {
           // Restoring adds a copy each time, which is rarely meant twice over.
@@ -148,6 +150,8 @@ export function Library() {
       setBusy(false);
     }
   };
+  // An empty start would make an empty project, which is not what picking files that all failed means.
+  const fromCloud = (files: File[], problems: string[]) => (files.length ? start(files, {}, problems) : setProblems(problems));
   const startRef = useRef(start);
   useEffect(() => {
     startRef.current = start;
@@ -210,6 +214,20 @@ export function Library() {
       </span>
     </p>
   );
+  // A line of their own, so the cloud choices read as one set.
+  const clouds = (
+    <p className="more">
+      <span>
+        <span aria-hidden="true">·</span>
+        <span className="from">Open from</span>
+        <CloudPicker provider="Google Drive" kind="link" disabled={busy} add={fromCloud} />
+      </span>
+      <span>
+        <span aria-hidden="true">·</span>
+        <CloudPicker provider="Dropbox" kind="link" disabled={busy} add={fromCloud} />
+      </span>
+    </p>
+  );
   const hint = (
     <p className="hint">
       <span className="mouse-only">Or drop files or folders anywhere here:</span>
@@ -265,6 +283,7 @@ export function Library() {
             <AllSearch />
             <Projects projects={projects!} reload={async () => setProjects(await listProjects())} onProblems={setProblems} actions={actions} />
             {more}
+            {clouds}
             {hint}
           </>
         ) : (
@@ -281,6 +300,7 @@ export function Library() {
                   <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
                   {actions}
                   {more}
+                  {clouds}
                   {hint}
                   {problemList}
                 </div>
@@ -338,17 +358,24 @@ export function Library() {
         />
       </main>
 
-      <footer className="foot">
-        <a href="https://manyxlabs.com" target="_blank" rel="noopener">
-          Manyx Labs
-        </a>
-        <a href="https://github.com/manyxlabs/gloss" target="_blank" rel="noopener">
-          Source on GitHub
-        </a>
-        <a href="https://github.com/manyxlabs/gloss/issues" target="_blank" rel="noopener">
-          Report a problem
-        </a>
-      </footer>
+      <Footer />
     </div>
+  );
+}
+
+export function Footer() {
+  return (
+    <footer className="foot">
+      <a href="https://manyxlabs.com" target="_blank" rel="noopener">
+        Manyx Labs
+      </a>
+      <a href="https://github.com/manyxlabs/gloss" target="_blank" rel="noopener">
+        Source on GitHub
+      </a>
+      <a href="https://github.com/manyxlabs/gloss/issues" target="_blank" rel="noopener">
+        Report a problem
+      </a>
+      <a href="/privacy">Privacy</a>
+    </footer>
   );
 }

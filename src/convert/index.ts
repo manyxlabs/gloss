@@ -1,6 +1,6 @@
 import { isPdf } from '../pdf/pdfjs';
 import type { DocSource } from '../types';
-import { kindOf } from './formats';
+import { kindOf, refusal } from './formats';
 import type { Block, Watch } from './typeset';
 
 // The typesetter brings fonts and pdf-lib, so it loads only once something needs converting.
@@ -97,11 +97,6 @@ async function fromWeb(url: string, problems: string[], { signal, onProgress }: 
   return fromBlocks(page.title, blocks, { kind: 'web', url: page.url }, problems, { signal, onPage: (n) => onProgress?.(`Converting page ${n}…`) });
 }
 
-const refusal = (file: File) =>
-  /\.(doc|ppt|rtf|odt|odp)$/i.test(file.name)
-    ? `${file.name} is in an older or other office format. Save it as .docx or .pptx and add that.`
-    : `${file.name} is not a file Gloss can open. Add PDFs, Word (.docx) or PowerPoint (.pptx) files, images, or text and Markdown files.`;
-
 /**
  * Turns what was added into PDFs, since everything in Gloss is anchored to PDF pages: PDFs pass through,
  * images added together become one PDF in their order, and every other format is typeset with a real text layer.
@@ -129,7 +124,7 @@ export async function convert(inputs: Input[], options: ConvertOptions = {}) {
         const { textToBlocks, markdownToBlocks } = await html();
         const blocks = kind === 'text' ? textToBlocks(text) : await markdownToBlocks(text);
         converted.push(await fromBlocks(base(input.name), blocks, { kind: 'text', name: input.name }, problems));
-      } else problems.push(refusal(input));
+      } else problems.push(refusal(input.name));
     } catch (err) {
       if (options.signal?.aborted) throw err;
       // Library errors are not written for readers; only our own sentences are shown.
