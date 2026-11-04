@@ -52,9 +52,10 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         importScripts: ['share-target.js'],
+        // Only Gloss's own files: what comes from Google Drive or Dropbox is never kept by the service worker.
         runtimeCaching: [
-          { urlPattern: ({ url }) => /^\/(pdfjs|fonts|ocr)\//.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-data' } },
-          { urlPattern: ({ url }) => /\/heic[^/]*\.js$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-heic' } },
+          { urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/(pdfjs|fonts|ocr)\//.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-data' } },
+          { urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/heic[^/]*\.js$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-heic' } },
         ],
       },
     }),

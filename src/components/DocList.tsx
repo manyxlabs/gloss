@@ -1,11 +1,12 @@
 import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Ellipsis, FileText, Files, Folder, FolderPlus, Pencil, Pin, Trash2 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { addDocFolder, moveDoc, orderedDocs, placeDoc, removeDocFolder, renameDocFolder, type Place } from '../store/docs';
-import { PANES, removeDoc, setActiveDoc, useStore, type Pane } from '../store/project';
+import { addDocs, PANES, removeDoc, setActiveDoc, useStore, type Pane } from '../store/project';
 import type { DocFolder, DocMeta } from '../types';
 import { byline } from '../zotero';
 import { Menu } from './Menu';
 import { DocActions, openDocDialog } from './DocActions';
+import { CloudPicker } from './CloudPicker';
 import { FilePicker } from './FilePicker';
 
 /** Dragged between tabs and rows of the list to reorder documents. */
@@ -17,7 +18,7 @@ export const confirmRemove = (d: DocMeta) =>
 /**
  * Every document of the project in one list, opened from the tabs: pinned ones first, then each
  * folder, then the rest. Documents are opened in this pane, pinned, filed, reordered by dragging or
- * from their menu, replaced with a newer version, and imported from Zotero.
+ * from their menu, replaced with a newer version, and imported from Zotero, Google Drive or Dropbox.
  */
 export function DocList({ pane, onProblems }: { pane: Pane; onProblems: (problems: string[]) => void }) {
   const [open, setOpen] = useState<HTMLElement | null>(null);
@@ -51,6 +52,7 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
   const [menu, setMenu] = useState<{ doc: DocMeta; button: HTMLElement } | { folder: DocFolder; button: HTMLElement } | null>(null);
   if (!project) return null;
 
+  const addFromCloud = async (files: File[], problems: string[]) => onProblems([...problems, ...(await addDocs(files))]);
   const docs = orderedDocs(project);
   const folders = [...project.docFolders].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name, undefined, { numeric: true }));
   const known = new Set(folders.map((f) => f.id));
@@ -159,6 +161,8 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
         <button className="icon" aria-label="Add from Zotero" title="Add from your Zotero library" onClick={() => (onDone(), openDocDialog({ zotero: true }))}>
           <BookOpen size={16} />
         </button>
+        <CloudPicker provider="Google Drive" kind="icon" add={addFromCloud} />
+        <CloudPicker provider="Dropbox" kind="icon" add={addFromCloud} />
       </div>
       <ul className="doc-list-body" onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}>
         {pinned.length > 0 && (

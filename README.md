@@ -7,6 +7,7 @@ Everything runs in the browser.
 PDFs and notes are kept in the browser's own storage (IndexedDB), and there is no account.
 Nothing is uploaded unless you share a project, and then only encrypted.
 The one other exception is adding from a link: the address goes to Gloss's server, which fetches the page or file because a browser may not read other sites.
+The [privacy policy](https://gloss.manyxlabs.com/privacy) has the details.
 
 ## What it does
 
@@ -17,6 +18,9 @@ The one other exception is adding from a link: the address goes to Gloss's serve
 - **Share links.** A share link from Google Drive (including Google Docs, Slides and Sheets, exported as PDFs), Dropbox, OneDrive or SharePoint, or Box adds the file itself rather than the page that shows it, as does a link straight to a file.
   The file is then converted like any file opened from the computer.
   A private link is refused with a reason: share the file so that anyone with the link can view it.
+- **Google Drive and Dropbox.** Open from either one (on the start page, in an empty project, or from the list of documents) to pick files, private ones too, in the provider's own picker.
+  The browser downloads them straight from Google or Dropbox, and they are added like files opened from the computer; Google Docs, Slides and Sheets come as PDFs.
+  Google Drive is asked only for the files you pick (the `drive.file` scope), and its sign in is kept only in memory.
 - **Whole folders.** Drop a folder, or choose one with **Open a folder** (in a project, **Choose a folder** or the folder button in the list of documents), and every file Gloss opens in it and in the folders inside it is added, with its progress shown.
   The folders inside become folders of documents, and on the start page they can instead become a project each.
   Files Gloss cannot open are named and left out; hidden files are skipped.

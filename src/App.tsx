@@ -7,6 +7,7 @@ import { AppUpdates } from './components/AppUpdates';
 import { ProgressNotice } from './components/ProgressNotice';
 import { Unsent } from './components/Unsent';
 import { PasswordDialog } from './components/PasswordDialog';
+import { Privacy } from './components/Privacy';
 import { parseLink } from './sync/crypto';
 
 // pdf.js and the canvas are most of the app's weight, so the start page does not wait for them.
@@ -44,7 +45,9 @@ export function App() {
   }, []);
   return (
     <>
-      {joining ? (
+      {location.pathname === '/privacy' ? (
+        <Privacy />
+      ) : joining ? (
         <Join binding={joining} />
       ) : broken ? (
         <Lost title="This share link is not complete">

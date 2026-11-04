@@ -504,6 +504,66 @@ button.link:hover:not(:disabled) {
   color: var(--text);
 }
 
+.privacy {
+  max-width: 720px;
+  margin: 32px auto 48px;
+  padding: 36px 40px 28px;
+  border-radius: 22px;
+  line-height: 1.65;
+}
+
+.privacy h1 {
+  font-size: clamp(30px, 4vw, 40px);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin: 0 0 6px;
+}
+
+.privacy h2 {
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  margin: 28px 0 6px;
+}
+
+.privacy p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.privacy .fine {
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.privacy a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.privacy code {
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .privacy {
+    margin: 8px 0 32px;
+    padding: 24px 20px 16px;
+  }
+}
+
+/* Providers' logos keep their own colours, so they read as the brand they are. */
+button .cloud-logo {
+  flex: none;
+}
+
+button:disabled .cloud-logo {
+  filter: grayscale(1);
+}
+
 .problems {
   position: relative;
   margin-top: 16px;
@@ -3300,6 +3360,19 @@ section.folder {
   text-align: center;
 }
 
+.hero .more + .more {
+  margin-top: 8px;
+}
+
+.more .from {
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+.returning .more:has(+ .more) {
+  margin-bottom: 6px;
+}
+
 .returning .hint {
   gap: 6px;
   font-size: 13px;
@@ -3337,6 +3410,11 @@ section.folder {
 .empty .actions {
   justify-content: center;
   margin-top: 8px;
+}
+
+/* The cloud choices, a set on a line of their own, as far below as the first line's rows are apart. */
+.empty .actions + .actions {
+  margin-top: 6px;
 }
 
 .name-field {
