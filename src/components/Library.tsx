@@ -17,6 +17,9 @@ import { ThemeToggle } from './ThemeToggle';
 import { useInstall } from '../install';
 import { WebPicker } from './WebPicker';
 
+// index.html's title, read before any page changes it, so it is written in one place.
+const HOME_TITLE = document.title;
+
 const FEATURES = [
   [Link2, 'Excerpts that remember', 'Every card opens the document at the passage it came from, and every passage shows its card.'],
   [FoldVertical, 'Squeeze the pages between', 'Pinch two distant passages together, or select what is in between and squeeze it, to read them side by side.'],
@@ -70,7 +73,7 @@ export function Library() {
   const install = useInstall();
 
   useEffect(() => {
-    document.title = 'Gloss · Read, excerpt and connect PDFs';
+    document.title = HOME_TITLE;
     void listProjects().then(setProjects);
   }, []);
 
