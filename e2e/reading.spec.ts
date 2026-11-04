@@ -158,6 +158,17 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
     .getByRole('button', { name: /Reef essay/ })
     .tap();
   expect(await centre()).toBe('Documents');
+
+  // The switch counts cards: a stroke written on the canvas is not one.
+  await page.getByRole('tab', { name: 'Canvas (1)' }).tap();
+  await page.getByRole('toolbar', { name: 'Canvas tools' }).getByRole('button', { name: 'Pen' }).tap();
+  const flow = (await page.locator('.canvas .flow').boundingBox())!;
+  await page.mouse.move(flow.x + 80, flow.y + flow.height - 140);
+  await page.mouse.down();
+  await page.mouse.move(flow.x + 160, flow.y + flow.height - 120, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.locator('.react-flow__node')).toHaveCount(2);
+  await expect(page.getByRole('tab', { name: 'Canvas (1)' })).toBeVisible();
   await context.close();
 });
 

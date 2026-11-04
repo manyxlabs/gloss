@@ -1,7 +1,7 @@
 import { NodeResizer } from '@xyflow/react';
 import { ArrowRight, SquareStack } from 'lucide-react';
 import { useMemo } from 'react';
-import { fillOf, outline, pathOf, SCREEN } from '../ink';
+import { fillOf, isCard, outline, pathOf, SCREEN } from '../ink';
 import { checkpoint, renameCanvas, setCanvas, useStore } from '../store/project';
 import type { CanvasCardData, CardData, SketchData, Stroke } from '../types';
 import { CardLinks } from './CardLinks';
@@ -43,7 +43,7 @@ export function SketchCard({ id, data, selected }: { id: string; data: SketchDat
 export function CanvasCard({ id, data, selected }: { id: string; data: CanvasCardData & Pick<CardData, 'tags'>; selected: boolean }) {
   const dim = useDimmed(id);
   const canvas = useStore((s) => s.project?.canvases.find((c) => c.id === data.target));
-  const count = useStore((s) => s.project?.cards.filter((c) => c.data.canvasId === data.target).length ?? 0);
+  const count = useStore((s) => s.project?.cards.filter((c) => c.data.canvasId === data.target && isCard(c)).length ?? 0);
   const open = () => setCanvas(data.target);
   return (
     <article className={`card canvas-card${selected ? ' selected' : ''}${dim ? ' dim' : ''}`} aria-label={`Canvas ${canvas?.name ?? ''}`} onDoubleClick={open}>

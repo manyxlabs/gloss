@@ -18,6 +18,7 @@ import { Share } from './Share';
 import { TagsDialog } from './TagsDialog';
 import { ThemeToggle } from './ThemeToggle';
 import { useMedia } from '../panes';
+import { isCard } from '../ink';
 import { PeopleItems } from './Presence';
 
 const SPLIT_KEY = 'gloss:split';
@@ -110,6 +111,7 @@ export function Workspace({ id }: { id: string }) {
       </Lost>
     );
   if (!project) return null;
+  const cards = project.cards.filter(isCard).length;
 
   return (
     <div className="workspace field">
@@ -151,7 +153,7 @@ export function Workspace({ id }: { id: string }) {
             Document
           </button>
           <button role="tab" aria-selected={view === 'canvas'} onClick={() => setView('canvas')}>
-            Canvas{project.cards.length ? ` (${project.cards.length})` : ''}
+            Canvas{cards ? ` (${cards})` : ''}
           </button>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Handle, NodeResizeControl, NodeResizer, Position, ResizeControlVariant, type NodeProps } from '@xyflow/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { fillOf, outline, pathOf, SCREEN } from '../ink';
+import { fillOf, isCard, outline, pathOf, SCREEN } from '../ink';
 import { where } from '../links';
 import { regionImage } from '../pdf/pdfjs';
 import { checkpoint, collapseGroup, showSource, startTyping, stopTyping, ungroup, updateCard, useStore } from '../store/project';
@@ -150,7 +150,7 @@ function InkCard({ id, data, selected }: { id: string; data: InkData; selected: 
 }
 
 function GroupCard({ id, data, selected }: { id: string; data: GroupData & Pick<CardData, 'tags'>; selected: boolean }) {
-  const count = useStore((s) => s.project?.cards.filter((c) => c.parentId === id).length ?? 0);
+  const count = useStore((s) => s.project?.cards.filter((c) => c.parentId === id && isCard(c)).length ?? 0);
   const fresh = useFresh(id, !data.title);
   const name = useRef<HTMLInputElement>(null);
   const dim = useDimmed(id);
@@ -242,7 +242,7 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
           {highlight.area ? <Figure highlight={highlight} password={doc?.password} /> : <Quote text={highlight.text} />}
           <footer>
             <button className="source nodrag" onClick={() => showSource(highlight.id)} title="Show it in the document">
-              {doc?.name ?? 'Document'} · {where(highlight)}
+              <span>{doc?.name ?? 'Document'}</span> · {where(highlight)}
             </button>
             {data.comment === undefined && !commenting && (
               <button className="nodrag ghost" onClick={() => setCommenting(true)}>
