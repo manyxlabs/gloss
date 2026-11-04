@@ -493,7 +493,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (!jump || jump.pane !== pane || !p || loaded !== activeDocId) return;
     jumped();
     if ('page' in jump) {
-      if (jump.dest) void p.links.goToDestination(jump.dest);
+      // Not the link service's goToDestination, which moves the keyboard to the page once it is drawn, perhaps out of a dialog opened since.
+      if (jump.dest) p.viewer.scrollPageIntoView({ pageNumber: jump.page, destArray: jump.dest });
       else p.viewer.currentPageNumber = jump.page;
       const c = scroller.current!;
       const spot = jump.y !== undefined && locate(c, jump.page, 0, jump.y);
