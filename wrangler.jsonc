@@ -2,6 +2,7 @@
 {
   "name": "gloss",
   "main": "worker/index.ts",
+  "routes": [{ "pattern": "gloss.manyxlabs.com", "custom_domain": true }],
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist",
