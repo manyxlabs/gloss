@@ -4,8 +4,7 @@ import { commentOf, quoted, where } from './links';
 import type { DocMeta, Project, ZoteroItem } from './types';
 
 const ACCOUNT_KEY = 'gloss:zotero';
-/** Points Gloss at another server speaking the Zotero API, for tests; unset, it is Zotero's own. */
-const API_KEY = 'gloss:zotero-api';
+const API = 'https://api.zotero.org';
 
 export type ZoteroAccount = { userId: string; apiKey: string; username: string; write: boolean };
 export type ZoteroResult = { key: string; item: ZoteroItem; pdf: boolean };
@@ -17,7 +16,6 @@ function stored(key: string) {
     return null;
   }
 }
-const api = () => stored(API_KEY) || 'https://api.zotero.org';
 
 export function savedAccount(): ZoteroAccount | null {
   try {
@@ -42,7 +40,7 @@ export class ZoteroError extends Error {}
 async function call(a: Pick<ZoteroAccount, 'apiKey'>, path: string, init: RequestInit = {}) {
   let res: Response;
   try {
-    res = await fetch(`${api()}${path}`, { ...init, headers: { 'Zotero-API-Key': a.apiKey, 'Zotero-API-Version': '3', ...init.headers } });
+    res = await fetch(`${API}${path}`, { ...init, headers: { 'Zotero-API-Key': a.apiKey, 'Zotero-API-Version': '3', ...init.headers } });
   } catch {
     throw new ZoteroError('Zotero could not be reached. Check the connection and try again.');
   }
