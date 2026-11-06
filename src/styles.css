@@ -3552,6 +3552,11 @@ section.folder {
     opacity: 0.7;
   }
 
+  /* A narrower fade leaves the open tab's name more room beside its 40 pixel buttons. */
+  .tab-list {
+    --fade: 16px;
+  }
+
   /* In a narrow pane fingers pinch to zoom, which leaves the toolbar room for its tools; the percentage still fits the page. */
   .narrow .zoom button.icon {
     display: none;
