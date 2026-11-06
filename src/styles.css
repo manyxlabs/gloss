@@ -969,6 +969,21 @@ a.button.primary {
   height: 100%;
   overflow-x: auto;
   scrollbar-width: none;
+  --fade: 24px;
+  --fade-start: 0px;
+  --fade-end: 0px;
+}
+
+.tab-list[data-more] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+}
+
+.tab-list[data-more~='start'] {
+  --fade-start: var(--fade);
+}
+
+.tab-list[data-more~='end'] {
+  --fade-end: var(--fade);
 }
 
 .narrow .tabs .add .label {
@@ -979,13 +994,18 @@ a.button.primary {
   display: flex;
   align-items: center;
   border-radius: 9px;
-  /* No wider than the strip, which on a phone is narrower than 220px, so the open tab can be shown whole. */
-  max-width: min(220px, 100%);
+  /* Narrower than the strip, which on a phone is narrower than 220px, so the open tab can be shown whole between its faded sides. */
+  max-width: min(220px, 100% - 2 * var(--fade));
   flex: none;
 }
 
 .tab.active {
   background: var(--accent-soft);
+}
+
+/* Inside the tab, as the list clips what is outside it. */
+.tab :focus-visible {
+  outline-offset: -2px;
 }
 
 .tab button {

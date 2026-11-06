@@ -12,30 +12,39 @@ export function onTabKeys(e: KeyboardEvent<HTMLElement>) {
   tab.click();
 }
 
-/** Scrolls a tab list, and only it, so its open tab is in view and the list starts at a tab rather than through one. */
+/** Scrolls a tab list, and only it, so its open tab is in view and clear of the faded sides. */
 export function revealTab(list: HTMLElement | null) {
   const tab = list?.querySelector<HTMLElement>('[aria-selected="true"]')?.parentElement;
   if (!list || !tab) return;
-  const tabs = [...list.querySelectorAll<HTMLElement>(':scope > *')];
-  // The list is positioned, so offsets are measured from it.
-  const [left, right, width] = [tab.offsetLeft, tab.offsetLeft + tab.offsetWidth, list.clientWidth];
-  let to = list.scrollLeft;
-  if (left < to) to = left - 8;
-  else if (right > to + width) to = Math.min((tabs.find((t) => t.offsetLeft >= right - width) ?? tab).offsetLeft, left);
-  // Room after the last tab lets the list scroll that far. It is made again on every call, since dropping it on
-  // a resize would scroll the list back through a tab.
-  for (const t of tabs) t.style.marginInlineEnd = '';
-  tabs.at(-1)!.style.marginInlineEnd = `${Math.max(0, to - (list.scrollWidth - width))}px`;
-  list.scrollLeft = to;
+  const fade = parseFloat(getComputedStyle(list).getPropertyValue('--fade'));
+  // The list is positioned, so offsets are measured from it. The browser keeps scrollLeft within the list.
+  const [left, right, width] = [tab.offsetLeft - fade, tab.offsetLeft + tab.offsetWidth + fade, list.clientWidth];
+  if (left < list.scrollLeft) list.scrollLeft = left;
+  else if (right > list.scrollLeft + width) list.scrollLeft = right - width;
+  markMore(list);
 }
 
-/** Keeps a tab list's open tab in view as the list is resized, as when what is beside it comes and goes. */
+/** Marks the sides a tab list has more tabs past, which fade so a tab cut at the edge reads as scrolled out of sight. */
+function markMore(list: HTMLElement) {
+  // Rounded, since a zoomed page scrolls by fractions of a pixel.
+  const end = Math.round(list.scrollLeft + list.clientWidth) < list.scrollWidth;
+  const more = [list.scrollLeft > 0 && 'start', end && 'end'].filter(Boolean).join(' ');
+  if (more) list.dataset.more = more;
+  else delete list.dataset.more;
+}
+
+/** Keeps a tab list's open tab in view as the list is resized, as when what is beside it comes and goes, and its faded sides true as it scrolls. */
 export function useRevealOnResize(list: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = list.current;
     if (!el) return;
     const sized = new ResizeObserver(() => revealTab(el));
     sized.observe(el);
-    return () => sized.disconnect();
+    const scrolled = () => markMore(el);
+    el.addEventListener('scroll', scrolled, { passive: true });
+    return () => {
+      sized.disconnect();
+      el.removeEventListener('scroll', scrolled);
+    };
   }, [list]);
 }
