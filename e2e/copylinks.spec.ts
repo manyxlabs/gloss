@@ -12,7 +12,9 @@ const projectId = (page: Page) => /#\/p\/([\w-]+)/.exec(page.url())![1]!;
 async function copied(page: Page, button: ReturnType<Page['getByRole']>, kind: string) {
   await button.click();
   const link = await clipboard(page);
-  expect(link).toMatch(new RegExp(`^http://localhost:\\d+/#/p/${projectId(page)}/${kind}/[\\w-]+$`));
+  const url = new URL(link);
+  expect(url.origin + url.pathname).toBe(new URL('/', page.url()).href);
+  expect(url.hash).toMatch(new RegExp(`^#/p/${projectId(page)}/${kind}/[\\w-]+$`));
   return link;
 }
 

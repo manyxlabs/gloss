@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { card, openProject, select, shot } from './helpers';
+import { card, openProject, select, shot, worksOffline } from './helpers';
 
 test('once visited, Gloss installs as an app and keeps working with no network', async ({ page, context, request }) => {
   const manifest = await (await request.get('/manifest.webmanifest')).json();
@@ -7,8 +7,7 @@ test('once visited, Gloss installs as an app and keeps working with no network',
   for (const icon of manifest.icons as { src: string }[]) expect((await request.get(`/${icon.src}`)).ok()).toBe(true);
 
   await page.goto('/');
-  // The service worker caches the whole app first, which takes longer on a busy machine.
-  await expect(page.getByRole('status')).toHaveText(/works offline/, { timeout: 20_000 });
+  await worksOffline(page);
   await openProject(page);
   await select(page, 'Coral reefs occupy');
   await page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Excerpt' }).click();

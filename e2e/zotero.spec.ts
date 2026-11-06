@@ -1,6 +1,4 @@
-import { createServer, type IncomingMessage, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { openProject, select, shot } from './helpers';
 import { makePdf } from './pdfs';
 
@@ -30,24 +28,18 @@ const CHILDREN = [
   { key: 'NOTE1', data: { key: 'NOTE1', itemType: 'note', parentItem: 'CARSON62' } },
 ];
 
-/** A stand-in for api.zotero.org, answering as its Web API does, with what was posted to it. */
-async function zotero() {
+/** Answers for api.zotero.org as its Web API does, keeping what was posted to it. */
+async function zotero(context: BrowserContext) {
   const posted: unknown[] = [];
   const pdf = await makePdf([['The sea around us is the oldest of all things, and the tides keep time for the shore.']]);
-  const body = (req: IncomingMessage) =>
-    new Promise<string>((done) => {
-      let s = '';
-      req.on('data', (c) => (s += c));
-      req.on('end', () => done(s));
-    });
-  const server: Server = createServer(async (req, res) => {
-    // The real API allows pages from other sites to call it, as Gloss does from the browser.
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Zotero-API-Key, Zotero-API-Version, Content-Type');
-    if (req.method === 'OPTIONS') return void res.writeHead(204).end();
-    const key = KEYS[String(req.headers['zotero-api-key'])];
-    const url = new URL(req.url!, 'http://x');
-    const json = (status: number, data: unknown) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+  // The real API allows pages from other sites to call it, as Gloss does from the browser.
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Zotero-API-Key, Zotero-API-Version, Content-Type' };
+  await context.route('https://api.zotero.org/**', (route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const key = KEYS[String(req.headers()['zotero-api-key'])];
+    const url = new URL(req.url());
+    const json = (status: number, data: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(data) });
     if (!key) return json(403, 'Forbidden');
     if (url.pathname === '/keys/current')
       return json(200, { userID: Number(USER), username: 'rcarson', access: { user: { library: true, files: true, notes: true, write: key.write } } });
@@ -63,16 +55,15 @@ async function zotero() {
     if (url.pathname === `${base}/HUGHES17/children`) return json(200, []);
     const item = ITEMS.find((i) => url.pathname === `${base}/${i.key}`);
     if (item) return json(200, item);
-    if (url.pathname === `${base}/PDF1/file`) return void res.writeHead(200, { 'Content-Type': 'application/pdf' }).end(pdf);
-    if (url.pathname === base && req.method === 'POST') {
+    if (url.pathname === `${base}/PDF1/file`) return route.fulfill({ status: 200, headers: cors, contentType: 'application/pdf', body: pdf });
+    if (url.pathname === base && req.method() === 'POST') {
       if (!key.write) return json(403, 'Write access denied');
-      posted.push(JSON.parse(await body(req)));
+      posted.push(req.postDataJSON());
       return json(200, { successful: { 0: { key: 'NEWNOTE' } }, failed: {} });
     }
-    json(404, 'Not found');
+    return json(404, 'Not found');
   });
-  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
-  return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, posted, close: () => new Promise((done) => server.close(done)) };
+  return posted;
 }
 
 const dialog = (page: Page, name = 'Add from Zotero') => page.getByRole('dialog', { name });
@@ -88,9 +79,8 @@ async function connect(page: Page, user: string, key: string) {
   await dialog(page).getByRole('button', { name: 'Connect' }).click();
 }
 
-test('a Zotero library is connected with the reader’s own key, searched, imported from with its metadata, and sent notes back', async ({ page }) => {
-  const server = await zotero();
-  await page.addInitScript((url) => localStorage.setItem('gloss:zotero-api', url), server.url);
+test('a Zotero library is connected with the reader’s own key, searched, imported from with its metadata, and sent notes back', async ({ page, context }) => {
+  const posted = await zotero(context);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openProject(page);
   await openZotero(page);
@@ -147,8 +137,8 @@ test('a Zotero library is connected with the reader’s own key, searched, impor
     await expect(send.getByRole('status')).toHaveText('Sent 1 highlight to Zotero.');
     await shot(page, 'zotero-sent');
     await page.keyboard.press('Escape');
-    expect(server.posted).toHaveLength(1);
-    const [note] = server.posted[0] as { itemType: string; parentItem: string; note: string }[];
+    expect(posted).toHaveLength(1);
+    const [note] = posted[0] as { itemType: string; parentItem: string; note: string }[];
     expect(note!.itemType).toBe('note');
     expect(note!.parentItem).toBe('CARSON62');
     expect(note!.note).toContain('“The sea around us is the oldest');
@@ -167,7 +157,6 @@ test('a Zotero library is connected with the reader’s own key, searched, impor
     await send.getByRole('button', { name: 'Connect' }).click();
     await send.getByRole('button', { name: 'Send notes' }).click();
     await expect(send.getByRole('alert')).toContainText('This key can only read your library.');
-    expect(server.posted).toHaveLength(1);
+    expect(posted).toHaveLength(1);
   });
-  await server.close();
 });

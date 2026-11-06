@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
-import { ARTIFACTS, card, inside, readPdf, shot, textBox, type Box } from './helpers';
+import { ARTIFACTS, card, inside, readPdf, shot, textBox, worksOffline, type Box } from './helpers';
 
 // Reading a scan takes a while on a machine busy with other tests, and some tests read two.
 test.describe.configure({ timeout: 180_000 });
@@ -83,9 +83,9 @@ async function addScan(page: Page, name: string, lines = LINES, font?: string) {
   return { buffer, words };
 }
 
-test('a scanned page is offered for reading, and its text becomes selectable, lined up with the picture, searchable and undoable', async ({ page }) => {
+test('a scanned page is offered for reading, and its text becomes selectable, lined up with the picture, searchable and undoable', async ({ page, baseURL }) => {
   const outside: string[] = [];
-  page.on('request', (r) => !r.url().startsWith('http://localhost') && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && outside.push(r.url()));
+  page.on('request', (r) => /^https?:/.test(r.url()) && new URL(r.url()).origin !== new URL(baseURL!).origin && outside.push(r.url()));
   await page.goto('/');
   const { buffer, words } = await addScan(page, 'Lighthouse log.pdf');
   await expect(sheet(page).locator('canvas')).toBeVisible();
@@ -206,7 +206,7 @@ test('a scan in Hindi is read in Hindi, and its words are written into the PDF i
 
 test('once used, reading scans works with no network', async ({ page, context }) => {
   await page.goto('/');
-  await expect(page.getByRole('status')).toHaveText(/works offline/);
+  await worksOffline(page);
   // Loaded again, the page is in the service worker's hands.
   await page.goto('/');
   await addScan(page, 'Lighthouse log.pdf');

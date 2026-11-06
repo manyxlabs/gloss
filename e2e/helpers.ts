@@ -36,6 +36,9 @@ export async function openWith(page: Page, files: { name: string; buffer: Buffer
   await expect(page.locator('.textLayer span').first()).toBeVisible({ timeout: 15_000 });
 }
 
+/** Waits for the service worker to say Gloss works offline. It caches the whole app first, which takes longer on a busy machine or over the internet. */
+export const worksOffline = (page: Page) => expect(page.getByRole('status')).toHaveText(/works offline/, { timeout: 30_000 });
+
 export async function openProject(page: Page) {
   await page.goto('/');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
