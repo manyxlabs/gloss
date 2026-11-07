@@ -216,6 +216,14 @@ a {
   font-size: 13px;
   color: var(--muted);
   letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* In Indian languages the maker's name runs long, and on the narrowest phones the header needs the room for the language switch. */
+@media (max-width: 420px) {
+  .brand small:not(:lang(en)) {
+    display: none;
+  }
 }
 
 .logo {
@@ -311,6 +319,20 @@ a {
   line-height: 1.04;
   letter-spacing: -0.045em;
   margin: 0 0 18px;
+  /* A word longer than a phone is wide, as some Malayalam ones are, breaks rather than pushing the page wider. */
+  overflow-wrap: break-word;
+}
+
+/* Indian scripts' vowel signs reach far above and below the line, and tight tracking breaks up their joined letters. */
+.hero h1:not(:lang(en)) {
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* Tamil and Malayalam words run long; smaller, the longest still fits a phone's line whole. */
+.hero h1:lang(ta),
+.hero h1:lang(ml) {
+  font-size: clamp(26px, 4vw, 44px);
 }
 
 .hero h1 em {
@@ -711,7 +733,7 @@ a.button.primary {
 
 @media (max-width: 860px) {
   .hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
     padding-top: 24px;
   }
@@ -993,9 +1015,14 @@ a.button.primary {
   display: flex;
   align-items: center;
   border-radius: 9px;
-  /* Narrower than the strip, which on a phone is narrower than 220px, so the open tab can be shown whole between its faded sides. */
-  max-width: min(220px, 100% - 2 * var(--fade));
+  /* The strip is as wide as its tabs until they overflow it, so a room taken off its width here would cut a tab that fits. */
+  max-width: min(220px, 100%);
   flex: none;
+}
+
+/* Narrower than the overflowing strip, which on a phone is narrower than 220px, so the open tab can be shown whole between its faded sides. */
+.tab-list[data-more] .tab {
+  max-width: min(220px, 100% - 2 * var(--fade));
 }
 
 .tab.active {
@@ -2744,6 +2771,8 @@ button.screens.linked {
 
 .language select {
   appearance: none;
+  /* As wide as the language shown, not the longest in the list, so no gap opens before what follows. */
+  field-sizing: content;
   height: 32px;
   max-width: 10em;
   padding: 0 10px 0 31px;

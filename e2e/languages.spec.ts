@@ -4,8 +4,9 @@ import { CATALOGUES } from '../src/i18n/pages';
 import { ESSAY } from './pdfs';
 import { pdf, shot } from './helpers';
 
-const PHONE = { width: 360, height: 780 };
-const DESKTOP = { width: 1280, height: 800 };
+/** The narrowest phones in common use; a desktop browser's window cannot be made this narrow. */
+const PHONE = { viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true };
+const DESKTOP = { viewport: { width: 1280, height: 800 } };
 const OTHERS = LANGS.filter((l) => l !== 'en');
 
 /** Every catalogue string of two words or more that this language says differently, with where it is. */
@@ -34,13 +35,28 @@ async function leaked(page: Page, lang: Lang) {
   return translated(lang).filter(([, en]) => shown.includes(en));
 }
 
-/** Controls and headings whose text does not fit them, and whether the page itself scrolls sideways. */
+/**
+ * Controls and headings whose text does not fit them, text that runs past the screen's edges (where the
+ * page clips rather than scrolls), and whether the page itself scrolls sideways.
+ */
 const overflowing = (page: Page) =>
   page.evaluate(() => {
-    const cut = [...document.querySelectorAll<HTMLElement>('button, [role=tab], [role=menuitem], a, h1, h2, h3, label, select')]
-      .filter((el) => el.offsetParent && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow !== 'ellipsis')
-      .map((el) => `${el.tagName} ${(el.innerText || el.getAttribute('aria-label') || '').slice(0, 40)}`);
-    return { cut, sideways: document.documentElement.scrollWidth > innerWidth };
+    const name = (el: HTMLElement) => `${el.tagName} ${(el.innerText || el.getAttribute('aria-label') || '').slice(0, 40)}`;
+    // Strips that scroll sideways, and the panes a phone slides out of view, are meant to reach past the edge.
+    const inScroller = (el: Element) => {
+      for (let e = el.parentElement; e; e = e.parentElement) if (/auto|scroll/.test(getComputedStyle(e).overflowX)) return true;
+      return false;
+    };
+    const shown = [...document.querySelectorAll<HTMLElement>('button, [role=tab], [role=menuitem], a, h1, h2, h3, p, li, label, select')].filter((el) => el.offsetParent);
+    const cut = shown.filter((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow !== 'ellipsis').map(name);
+    const outside = shown
+      .filter((el) => !inScroller(el) && el.closest('.panes') === null)
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && (r.right > innerWidth + 1 || r.left < -1);
+      })
+      .map(name);
+    return { cut, outside, sideways: document.documentElement.scrollWidth > innerWidth };
   });
 
 async function head(page: Page, lang: Lang, at: PublicPage) {
@@ -62,25 +78,31 @@ async function openProject(page: Page, lang: Lang) {
 
 /** Checks a page fits a phone and shows none of the English this language translates. */
 async function checked(page: Page, lang: Lang, name: string) {
-  expect(await overflowing(page), `${name} at 360px`).toEqual({ cut: [], sideways: false });
+  expect(await overflowing(page), `${name} at 360px`).toEqual({ cut: [], outside: [], sideways: false });
   expect(await leaked(page, lang), name).toEqual([]);
 }
 
-for (const lang of LANGS)
-  test(`${NAMES[lang]}: public pages say their language to search engines, and every page fits a phone untranslated text free`, async ({ page }) => {
-    await page.setViewportSize(PHONE);
-    for (const at of PAGES) {
-      const response = await page.goto(pathOf(lang, at));
-      // Served as it is: no page is reached by a redirect.
-      expect(response!.request().redirectedFrom()).toBeNull();
-      await head(page, lang, at);
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      if (lang !== 'en') await checked(page, lang, `${lang} ${at || 'start'}`);
-    }
-    await openProject(page, lang);
-    if (lang !== 'en') await checked(page, lang, `${lang} project`);
-    await shot(page, `languages-${lang}-project-phone`);
-  });
+test.describe('on a 360px phone', () => {
+  test.use(PHONE);
+  for (const lang of LANGS)
+    test(`${NAMES[lang]}: public pages say their language to search engines, and every page fits the phone with no English left`, async ({ page }) => {
+      for (const at of PAGES) {
+        const response = await page.goto(pathOf(lang, at));
+        // Served as it is: no page is reached by a redirect.
+        expect(response!.request().redirectedFrom()).toBeNull();
+        await head(page, lang, at);
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await checked(page, lang, `${lang} ${at || 'start'}`);
+      }
+      await openProject(page, lang);
+      await checked(page, lang, `${lang} project`);
+      // The phone's More menu holds the switcher, the theme and the exports.
+      await page.getByRole('button', { name: CATALOGUES[lang].workspace.more, exact: true }).click();
+      await expect(page.getByRole('combobox', { name: CATALOGUES[lang].language })).toBeVisible();
+      await checked(page, lang, `${lang} project's More menu`);
+      await shot(page, `languages-${lang}-project-phone`);
+    });
+});
 
 test('the switcher, by keyboard, opens the same page or the same project in another language, remembered for the start page only', async ({ page }) => {
   const { hi, ta } = CATALOGUES;
@@ -168,11 +190,11 @@ test('a Hindi page and project keep working, in Hindi and its font, with no netw
 
 test('screenshots: Hindi at phone and desktop sizes in both themes, and each other language’s start page', async ({ browser }) => {
   for (const colorScheme of ['light', 'dark'] as const)
-    for (const [size, viewport] of [
+    for (const [size, device] of [
       ['phone', PHONE],
       ['desktop', DESKTOP],
     ] as const) {
-      const context = await browser.newContext({ viewport, colorScheme });
+      const context = await browser.newContext({ ...device, colorScheme });
       const page = await context.newPage();
       for (const at of PAGES) {
         await page.goto(pathOf('hi', at));
@@ -184,7 +206,7 @@ test('screenshots: Hindi at phone and desktop sizes in both themes, and each oth
       await shot(page, `languages-hi-project-${size}-${colorScheme}`);
       await context.close();
     }
-  const context = await browser.newContext({ viewport: PHONE });
+  const context = await browser.newContext(PHONE);
   const page = await context.newPage();
   for (const lang of OTHERS) {
     await page.goto(pathOf(lang, ''));
