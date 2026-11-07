@@ -37,6 +37,15 @@
   color-scheme: dark;
 }
 
+/* Again, more specific: pdf.js's viewer styles, loaded with a project, set the root's colour scheme to follow the system. */
+:root:not(.dark) {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
 /* Gloss's own: opaque surfaces for working and reading, where glass would blur long scrolling areas or thin text over a page. */
 :root,
 .export-stage.light {
@@ -190,7 +199,8 @@ a {
   backdrop-filter: blur(24px) saturate(180%);
 }
 
-:where(.glass, .popup, .results, .canvas-tools, .doc-status, .doc-banner, .link-banner, .selection-bar) {
+/* Not a dialog: any author style beats the browser's own fixed position for an open modal one. */
+:where(.glass:not(dialog), .popup, .results, .canvas-tools, .doc-status, .doc-banner, .link-banner, .selection-bar) {
   position: relative;
 }
 
@@ -724,9 +734,10 @@ button.link:hover:not(:disabled) {
   color: rgb(var(--fg));
 }
 
+/* 20px rather than the portfolio's 16: the start page's links reach 18px left of it to hide a line's first dot (see .more). */
 @media (max-width: 639px) {
   .wrap {
-    padding: 0 16px;
+    padding: 0 20px;
   }
 
   .privacy {
