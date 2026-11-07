@@ -2,40 +2,26 @@ import { Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { m } from '../i18n';
 
-type Theme = 'light' | 'dark';
-const KEY = 'gloss:theme';
-
-export function initialTheme(): Theme {
-  try {
-    const saved = localStorage.getItem(KEY);
-    if (saved === 'light' || saved === 'dark') return saved;
-  } catch {
-    // Storage can be blocked; fall back to the system setting.
-  }
-  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-/** The theme's switch: a button of its own, or an item in a menu where the header has no room for it. */
+/** The theme's switch: a button of its own, or an item in a menu where the header has no room for it. The inline script in index.html applies the saved theme before first paint. */
 export function ThemeToggle({ item = false }: { item?: boolean }) {
-  const [theme, setTheme] = useState<Theme>(() => (document.documentElement.dataset.theme as Theme) ?? initialTheme());
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
   const flip = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    setTheme(next);
+    document.documentElement.classList.toggle('dark', !dark);
+    setDark(!dark);
     try {
-      localStorage.setItem(KEY, next);
+      localStorage.setItem('theme', dark ? 'light' : 'dark');
     } catch {
       // Not saved; the theme still applies for this visit.
     }
   };
-  const label = theme === 'dark' ? m.theme.useLight : m.theme.useDark;
-  const Icon = theme === 'dark' ? Sun : Moon;
+  const label = dark ? m.theme.useLight : m.theme.useDark;
+  const Icon = dark ? Sun : Moon;
   return item ? (
     <button role="menuitem" onClick={flip}>
       <Icon size={16} /> {label}
     </button>
   ) : (
-    <button className="icon" onClick={flip} aria-label={label} title={theme === 'dark' ? m.theme.light : m.theme.dark}>
+    <button className="icon" onClick={flip} aria-label={label} title={dark ? m.theme.light : m.theme.dark}>
       <Icon size={17} />
     </button>
   );

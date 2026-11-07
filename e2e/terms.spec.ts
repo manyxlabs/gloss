@@ -50,11 +50,11 @@ test('a defined term shows its definition when pointed at, goes to it, and the l
     await expect(definition(page)).toContainText('“Services” means the reef survey and the analysis work described in Schedule A.');
     await expect(definition(page)).toContainText('Defined on p. 1');
     for (const scheme of ['light', 'dark'] as const) {
-      await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+      await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
       await page.waitForTimeout(300);
       await shot(page, `terms-${scheme}`);
     }
-    await page.evaluate(() => delete document.documentElement.dataset.theme);
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
 
     await hover(page, 'Effective Date', 2);
     await expect(definition(page)).toHaveAccessibleName('Definition of Effective Date');
@@ -107,7 +107,7 @@ test('on a phone, tapping a defined term shows its definition on the screen', as
   expect(card.x).toBeGreaterThanOrEqual(0);
   expect(card.x + card.width).toBeLessThanOrEqual(390);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.waitForTimeout(300);
     await shot(page, `terms-phone-${scheme}`);
   }

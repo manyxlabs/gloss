@@ -14,7 +14,7 @@ export const PAPER: Record<InkColor, string> = {
 };
 export const SCREEN: Record<InkColor, string> = {
   ...PAPER,
-  ink: 'var(--text)',
+  ink: 'rgb(var(--fg))',
 };
 
 /** How much of a highlighter's colour covers what is under it. */

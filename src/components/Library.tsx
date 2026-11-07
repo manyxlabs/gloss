@@ -1,5 +1,5 @@
-import { FolderOpen, MonitorDown, FileDown, FoldVertical, Link2, Lock, PenLine, Search, Sparkles } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { FolderOpen, MonitorDown, FileDown, FoldVertical, Link2, Lock, PenLine, Search } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { BackupError, isBackup, restore } from '../backup';
 import type { ConvertOptions, Input } from '../convert';
 import { chosenFolder, droppedFolder, groupBy, openable, type FolderFile } from '../convert/folder';
@@ -19,6 +19,7 @@ import { WebPicker } from './WebPicker';
 import { LanguageSelect } from './LanguageSelect';
 import { href, m } from '../i18n';
 import { rich } from '../i18n/rich';
+import { useMotion } from '../motion';
 
 const FEATURES = [
   [Link2, m.library.features.excerpts],
@@ -44,19 +45,19 @@ function Illustration() {
       <g>
         <rect x="214" y="26" width="138" height="56" rx="8" fill="var(--panel)" stroke="var(--border)" />
         <rect x="214" y="26" width="4" height="56" rx="2" fill="var(--edge-yellow)" />
-        <rect x="228" y="40" width="110" height="5" rx="2.5" fill="var(--muted)" opacity="0.5" />
-        <rect x="228" y="52" width="90" height="5" rx="2.5" fill="var(--muted)" opacity="0.5" />
+        <rect x="228" y="40" width="110" height="5" rx="2.5" fill="rgb(var(--muted))" opacity="0.5" />
+        <rect x="228" y="52" width="90" height="5" rx="2.5" fill="rgb(var(--muted))" opacity="0.5" />
         <rect x="228" y="66" width="44" height="8" rx="4" fill="var(--panel-2)" />
       </g>
       <g>
         <rect x="214" y="134" width="138" height="52" rx="8" fill="var(--panel)" stroke="var(--border)" />
         <rect x="214" y="134" width="4" height="52" rx="2" fill="var(--edge-blue)" />
-        <rect x="228" y="148" width="104" height="5" rx="2.5" fill="var(--muted)" opacity="0.5" />
+        <rect x="228" y="148" width="104" height="5" rx="2.5" fill="rgb(var(--muted))" opacity="0.5" />
         <rect x="228" y="162" width="44" height="8" rx="4" fill="var(--panel-2)" />
       </g>
-      <path d="M283 82 C 283 105, 300 110, 300 134" fill="none" stroke="var(--muted)" strokeWidth="1.5" />
-      <rect x="296" y="96" width="56" height="22" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" />
-      <rect x="304" y="105" width="40" height="4" rx="2" fill="var(--accent)" opacity="0.7" />
+      <path d="M283 82 C 283 105, 300 110, 300 134" fill="none" stroke="rgb(var(--muted))" strokeWidth="1.5" />
+      <rect x="296" y="96" width="56" height="22" rx="6" fill="var(--selected)" stroke="rgb(var(--accent))" />
+      <rect x="304" y="105" width="40" height="4" rx="2" fill="rgb(var(--accent))" opacity="0.7" />
     </svg>
   );
 }
@@ -71,6 +72,7 @@ export function Library() {
   const folderInput = useRef<HTMLInputElement>(null);
   const restoreInput = useRef<HTMLInputElement>(null);
   const install = useInstall();
+  useMotion(projects);
 
   useEffect(() => {
     document.title = m.meta.title;
@@ -262,6 +264,7 @@ export function Library() {
         void (folder ? startFolder(folder) : start([...e.dataTransfer.files]));
       }}
     >
+      <div className="progress-bar" aria-hidden="true" />
       <header className="bar">
         <span className="brand">
           <Logo />
@@ -291,24 +294,26 @@ export function Library() {
             <>
               <section className="hero">
                 <div>
-                  <span className="eyebrow">
-                    <Sparkles size={14} /> {m.library.eyebrow}
-                  </span>
-                  <h1>{rich(m.library.heading, { em: (s) => <em>{s}</em> })}</h1>
-                  <p>{m.library.intro}</p>
+                  <p className="badge glass reveal">{m.library.eyebrow}</p>
+                  <h1 className="reveal" style={{ '--i': 1 } as CSSProperties}>
+                    {rich(m.library.heading, { em: (s) => <em>{s}</em> })}
+                  </h1>
+                  <p className="reveal" style={{ '--i': 2 } as CSSProperties}>
+                    {m.library.intro}
+                  </p>
                   {actions}
                   {more}
                   {clouds}
                   {hint}
                   {problemList}
                 </div>
-                <div className="art-frame glass">
+                <div className="art-frame glass spotlight reveal" style={{ '--i': 3 } as CSSProperties}>
                   <Illustration />
                 </div>
               </section>
               <ul className="features">
-                {FEATURES.map(([Icon, { title, text }]) => (
-                  <li key={title} className="glass">
+                {FEATURES.map(([Icon, { title, text }], i) => (
+                  <li key={title} className="glass spotlight reveal" style={{ '--i': i % 3 } as CSSProperties}>
                     <Icon size={20} />
                     <strong>{title}</strong>
                     <span>{text}</span>

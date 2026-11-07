@@ -60,7 +60,7 @@ export function Notifications() {
     const what = 'why' in a ? (a.why === 'mention' ? m.homeNotices.mentioned(thing) : m.homeNotices.replied(thing)) : m.homeNotices.did[a.op](thing);
     const body = (
       <>
-        <span className="avatar" style={{ '--peer': person?.color ?? 'var(--muted)' } as React.CSSProperties} aria-hidden="true">
+        <span className="avatar" style={{ '--peer': person?.color ?? 'rgb(var(--muted))' } as React.CSSProperties} aria-hidden="true">
           {(person?.name ?? '?')[0]!.toUpperCase()}
         </span>
         <span className="what">

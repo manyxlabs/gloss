@@ -5,7 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- Each page's title, description, languages and link preview, in its language: see src/i18n/pages.ts. -->
     <!--page-head-->
-    <meta name="theme-color" content="#5145e5" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050506" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f7" />
+    <script>
+      // Runs before first paint so a saved or system theme never flashes the other one.
+      // `gloss:theme` is where Gloss kept the choice before it took the portfolio's key.
+      try {
+        var theme = localStorage.getItem('theme') || localStorage.getItem('gloss:theme');
+      } catch (e) {}
+      if (theme ? theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta property="og:type" content="website" />

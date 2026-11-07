@@ -69,8 +69,8 @@ export default defineConfig({
         name: 'Gloss',
         short_name: 'Gloss',
         description: 'Read documents next to a canvas for your thinking. Excerpt, connect and annotate PDFs, privately.',
-        theme_color: '#5145e5',
-        background_color: '#f4f5f8',
+        theme_color: '#f5f5f7',
+        background_color: '#f5f5f7',
         display: 'standalone',
         start_url: '/',
         icons: [

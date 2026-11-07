@@ -24,6 +24,8 @@ function remember(key: string, value: string) {
   }
 }
 
+const themeNow = () => (root.classList.contains('dark') ? 'dark' : 'light');
+
 const saved = remembered(LOOK_KEY) as PageLook | null;
 
 /**
@@ -31,14 +33,14 @@ const saved = remembered(LOOK_KEY) as PageLook | null;
  * than turned negative with the page. `theme` mirrors the app's theme, which the toggle sets on the
  * root element.
  */
-export const useReading = create<{ look: PageLook; keepImages: boolean; theme: string | undefined }>(() => ({
+export const useReading = create<{ look: PageLook; keepImages: boolean; theme: 'dark' | 'light' }>(() => ({
   look: saved && PAGE_LOOKS.includes(saved) ? saved : 'light',
   keepImages: remembered(IMAGES_KEY) !== '0',
-  theme: root.dataset.theme,
+  theme: themeNow(),
 }));
 
 /** What the pages show now, with `theme` resolved. */
-export const shownLook = ({ look, theme }: { look: PageLook; theme: string | undefined }) => (look === 'theme' ? (theme === 'dark' ? 'dark' : 'light') : look);
+export const shownLook = ({ look, theme }: { look: PageLook; theme: 'dark' | 'light' }) => (look === 'theme' ? (theme === 'dark' ? 'dark' : 'light') : look);
 
 export const setPageLook = (look: PageLook) => (remember(LOOK_KEY, look), useReading.setState({ look }));
 export const setKeepImages = (keepImages: boolean) => (remember(IMAGES_KEY, keepImages ? '1' : '0'), useReading.setState({ keepImages }));
@@ -47,4 +49,4 @@ export const setKeepImages = (keepImages: boolean) => (remember(IMAGES_KEY, keep
 const apply = () => void (root.dataset.pages = shownLook(useReading.getState()));
 useReading.subscribe(apply);
 apply();
-new MutationObserver(() => useReading.setState({ theme: root.dataset.theme })).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+new MutationObserver(() => useReading.setState({ theme: themeNow() })).observe(root, { attributes: true, attributeFilter: ['class'] });

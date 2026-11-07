@@ -66,7 +66,7 @@ test('the sidebar lists the contents, page thumbnails and highlights, and each j
   await expect(page.locator('.hl.flash').first()).toBeInViewport();
   await expect(pageNo(page)).toHaveText('Page 1 / 12');
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.waitForTimeout(300);
     await shot(page, `sidebar-highlights-${scheme}`);
   }

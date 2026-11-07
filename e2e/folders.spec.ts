@@ -208,7 +208,7 @@ test('a file that took too long to make is sent from a tap on its notice, and wh
   const notice = page.getByRole('status').filter({ hasText: 'is ready' });
   await expect(notice).toHaveText('“Reef essay (annotated).pdf” is ready. Send');
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+    await page.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
     await page.waitForTimeout(300);
     await shot(page, `send-ready-phone-${theme}`);
   }
@@ -274,7 +274,7 @@ test('folder import and sending look right on a desktop, a tablet and a phone, i
     const folder = await researchFolder(page);
     await chooseFolder(page, page.getByRole('button', { name: 'Open a folder' }), folder);
     for (const theme of ['light', 'dark'] as const) {
-      await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+      await page.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
       // Nothing is wider than the screen.
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(options.viewport.width);
       await page.waitForTimeout(300);
@@ -285,7 +285,7 @@ test('folder import and sending look right on a desktop, a tablet and a phone, i
       .click();
     await expect(page.getByRole('region', { name: 'Your projects' }).locator('li strong')).toHaveCount(3, { timeout: 20_000 });
     for (const theme of ['light', 'dark'] as const) {
-      await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+      await page.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(options.viewport.width);
       await page.waitForTimeout(300);
       await shot(page, `folder-library-${label}-${theme}`);
@@ -295,7 +295,7 @@ test('folder import and sending look right on a desktop, a tablet and a phone, i
     await expect(page.locator('.doc-status')).toBeVisible({ timeout: 20_000 });
     await excerptSomething(page);
     for (const theme of ['light', 'dark'] as const) {
-      await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+      await page.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
       await exportNotes(page);
       await page.waitForTimeout(300);
       await shot(page, `send-notes-menu-${label}-${theme}`);
@@ -380,7 +380,7 @@ test('notices never cover the canvas minimap or any controls, and a slow export 
           .click();
       if (label === 'desktop') await expect(page.getByRole('img', { name: 'Map of the canvas' })).toBeVisible();
       for (const theme of ['light', 'dark'] as const) {
-        await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+        await page.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
         await page.waitForTimeout(300);
         expect(await covered(page)).toEqual([]);
         await shot(page, `notices-${label}${view ? `-${view.toLowerCase()}` : ''}-${theme}`);
