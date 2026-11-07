@@ -291,6 +291,14 @@ To add a language:
 
 `e2e/languages.spec.ts` checks every language: the pages' language tags, the switcher, that nothing overflows at 360px and that no English is left on translated pages.
 
+## Design
+
+Gloss follows the design of [www.manishonai.in](https://www.manishonai.in/), shared by every Manyx Labs product: its colour tokens, glass, buttons and chips are copied into the top of `src/styles.css` from that site's `src/index.css`, so change them there first.
+Colours are RGB channels used as `rgb(var(--fg) / 0.8)`, and the `dark` class on the root element switches them; `index.html` applies the saved theme (`localStorage` key `theme`) before first paint.
+The emerald accent marks only small things (links, focus rings, a logo, a live dot, the scroll bar); buttons are monochrome and the background is a neutral halo over a dot grid.
+Text is set in Geist and Geist Mono, self-hosted, with each Indian script's Noto face after them.
+The start and privacy pages fade into view and glow under the pointer (`src/motion.ts`); working screens stay still.
+
 ## Contributing
 
 Issues and pull requests are welcome at [manyxlabs/gloss](https://github.com/manyxlabs/gloss).
