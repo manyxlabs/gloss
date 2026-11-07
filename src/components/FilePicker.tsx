@@ -4,6 +4,7 @@ import { chosenFolder } from '../convert/folder';
 import { ACCEPT } from '../convert/formats';
 import { addFolder } from '../store/docs';
 import { addDocs } from '../store/project';
+import { m } from '../i18n';
 
 /** Adds files to the open project, or with `folder` every file in a folder and the folders inside it. */
 export function FilePicker({
@@ -25,12 +26,12 @@ export function FilePicker({
       <button
         className={kind === 'text' ? undefined : kind}
         disabled={busy}
-        aria-label={busy ? 'Adding…' : label}
-        title={folder ? 'Add every file Gloss can open from a folder, and from the folders inside it' : 'Add PDFs, Word or PowerPoint files, images, text or Markdown'}
+        aria-label={busy ? m.home.adding : label}
+        title={folder ? m.homeFiles.folderTitle : m.homeFiles.filesTitle}
         onClick={() => input.current!.click()}
       >
         {busy && kind !== 'icon' ? (
-          'Adding…'
+          m.home.adding
         ) : (
           <>
             <Icon size={kind === 'icon' ? 16 : 15} /> {kind !== 'icon' && <span className="label">{label}</span>}

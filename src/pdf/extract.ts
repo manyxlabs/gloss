@@ -1,9 +1,11 @@
 // Taking pages out of a document: as a PDF to download, or as a new document in the project with
 // the marks on those pages copied onto it.
+import { m } from '../i18n';
 import { addFiles } from '../store/db';
 import { edit, setActiveDoc, uid, type Pane } from '../store/project';
 import type { DocMeta, Highlight } from '../types';
 import { arrange, editable, PROTECTED, prune, remap, rewrite, type Sheet } from './pages';
+import { ReaderError } from './pdfjs';
 
 /** Page numbers as a reader writes them: runs joined, as in 2-4, 7. */
 export const pageRanges = (pages: number[]) =>
@@ -20,12 +22,12 @@ export const pageRanges = (pages: number[]) =>
 /** A PDF of some of a document's pages in order, cut from its current file with its contents, links and forms kept where they can be. */
 export async function pagesPdf(docId: string, pages: number[]) {
   const open = await editable(docId, PROTECTED);
-  if (typeof open === 'string') throw new Error(open);
+  if (typeof open === 'string') throw new ReaderError(open);
   const sheets: Sheet[] = pages.map((page) => ({ page, turn: 0 }));
   arrange(open.pdf, sheets, []);
   prune(open.pdf);
   const blob = new Blob([(await open.pdf.save({ addDefaultPage: false, updateFieldAppearances: false })) as BlobPart], { type: 'application/pdf' });
-  return { doc: open.doc, sheets, blob, name: `${open.doc.name} (${pages.length === 1 ? 'page' : 'pages'} ${pageRanges(pages)})` };
+  return { doc: open.doc, sheets, blob, name: m.enginePdf.extracted(open.doc.name, pages.length, pageRanges(pages)) };
 }
 
 /**
@@ -34,7 +36,7 @@ export async function pagesPdf(docId: string, pages: number[]) {
  * and opens it in the pane given. One step to undo. Resolves with the problems to show, if any.
  */
 export const extractPages = (docId: string, pages: number[], pane: Pane) =>
-  rewrite('The pages could not be extracted.', async () => {
+  rewrite(m.enginePdf.notExtracted, async () => {
     const { doc, sheets, blob, name } = await pagesPdf(docId, pages);
     const id = uid();
     await addFiles([[id, blob]]);

@@ -89,6 +89,7 @@ import { WebPicker } from './WebPicker';
 import { MoreMenu } from './Menu';
 import { Tools } from './Tools';
 import { usePaneRoom } from '../panes';
+import { m } from '../i18n';
 
 // pdf.js tidies its text layers on every keyup and selection change in the document, and that
 // change to the page ends the browser's undo step for typing in any field after one letter.
@@ -118,8 +119,6 @@ const MIN_SNIP = 8;
 const SIDEBAR_BESIDE = 560;
 /** Narrower still, as one of two or three panes, the toolbar leaves out the zoom percentage; the steps either side of it stay. */
 const TIGHT = 360;
-
-const SIZE_NAMES = ['small', 'medium', 'large'];
 
 /** The pane last pressed in, which Ctrl+D bookmarks. */
 let lastPane: Pane = 0;
@@ -595,8 +594,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const s = stroke.current;
     if (!s) return;
     // Coalesced events keep a fast stroke smooth: the screen may report fewer moves than the pen made.
-    for (const m of e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent])
-      s.points.push([(m.clientX - s.box.left) / s.box.width, (m.clientY - s.box.top) / s.box.height, m.pressure || 0.5]);
+    for (const p of e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent])
+      s.points.push([(p.clientX - s.box.left) / s.box.width, (p.clientY - s.box.top) / s.box.height, p.pressure || 0.5]);
     s.ruler.move(e);
     drawLive(s);
   };
@@ -759,9 +758,9 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     if (!project || !active) return;
     setExporting(true);
     try {
-      download(`${active.name} (annotated).pdf`, await withProgress('Making the annotated PDF…', () => annotatedPdf(project, active.id)));
+      download(m.doc.annotatedFile(active.name), await withProgress(m.doc.makingAnnotated, () => annotatedPdf(project, active.id)));
     } catch (err) {
-      onProblems([`The PDF could not be exported: ${(err as Error).message}`]);
+      onProblems([m.doc.exportFailed((err as Error).message)]);
     } finally {
       setExporting(false);
     }
@@ -786,7 +785,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     const at = next ? { page: Number(next), fy: 0 } : (top ?? { page: status.page, fy: 0 });
     const y = Math.max(0, Math.round((at.fy - 0.01) * 1e4) / 1e4);
     const words = (await textIn(activeDocId, active?.password, at.page, [[0, y, 1, 1 - y]]).catch(() => '')).split(' ').filter(Boolean);
-    const name = words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : `Page ${at.page}`;
+    const name = words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : m.doc.page(at.page);
     const mark = addBookmark(activeDocId, at.page, y, name);
     setMarked(true);
     setTimeout(() => setMarked(false), 1200);
@@ -837,7 +836,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     <section
       ref={section}
       className={`doc-pane${dropping ? ' dropping' : ''}${narrow ? ' narrow' : ''}${tight ? ' tight' : ''}${sidebar && active ? (narrow ? ' sidebar-over' : ' sidebar-beside') : ''}`}
-      aria-label={['Documents', 'Second document', 'Third document'][pane]}
+      aria-label={m.doc.panes[pane]}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
@@ -849,14 +848,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
     >
       <div className="tabs">
         {active && (
-          <button
-            className="icon"
-            aria-label="Contents, pages and highlights"
-            title="Contents, pages and highlights"
-            aria-pressed={sidebar}
-            aria-expanded={sidebar}
-            onClick={() => setSidebar(!sidebar)}
-          >
+          <button className="icon" aria-label={m.doc.sidebar} title={m.doc.sidebar} aria-pressed={sidebar} aria-expanded={sidebar} onClick={() => setSidebar(!sidebar)}>
             <PanelLeft size={16} />
           </button>
         )}
@@ -865,7 +857,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         <div
           className="tab-list"
           role="tablist"
-          aria-label="Open documents"
+          aria-label={m.doc.openDocs}
           ref={tabList}
           onKeyDown={onTabKeys}
           onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setTabDrop(null)}
@@ -903,17 +895,17 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
                 title={[
                   d.name,
                   d.zotero && `${d.zotero.title}${d.zotero.citationKey ? ` (@${d.zotero.citationKey})` : ''}`,
-                  d.source && `${d.source.kind === 'link' ? 'From' : 'Converted from'} ${d.source.url ?? d.source.name}`,
+                  d.source && (d.source.kind === 'link' ? m.doc.from : m.doc.convertedFrom)(d.source.url ?? d.source.name ?? ''),
                 ]
                   .filter(Boolean)
                   .join('\n')}
               >
-                {d.pinned && <Pin size={12} className="tab-pin" aria-label="Pinned" />}
-                {d.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
+                {d.pinned && <Pin size={12} className="tab-pin" aria-label={m.doc.pinned} />}
+                {d.local && <Lock size={12} aria-label={m.doc.onlyHere} className="lock" />}
                 {d.name}
               </button>
               {d.id === activeDocId && <DocMenu doc={d} onProblems={onProblems} />}
-              <button className="close" aria-label={`Remove ${d.name}`} tabIndex={d.id === activeDocId ? 0 : -1} onClick={() => confirmRemove(d)}>
+              <button className="close" aria-label={m.doc.remove(d.name)} tabIndex={d.id === activeDocId ? 0 : -1} onClick={() => confirmRemove(d)}>
                 ×
               </button>
             </div>
@@ -921,22 +913,17 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         </div>
         {!pane && docs.length > 0 && (
           <>
-            <FilePicker label="Add file" onProblems={onProblems} />
+            <FilePicker label={m.doc.addFile} onProblems={onProblems} />
             <WebPicker add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
           </>
         )}
         {last && pane + 1 < room && docs.length > 0 && (
-          <button
-            className="icon side"
-            aria-label={pane ? 'Open a third pane' : 'Open side by side'}
-            title={pane ? 'Open a third document, or another place, beside these' : 'Open a second document, or another place in this one, side by side'}
-            onClick={openPane}
-          >
+          <button className="icon side" aria-label={pane ? m.doc.openThird : m.doc.openSecond} title={pane ? m.doc.openThirdTitle : m.doc.openSecondTitle} onClick={openPane}>
             {pane ? <Columns3 size={16} /> : <Columns2 size={16} />}
           </button>
         )}
         {pane > 0 && (
-          <button className={`icon${last && pane + 1 < room ? '' : ' side'}`} aria-label="Close this pane" title="Close this pane" onClick={() => closePane(pane as 1 | 2)}>
+          <button className={`icon${last && pane + 1 < room ? '' : ' side'}`} aria-label={m.doc.closePane} title={m.doc.closePane} onClick={() => closePane(pane as 1 | 2)}>
             <X size={16} />
           </button>
         )}
@@ -946,9 +933,9 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         {sidebar && active && (
           <>
             {narrow && <div className="side-backdrop" onClick={() => setSidebar(false)} />}
-            <aside className="doc-sidebar" aria-label="Contents, pages and highlights">
+            <aside className="doc-sidebar" aria-label={m.doc.sidebar}>
               {narrow && (
-                <button className="icon side-close" aria-label="Close the sidebar" title="Close the sidebar" onClick={() => setSidebar(false)}>
+                <button className="icon side-close" aria-label={m.doc.closeSidebar} title={m.doc.closeSidebar} onClick={() => setSidebar(false)}>
                   <X size={16} />
                 </button>
               )}
@@ -969,7 +956,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         >
           <div className="pdfViewer" ref={viewerDiv} />
           {shown?.editing && ('anchor' in shown || highlight) && (
-            <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Comment">
+            <div className={`popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label={m.doc.comment}>
               <NoteEditor
                 commentId={comment?.id}
                 note={comment?.text}
@@ -996,15 +983,15 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               className={`popup${shown.below ? ' below' : ''}`}
               style={{ left: shown.x, top: shown.y }}
               role="toolbar"
-              aria-label="Selection"
+              aria-label={m.doc.selection}
               onMouseDown={(e) => e.preventDefault()}
             >
               <button className="primary" onClick={() => excerpt(fromSelection(shown.anchor, color).id)}>
-                Excerpt
+                {m.doc.excerpt}
               </button>
               <ColorPicker
                 current={color}
-                label={(name) => `Highlight ${name}`}
+                label={m.doc.highlightIn}
                 onPick={(c) => {
                   setColor(c);
                   fromSelection(shown.anchor, c);
@@ -1013,8 +1000,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               <span className="sep" />
               <button
                 className="icon"
-                aria-label="Comment"
-                title="Highlight with a comment in the margin"
+                aria-label={m.doc.addComment}
+                title={m.doc.commentTitle}
                 // The comment is written below the selection, where a box taller than the toolbar has room.
                 onClick={() => (setDraftTags([]), setPopup({ ...(selectionPopup(scroller.current!, true, activeDocId) ?? shown), editing: true }))}
               >
@@ -1022,8 +1009,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               </button>
               <button
                 className="icon"
-                aria-label="Highlight with tag"
-                title="Highlight with a tag"
+                aria-label={m.doc.highlightTag}
+                title={m.doc.highlightTagTitle}
                 onClick={() => {
                   // Below the selection's last line, as the comment editor is, where the list has room.
                   const at = selectionPopup(scroller.current!, true, activeDocId) ?? shown;
@@ -1035,8 +1022,8 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               </button>
               <button
                 className="icon"
-                aria-label={linking ? 'Link here' : 'Link'}
-                title={linking ? 'Make this the other end' : 'Link this passage to another'}
+                aria-label={linking ? m.doc.linkHere : m.doc.link}
+                title={linking ? m.doc.linkHereTitle : m.doc.linkTitle}
                 onClick={() => {
                   if (linking) {
                     getSelection()?.removeAllRanges();
@@ -1048,13 +1035,13 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               >
                 <Link2 size={17} />
               </button>
-              <button className="icon" aria-label="Squeeze" title="Squeeze these lines out of view" onClick={() => squeeze(shown.anchor)}>
+              <button className="icon" aria-label={m.doc.squeeze} title={m.doc.squeezeTitle} onClick={() => squeeze(shown.anchor)}>
                 <FoldVertical size={17} />
               </button>
               <button
                 className="icon"
-                aria-label={copied ? 'Copied' : 'Copy'}
-                title={copied ? 'Copied' : 'Copy'}
+                aria-label={copied ? m.doc.copied : m.doc.copy}
+                title={copied ? m.doc.copied : m.doc.copy}
                 onClick={async () => {
                   await navigator.clipboard.writeText(shown.anchor.text);
                   setCopied(true);
@@ -1067,7 +1054,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           )}
           {shown && 'links' in shown && shown.links && highlight && <LinkPopover highlight={highlight} pane={pane} x={shown.x} y={shown.y} onClose={() => setPopup(null)} />}
           {shown && 'tagging' in shown && shown.tagging && highlight && (
-            <div className={`popup tag-popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label="Tags">
+            <div className={`popup tag-popup${shown.below ? ' below' : ''}`} style={{ left: shown.x, top: shown.y }} role="dialog" aria-label={m.doc.tags}>
               <TagPicker on={highlight.tags ?? []} onToggle={(id, on, fresh) => setTag({ highlights: [highlight.id] }, id, on, !fresh)} onClose={() => setPopup(null)} />
             </div>
           )}
@@ -1076,25 +1063,25 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               className={`popup${shown.below ? ' below' : ''}`}
               style={{ left: shown.x, top: shown.y }}
               role="toolbar"
-              aria-label="Highlight"
+              aria-label={m.doc.highlight}
               onMouseDown={(e) => e.preventDefault()}
             >
               {card ? (
                 <button className="primary" onClick={() => (setPopup(null), showCard(card.id))}>
-                  Show on canvas
+                  {m.doc.showOnCanvas}
                 </button>
               ) : (
                 <button className="primary" onClick={() => (setPopup(null), excerpt(highlight.id))}>
-                  Excerpt
+                  {m.doc.excerpt}
                 </button>
               )}
-              <ColorPicker current={highlight.color} label={(name) => `Make it ${name}`} onPick={(c) => recolor(highlight.id, c)} />
+              <ColorPicker current={highlight.color} label={m.doc.makeIt} onPick={(c) => recolor(highlight.id, c)} />
               <span className="sep" />
               {highlight.typed ? (
                 <button
                   className="icon"
-                  aria-label={`Text size: ${SIZE_NAMES[TEXT_SIZES.indexOf(highlight.typed.size)] ?? 'other'}`}
-                  title="Text size: small, medium or large"
+                  aria-label={m.doc.textSize(m.doc.sizes[TEXT_SIZES.indexOf(highlight.typed.size)] ?? m.doc.otherSize)}
+                  title={m.doc.textSizeTitle}
                   onClick={() => sizeBox(scroller.current!, highlight.id)}
                 >
                   <ALargeSmall size={17} />
@@ -1102,24 +1089,24 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
               ) : (
                 <button
                   className="icon"
-                  aria-label={comment ? 'Edit comment' : 'Comment'}
-                  title={comment ? 'Edit the comment in the margin' : 'Add a comment in the margin'}
+                  aria-label={comment ? m.doc.editComment : m.doc.addComment}
+                  title={comment ? m.doc.editCommentTitle : m.doc.addCommentTitle}
                   onClick={() => setPopup({ ...shown, below: true, editing: true })}
                 >
                   <MessageSquare size={16} />
                 </button>
               )}
-              <button className="icon" aria-label="Tag" title="Tag this passage" onClick={() => setPopup({ ...shown, below: true, tagging: true })}>
+              <button className="icon" aria-label={m.doc.tag} title={m.doc.tagTitle} onClick={() => setPopup({ ...shown, below: true, tagging: true })}>
                 <Tag size={16} />
               </button>
-              <button className="icon" aria-label="Link" title="Link this passage to another" onClick={() => (setPopup(null), startLinking({ kind: 'link', from: highlight.id }))}>
+              <button className="icon" aria-label={m.doc.link} title={m.doc.linkTitle} onClick={() => (setPopup(null), startLinking({ kind: 'link', from: highlight.id }))}>
                 <Link2 size={16} />
               </button>
               <CopyLink target={{ kind: 'h', id: highlight.id }} />
               <button
                 className="icon"
-                aria-label="Delete"
-                title={highlight.typed ? 'Delete text box (Delete)' : 'Delete highlight'}
+                aria-label={m.doc.delete}
+                title={highlight.typed ? m.doc.deleteBox : m.doc.deleteHighlight}
                 onClick={() => (setPopup(null), removeHighlight(highlight.id))}
               >
                 <Trash2 size={16} />
@@ -1141,19 +1128,19 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         </svg>
         {band && (
           <div className={`squeeze-band${band.ready ? ' ready' : ''}`} style={{ top: band.top, height: band.height }}>
-            <span>{band.ready ? 'Release to squeeze' : 'Pinch to squeeze'}</span>
+            <span>{band.ready ? m.doc.releaseToSqueeze : m.doc.pinchToSqueeze}</span>
           </div>
         )}
 
         {!docs.length && !pane && (
           <div className="empty">
             <p>
-              <span className="mouse-only">Drop PDFs, Word or PowerPoint files, images, text or whole folders here, or add a web page, to start reading.</span>
-              <span className="touch-only">Add PDFs, Word or PowerPoint files, images, text, a folder or a web page to start reading.</span>
+              <span className="mouse-only">{m.doc.emptyMouse}</span>
+              <span className="touch-only">{m.doc.emptyTouch}</span>
             </p>
             <div className="actions">
-              <FilePicker label="Choose files" kind="primary" onProblems={onProblems} />
-              <FilePicker label="Choose a folder" kind="text" folder onProblems={onProblems} />
+              <FilePicker label={m.doc.chooseFiles} kind="primary" onProblems={onProblems} />
+              <FilePicker label={m.doc.chooseFolder} kind="text" folder onProblems={onProblems} />
               <WebPicker kind="text" add={async (url, how) => onProblems(await addDocs([{ url }], how))} />
             </div>
             <div className="actions">
@@ -1165,7 +1152,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         {error && active && (
           <div className="empty">
             <p>{error}</p>
-            <button onClick={() => removeDoc(active.id)}>Remove it from this project</button>
+            <button onClick={() => removeDoc(active.id)}>{m.doc.removeBroken}</button>
           </div>
         )}
       </div>
@@ -1174,46 +1161,40 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
         <div className={`doc-status${tool === 'pen' ? ' inking' : ''}`}>
           <Tools side="docTool" />
           <span className="page-no" aria-live="polite">
-            <span className="long">Page </span>
+            <span className="long">{m.doc.pageWord} </span>
             {status.page} / {active.pages}
           </span>
           <span className="zoom">
-            <button className="icon" aria-label="Zoom out" onClick={() => zoom('out')}>
+            <button className="icon" aria-label={m.doc.zoomOut} onClick={() => zoom('out')}>
               <Minus size={16} />
             </button>
-            <button className="scale" title="Fit to width" onClick={() => zoom('fit')}>
+            <button className="scale" title={m.doc.fitWidth} onClick={() => zoom('fit')}>
               {Math.round(status.scale * 100)}%
             </button>
-            <button className="icon" aria-label="Zoom in" onClick={() => zoom('in')}>
+            <button className="icon" aria-label={m.doc.zoomIn} onClick={() => zoom('in')}>
               <Plus size={16} />
             </button>
           </span>
           <Collapse docId={active.id} />
           <button
             className="icon"
-            aria-label={marked ? 'Bookmarked' : 'Bookmark this place'}
-            title={marked ? 'Bookmarked' : 'Bookmark this place (Ctrl+D)'}
+            aria-label={marked ? m.doc.bookmarked : m.doc.bookmarkHere}
+            title={marked ? m.doc.bookmarked : m.doc.bookmarkHereTitle}
             onClick={() => void bookmarkHere()}
           >
             {marked ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
           </button>
           <PageLookMenu />
-          <button
-            className="icon overflow"
-            aria-label="Export PDF with highlights"
-            title="Export PDF with highlights and handwriting"
-            disabled={exporting}
-            onClick={() => void exportPdf()}
-          >
+          <button className="icon overflow" aria-label={m.doc.exportPdf} title={m.doc.exportPdfTitle} disabled={exporting} onClick={() => void exportPdf()}>
             <FileDown size={17} />
           </button>
-          <MoreMenu label="More document tools">
+          <MoreMenu label={m.doc.moreTools}>
             {(close) => (
               <>
                 <PageLookItems close={close} />
                 <hr />
                 <button role="menuitem" disabled={exporting} onClick={() => (close(), void exportPdf())}>
-                  <FileDown size={16} /> Export PDF with highlights
+                  <FileDown size={16} /> {m.doc.exportPdf}
                 </button>
               </>
             )}

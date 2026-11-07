@@ -5,14 +5,15 @@ import type { Input } from '../convert';
 import { addFiles, deleteVersion, fileKey, getFile } from '../store/db';
 import { switchVersion, uid, useStore, without } from '../store/project';
 import type { DocMeta, Fold, Point, Project, Rect } from '../types';
-import { openPdf } from './pdfjs';
+import { m } from '../i18n';
+import { openPdf, ReaderError } from './pdfjs';
 
 /** A page of the edited document: one of its own, turned clockwise by a multiple of 90 degrees, or the nth page added from other files. */
 export type Sheet = { page: number; turn: number } | { added: number };
 /** The edited document's pages, from how many it has and how many were added. */
 export type Plan = (pages: number, added: number) => Sheet[];
 
-export const PROTECTED = 'Page tools need an unprotected copy of this PDF. Save a copy without the password, add that, and edit its pages there.';
+export const PROTECTED = m.enginePdf.pagesProtected;
 
 const same = (n: number): Sheet[] => Array.from({ length: n }, (_, i) => ({ page: i + 1, turn: 0 }));
 const has = (pages: number[], s: Sheet) => 'page' in s && pages.includes(s.page);
@@ -210,10 +211,10 @@ const unchanged = (sheets: Sheet[], pages: number) => sheets.length === pages &&
 /** A document's current file, loaded to be rewritten, or why it cannot be: `locked` says so for a protected PDF. */
 export async function editable(docId: string, locked: string): Promise<{ doc: DocMeta; pdf: PDFDocument } | string> {
   const doc = useStore.getState().project?.docs.find((d) => d.id === docId);
-  if (!doc) return 'The document is no longer in this project.';
+  if (!doc) return m.enginePdf.gone;
   if (doc.password) return locked;
   const blob = await getFile(fileKey(doc));
-  if (!blob) return 'This PDF is missing from this browser’s storage.';
+  if (!blob) return m.engine.missingFile;
   const pdf = await PDFDocument.load(await blob.arrayBuffer(), { ignoreEncryption: true, updateMetadata: false });
   // pdf-lib cannot decrypt, and what it wrote into a still encrypted file would be unreadable.
   return pdf.isEncrypted ? locked : { doc, pdf };
@@ -231,7 +232,7 @@ export async function saveVersion(doc: DocMeta, pdf: PDFDocument, remap: (p: Pro
   const count = check.doc.numPages;
   await check.close();
   // pdf-lib's own page count is not updated when the page tree is rewritten in place.
-  if (count !== pdf.catalog.Pages().Count().asNumber()) throw new Error('The rewritten PDF did not come out whole.');
+  if (count !== pdf.catalog.Pages().Count().asNumber()) throw new ReaderError(m.enginePdf.notWhole);
 
   // Stored beside the current version, which stays until neither the project nor undo needs it.
   const file = uid();
@@ -239,7 +240,7 @@ export async function saveVersion(doc: DocMeta, pdf: PDFDocument, remap: (p: Pro
   await addFiles([[key, out]]);
   if (switchVersion(doc.id, doc.file, { file, pages: count, size: out.size }, remap)) return null;
   await deleteVersion(key);
-  return 'The document changed while it was being rewritten. Try again.';
+  return m.enginePdf.changed;
 }
 
 async function apply(docId: string, plan: Plan, add: Input[]): Promise<string[]> {
@@ -255,8 +256,8 @@ async function apply(docId: string, plan: Plan, add: Input[]): Promise<string[]>
     problems.push(...failed);
     for (const c of converted) {
       const other = await PDFDocument.load(await c.data.arrayBuffer(), { ignoreEncryption: true }).catch(() => null);
-      if (!other) problems.push(`${c.name} could not be read as a PDF.`);
-      else if (other.isEncrypted) problems.push(`${c.name} is password protected. Page tools need an unprotected copy.`);
+      if (!other) problems.push(m.engine.notPdf(c.name));
+      else if (other.isEncrypted) problems.push(m.enginePdf.addedProtected(c.name));
       else added.push(...(await pdf.copyPages(other, other.getPageIndices())).map((page) => page.ref));
     }
     if (!added.length) return problems;
@@ -264,7 +265,7 @@ async function apply(docId: string, plan: Plan, add: Input[]): Promise<string[]>
 
   const own = pdf.getPages();
   const sheets = plan(own.length, added.length);
-  if (!sheets.length) return ['A document needs at least one page.'];
+  if (!sheets.length) return [m.enginePdf.onePage];
   if (unchanged(sheets, own.length)) return problems;
   const ratios = own.map((page) => {
     const { width, height } = page.getCropBox();
@@ -282,14 +283,10 @@ let queue = Promise.resolve();
  * made. Resolves with the problems to show, if any; `failure` begins the message for an error.
  */
 export function rewrite(failure: string, edit: () => Promise<string[]>): Promise<string[]> {
-  const run = queue.then(() =>
-    edit().catch((err: unknown) => [
-      `${failure} ${err instanceof Error && /^[A-Z].*\.$/.test(err.message) ? err.message : 'The PDF may be damaged, or in a form Gloss cannot rewrite.'}`,
-    ]),
-  );
+  const run = queue.then(() => edit().catch((err: unknown) => [`${failure} ${err instanceof ReaderError ? err.message : m.enginePdf.notRewritten}`]));
   queue = run.then(() => {});
   return run;
 }
 
 /** Edits a document's pages. Resolves with the problems to show, if any. */
-export const editPages = (docId: string, plan: Plan, add: Input[] = []) => rewrite('The pages could not be edited.', () => apply(docId, plan, add));
+export const editPages = (docId: string, plan: Plan, add: Input[] = []) => rewrite(m.enginePdf.notEdited, () => apply(docId, plan, add));

@@ -1,3 +1,4 @@
+import { m } from '../i18n';
 import type { Fold, Spot } from '../types';
 
 type Stretch = [from: number, to: number];
@@ -120,7 +121,7 @@ export function layoutFolds(viewer: Viewer, folds: Fold[], expand: (ids: string[
     const el = document.createElement('button');
     el.className = 'fold-bar';
     el.style.width = `${width}px`;
-    el.innerHTML = `<span>${hidden >= 0.95 ? `${Math.round(hidden)} page${Math.round(hidden) === 1 ? '' : 's'} squeezed` : 'Text squeezed'}</span><b>Expand</b>`;
+    el.innerHTML = `<span>${hidden >= 0.95 ? m.enginePdf.squeezedPages(Math.round(hidden)) : m.enginePdf.squeezedText}</span><b>${m.enginePdf.expand}</b>`;
     el.addEventListener('click', () => expand(folds.filter((f) => before(start, f.to) && before(f.from, end)).map((f) => f.id)));
     return el;
   };

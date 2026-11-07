@@ -11,6 +11,7 @@ import { useStore } from '../store/project';
 import type { Card, Link, Project } from '../types';
 import { CardNode } from './CardNode';
 import { radios } from './Segmented';
+import { m } from '../i18n';
 
 const nodeTypes = { card: CardNode };
 const useDialog = create<{ open: boolean }>(() => ({ open: false }));
@@ -130,7 +131,7 @@ async function capture(root: HTMLElement, bounds: Rect, format: Format, scale: n
   if (format === 'svg') return { width, height, blob: await (await fetch(await toSvg(viewport, options))).blob() };
   const canvas = await toCanvas(viewport, { ...options, pixelRatio: scale, skipAutoScale: true });
   const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/png'));
-  if (!blob) throw new Error('The picture could not be encoded.');
+  if (!blob) throw new Error(m.canvasExport.notEncoded);
   return { width, height, blob };
 }
 
@@ -180,15 +181,14 @@ export function CanvasExport() {
       const wanted = format === 'png' ? job!.options.scale : PDF_SCALE;
       const scale = fitScale(bounds.width + 2 * MARGIN, bounds.height + 2 * MARGIN, wanted);
       const { width, height, blob } = await capture(root, bounds, format, scale);
-      const name = `${project!.name} - ${project!.canvases.find((c) => c.id === canvasId)?.name ?? 'Canvas'}`;
+      const name = `${project!.name} - ${project!.canvases.find((c) => c.id === canvasId)?.name ?? m.canvas.defaultName}`;
       if (format === 'pdf') download(`${name}.pdf`, await (await import('../canvasPicture')).picturePdf(await blob.arrayBuffer(), width, height, paper, name));
       else download(`${name}.${format}`, blob);
       // Said rather than done quietly, as a sharper copy is then only a smaller selection away.
-      if (format !== 'svg' && scale < wanted)
-        setNote(`The canvas is too large to draw at ${wanted}×, so it was exported at ${scale.toFixed(1)}×. Export fewer cards for a sharper picture.`);
+      if (format !== 'svg' && scale < wanted) setNote(m.canvasExport.tooLarge(wanted, scale));
       else close();
     } catch (err) {
-      setNote(`The canvas could not be exported: ${(err as Error).message}`);
+      setNote(m.canvasExport.failed((err as Error).message));
     } finally {
       setJob(null);
     }
@@ -205,24 +205,24 @@ export function CanvasExport() {
         }}
       >
         <h2 id="picture-h">
-          <ImageDown size={18} /> Export the canvas as a picture
+          <ImageDown size={18} /> {m.canvas.exportPicture}
         </h2>
         <fieldset>
-          <legend>Cards</legend>
+          <legend>{m.canvasExport.cards}</legend>
           {radios(
-            'Cards',
+            m.canvasExport.cards,
             only,
             [
-              [false, 'Whole canvas'],
-              [true, chosen ? `Selected (${chosen})` : 'Selected', !chosen],
+              [false, m.canvasExport.whole],
+              [true, chosen ? m.canvasExport.selectedCount(chosen) : m.canvasExport.selected, !chosen],
             ],
             (v) => set({ only: v }),
           )}
         </fieldset>
         <fieldset>
-          <legend>Format</legend>
+          <legend>{m.canvasExport.format}</legend>
           {radios(
-            'Format',
+            m.canvasExport.format,
             options.format,
             [
               ['png', 'PNG'],
@@ -234,14 +234,14 @@ export function CanvasExport() {
         </fieldset>
         {options.format === 'png' && (
           <fieldset>
-            <legend>Size</legend>
+            <legend>{m.canvasExport.size}</legend>
             {radios(
-              'Size',
+              m.canvasExport.size,
               options.scale,
               [
-                [1, '1×'],
-                [2, '2×'],
-                [3, '3×'],
+                [1, m.canvasExport.scale(1)],
+                [2, m.canvasExport.scale(2)],
+                [3, m.canvasExport.scale(3)],
               ],
               (scale) => set({ scale }),
             )}
@@ -249,14 +249,14 @@ export function CanvasExport() {
         )}
         {options.format === 'pdf' && (
           <fieldset>
-            <legend>Pages</legend>
+            <legend>{m.canvasExport.pages}</legend>
             {radios(
-              'Pages',
+              m.canvasExport.pages,
               options.paper,
               [
-                ['fit', 'One page'],
-                ['a4', 'A4'],
-                ['letter', 'Letter'],
+                ['fit', m.canvasExport.onePage],
+                ['a4', m.canvasExport.a4],
+                ['letter', m.canvasExport.letter],
               ],
               (paper) => set({ paper }),
             )}
@@ -264,15 +264,15 @@ export function CanvasExport() {
         )}
         <label className="check">
           <input type="checkbox" checked={options.match} onChange={(e) => set({ match: e.target.checked })} />
-          Match the current theme
+          {m.canvasExport.matchTheme}
         </label>
         {note && <p role="status">{note}</p>}
         <div className="actions">
           <button type="button" onClick={close}>
-            {note ? 'Close' : 'Cancel'}
+            {note ? m.canvasExport.close : m.canvasExport.cancel}
           </button>
           <button className="primary" disabled={!!job || !cards.length}>
-            {job ? 'Exporting…' : 'Export'}
+            {job ? m.canvasExport.exporting : m.canvasExport.export}
           </button>
         </div>
       </form>

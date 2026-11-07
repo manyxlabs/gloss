@@ -5,6 +5,7 @@ import { clearFilter, manageTags, tagNamed, toggleFilter, useTagView } from '../
 import { byCategory, known } from '../tags';
 import type { Tag } from '../types';
 import { Menu } from './Menu';
+import { m } from '../i18n';
 
 const NONE: Tag[] = [];
 
@@ -18,7 +19,7 @@ export function TagChips({ ids }: { ids: string[] | undefined }) {
   if (!tags.length) return null;
   return (
     // Spans, as chips also sit inside buttons, which may hold only phrasing content.
-    <span className="tag-chips" role="list" aria-label="Tags">
+    <span className="tag-chips" role="list" aria-label={m.canvasTags.tags}>
       {tags.map((t) => (
         <span key={t.id} role="listitem" className="tag-chip" style={tagStyle(t)}>
           {t.name}
@@ -75,11 +76,11 @@ export function TagPicker({
   };
 
   return (
-    <div className="tag-picker" role="group" aria-label="Tags" onKeyDown={step}>
+    <div className="tag-picker" role="group" aria-label={m.canvasTags.tags} onKeyDown={step}>
       <input
         ref={field}
-        aria-label="Find or make a tag"
-        placeholder="Find or make a tag"
+        aria-label={m.canvasTags.find}
+        placeholder={m.canvasTags.find}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -94,11 +95,11 @@ export function TagPicker({
       <div className="tag-list" ref={list}>
         {q && !exact && (
           <button className="make" onClick={make}>
-            <Plus size={15} /> Make tag “{query.trim().replace(/^#/, '')}”
+            <Plus size={15} /> {m.canvasTags.make(query.trim().replace(/^#/, ''))}
           </button>
         )}
         {byCategory(shown).map((g) => (
-          <div key={g.category ?? ''} role="group" aria-label={g.category ?? 'Tags'}>
+          <div key={g.category ?? ''} role="group" aria-label={g.category ?? m.canvasTags.tags}>
             {g.category && <h4>{g.category}</h4>}
             {g.tags.map((t) => {
               const state = on.includes(t.id) ? true : some.includes(t.id) ? 'mixed' : false;
@@ -112,14 +113,14 @@ export function TagPicker({
             })}
           </div>
         ))}
-        {!tags.length && !q && <p className="tag-none">No tags yet. Type a name to make one.</p>}
+        {!tags.length && !q && <p className="tag-none">{m.canvasTags.noneTyped}</p>}
       </div>
       <footer>
         <button className="ghost" onClick={() => (onClose(), manageTags())}>
-          <Settings2 size={15} /> Manage tags
+          <Settings2 size={15} /> {m.canvasPalette.manageTags}
         </button>
         <button className="ghost" onClick={onClose}>
-          Done
+          {m.canvasColours.done}
         </button>
       </footer>
     </div>
@@ -134,7 +135,7 @@ export function TagRow({ on, onToggle }: { on: string[]; onToggle: (id: string, 
       <div className="line">
         <TagChips ids={on} />
         <button type="button" className="ghost add-tag" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <TagsIcon size={15} /> {on.length ? 'Tags' : 'Add tags'}
+          <TagsIcon size={15} /> {on.length ? m.canvasTags.tags : m.canvasTags.add}
         </button>
       </div>
       {open && <TagPicker on={on} onToggle={onToggle} onClose={() => setOpen(false)} />}
@@ -154,22 +155,22 @@ export function TagFilter() {
         className={`tag-filter${active.length ? ' on' : ''}`}
         aria-haspopup="menu"
         aria-expanded={!!button}
-        aria-label={active.length ? `Filtered by ${active.map((t) => t.name).join(', ')}` : 'Filter by tag'}
-        title="Filter by tag"
+        aria-label={active.length ? m.canvasTags.filtered(active.map((t) => t.name).join(', ')) : m.canvasTags.filter}
+        title={m.canvasTags.filter}
         onClick={(e) => setButton(button ? null : e.currentTarget)}
       >
         <TagsIcon size={16} />
-        <span className="label">{active.length ? active.map((t) => t.name).join(', ') : 'Tags'}</span>
+        <span className="label">{active.length ? active.map((t) => t.name).join(', ') : m.canvasTags.tags}</span>
       </button>
       {active.length > 0 && (
-        <button className="icon clear-filter" aria-label="Clear the tag filter" title="Clear the tag filter" onClick={clearFilter}>
+        <button className="icon clear-filter" aria-label={m.canvasTags.clear} title={m.canvasTags.clear} onClick={clearFilter}>
           <X size={15} />
         </button>
       )}
       {button && (
-        <Menu anchor={button} label="Filter by tag" onClose={() => setButton(null)}>
+        <Menu anchor={button} label={m.canvasTags.filter} onClose={() => setButton(null)}>
           {byCategory(tags).map((g) => (
-            <div key={g.category ?? ''} className="menu-group" role="group" aria-label={g.category ?? 'Tags'}>
+            <div key={g.category ?? ''} className="menu-group" role="group" aria-label={g.category ?? m.canvasTags.tags}>
               {g.category && <h4>{g.category}</h4>}
               {g.tags.map((t) => (
                 <button key={t.id} role="menuitemcheckbox" aria-checked={filter.includes(t.id)} onClick={() => toggleFilter(t.id)}>
@@ -178,15 +179,15 @@ export function TagFilter() {
               ))}
             </div>
           ))}
-          {!tags.length && <p className="tag-none">No tags yet. Tag a passage or a card from its toolbar.</p>}
+          {!tags.length && <p className="tag-none">{m.canvasTags.noneYet}</p>}
           <hr />
           {filter.length > 0 && (
             <button role="menuitem" onClick={() => (clearFilter(), setButton(null))}>
-              <X size={16} /> Show everything
+              <X size={16} /> {m.canvasTags.showAll}
             </button>
           )}
           <button role="menuitem" onClick={() => (setButton(null), manageTags())}>
-            <Settings2 size={16} /> Manage tags…
+            <Settings2 size={16} /> {m.canvasTags.manageMenu}
           </button>
         </Menu>
       )}

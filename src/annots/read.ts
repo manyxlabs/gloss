@@ -1,3 +1,4 @@
+import { locale, m } from '../i18n';
 import { files, loadDoc } from '../pdf/pdfjs';
 import type { Rect } from '../types';
 
@@ -96,16 +97,15 @@ export function foreignAnnotations(docId: string, password?: string) {
   return found;
 }
 
-const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
-
 /** What a document holds, as the question asks it: "12 highlights, 3 notes, 2 text boxes and 1 drawing". */
 export function summary(found: Foreign[]) {
   const count = (kind: Foreign['kind']) => found.filter((f) => f.kind === kind).length;
+  const { highlights, notes, boxes, drawings } = m.engineAnnots;
   const parts = [
-    ...(count('mark') ? [plural(count('mark'), 'highlight')] : []),
-    ...(count('note') ? [plural(count('note'), 'note')] : []),
-    ...(count('box') ? [plural(count('box'), 'text box', 'text boxes')] : []),
-    ...(count('ink') ? [plural(count('ink'), 'drawing')] : []),
+    ...(count('mark') ? [highlights(count('mark'))] : []),
+    ...(count('note') ? [notes(count('note'))] : []),
+    ...(count('box') ? [boxes(count('box'))] : []),
+    ...(count('ink') ? [drawings(count('ink'))] : []),
   ];
-  return parts.length < 2 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+  return new Intl.ListFormat(locale).format(parts);
 }

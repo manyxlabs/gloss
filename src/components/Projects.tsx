@@ -6,24 +6,24 @@ import { isCard } from '../ink';
 import { deleteFolder, deleteProject, listFolders, moveProject, putFolder } from '../store/db';
 import type { Folder, Project } from '../types';
 import { Menu } from './Menu';
+import { locale, m } from '../i18n';
 
 const PROJECT_MIME = 'application/x-gloss-project';
 
-const ago = (t: number) => {
+const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+/** How long ago a time was, such as "5 minutes ago". */
+export const ago = (t: number) => {
   const s = (Date.now() - t) / 1000;
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-  if (s < 60) return 'just now';
+  if (s < 60) return m.home.justNow;
   if (s < 3600) return rtf.format(-Math.round(s / 60), 'minute');
   if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour');
   return rtf.format(-Math.round(s / 86400), 'day');
 };
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
 /** A name not yet taken by a folder: "New folder", then "New folder 2" and on. */
 const freeName = (folders: Folder[]) => {
   const names = new Set(folders.map((f) => f.name));
-  for (let i = 1; ; i++) if (!names.has(i === 1 ? 'New folder' : `New folder ${i}`)) return i === 1 ? 'New folder' : `New folder ${i}`;
+  for (let i = 1; ; i++) if (!names.has(m.homeProjects.folderName(i))) return m.homeProjects.folderName(i);
 };
 
 /** Takes a project dragged by its card, for a folder or the top level to drop it in. */
@@ -105,11 +105,7 @@ export function Projects({
   };
   const remove = async (folder: Folder, count: number) => {
     setMenu(null);
-    if (
-      count &&
-      !confirm(`Delete the folder “${folder.name}”? ${count === 1 ? 'Its project moves' : `Its ${count} projects move`} out of it and ${count === 1 ? 'is' : 'are'} kept.`)
-    )
-      return;
+    if (count && !confirm(m.homeProjects.confirmDeleteFolder(folder.name, count))) return;
     await deleteFolder(folder.id);
     await refresh();
   };
@@ -141,13 +137,15 @@ export function Projects({
         <strong>{p.name}</strong>
         {/* Wrapped only between the facts, never inside one such as "just now". */}
         <span>
-          {[plural(p.docs.length, 'document'), plural(p.cards.filter(isCard).length, 'card'), ago(p.openedAt ?? p.updatedAt)].map((s) => s.replaceAll(' ', '\u00a0')).join(' · ')}
+          {[m.homeProjects.documents(p.docs.length), m.homeProjects.cards(p.cards.filter(isCard).length), ago(p.openedAt ?? p.updatedAt)]
+            .map((s) => s.replaceAll(' ', '\u00a0'))
+            .join(' · ')}
         </span>
       </a>
       <button
         className="icon"
-        aria-label={`Move ${p.name} to a folder`}
-        title="Move to a folder"
+        aria-label={m.homeProjects.moveTo(p.name)}
+        title={m.homeProjects.moveTitle}
         aria-haspopup="menu"
         aria-expanded={menu?.project === p}
         onClick={(e) => setMenu(menu?.project === p ? null : { button: e.currentTarget, project: p })}
@@ -156,8 +154,8 @@ export function Projects({
       </button>
       <button
         className="icon"
-        aria-label={`Back up ${p.name}`}
-        title="Download a backup: the project and its documents in one file"
+        aria-label={m.homeProjects.backUp(p.name)}
+        title={m.homeProjects.backUpTitle}
         onClick={async () => {
           try {
             download(`${p.name}.gloss`, await backupOf(p));
@@ -170,10 +168,10 @@ export function Projects({
       </button>
       <button
         className="icon danger"
-        aria-label={`Delete ${p.name}`}
-        title="Delete from this browser"
+        aria-label={m.homeProjects.delete(p.name)}
+        title={m.homeProjects.deleteTitle}
         onClick={async () => {
-          if (!confirm(`Delete “${p.name}” and its documents from this browser? This cannot be undone.`)) return;
+          if (!confirm(m.homeProjects.confirmDelete(p.name))) return;
           await deleteProject(p);
           await reload();
         }}
@@ -186,9 +184,9 @@ export function Projects({
   return (
     <section aria-labelledby="projects-h" className={dragging ? 'dragging' : undefined}>
       <div className="projects-head">
-        <h2 id="projects-h">Your projects</h2>
+        <h2 id="projects-h">{m.homeProjects.heading}</h2>
         <button className="ghost" onClick={() => void create()}>
-          <FolderPlus size={16} /> New folder
+          <FolderPlus size={16} /> {m.homeProjects.newFolder}
         </button>
         {actions}
       </div>
@@ -206,30 +204,30 @@ export function Projects({
             menuOpen={menu?.folder === f}
             onMenu={(button) => setMenu(menu?.folder === f ? null : { button, folder: f })}
           >
-            {members.length ? <ul className="projects">{members.map(card)}</ul> : <p className="folder-empty">Drag a project here, or use its folder button.</p>}
+            {members.length ? <ul className="projects">{members.map(card)}</ul> : <p className="folder-empty">{m.homeProjects.folderEmpty}</p>}
           </FolderSection>
         );
       })}
       {(loose.length > 0 || dragging) && (
-        <ul className={`projects top${top.over ? ' over' : ''}`} aria-label={folders.length ? 'Not in a folder' : undefined} {...top.handlers}>
+        <ul className={`projects top${top.over ? ' over' : ''}`} aria-label={folders.length ? m.homeProjects.loose : undefined} {...top.handlers}>
           {loose.map(card)}
-          {!loose.length && <li className="drop-here">Drop here to take it out of its folder</li>}
+          {!loose.length && <li className="drop-here">{m.homeProjects.dropHere}</li>}
         </ul>
       )}
 
       {menu?.project && (
-        <Menu anchor={menu.button} label={`Move ${menu.project.name}`} onClose={() => setMenu(null)}>
+        <Menu anchor={menu.button} label={m.homeProjects.move(menu.project.name)} onClose={() => setMenu(null)}>
           {folders.map((f) => (
             <button key={f.id} role="menuitemradio" aria-checked={menu.project!.folder === f.id} onClick={() => void move(menu.project!.id, f.id)}>
               <FolderIcon size={16} /> {f.name}
             </button>
           ))}
           <button role="menuitemradio" aria-checked={!menu.project.folder || !known.has(menu.project.folder)} onClick={() => void move(menu.project!.id, null)}>
-            <LayoutGrid size={16} /> No folder
+            <LayoutGrid size={16} /> {m.homeProjects.noFolder}
           </button>
           <hr />
           <button role="menuitem" onClick={() => void create(menu.project)}>
-            <FolderPlus size={16} /> New folder…
+            <FolderPlus size={16} /> {m.homeProjects.newFolderMenu}
           </button>
         </Menu>
       )}
@@ -242,10 +240,10 @@ export function Projects({
               setRenaming(menu.folder!.id);
             }}
           >
-            <Pencil size={16} /> Rename
+            <Pencil size={16} /> {m.homeProjects.rename}
           </button>
           <button role="menuitem" className="danger" onClick={() => void remove(menu.folder!, projects.filter((p) => p.folder === menu.folder!.id).length)}>
-            <Trash2 size={16} /> Delete folder
+            <Trash2 size={16} /> {m.homeProjects.deleteFolder}
           </button>
         </Menu>
       )}
@@ -282,7 +280,7 @@ function FolderSection({
         {renaming ? (
           <input
             className="folder-name"
-            aria-label="Folder name"
+            aria-label={m.homeProjects.folderNameLabel}
             defaultValue={folder.name}
             autoFocus
             onFocus={(e) => e.currentTarget.select()}
@@ -300,15 +298,15 @@ function FolderSection({
             <ChevronRight size={16} className="chevron" />
             <FolderIcon size={17} />
             <span className="folder-title">{folder.name}</span>
-            <span className="count" aria-label={plural(count, 'project')}>
+            <span className="count" aria-label={m.homeProjects.projects(count)}>
               {count}
             </span>
           </button>
         )}
         <button
           className="icon"
-          aria-label={`Actions for ${folder.name}`}
-          title="Rename or delete"
+          aria-label={m.homeProjects.actionsFor(folder.name)}
+          title={m.homeProjects.actionsTitle}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={(e) => onMenu(e.currentTarget)}

@@ -2,8 +2,9 @@ import { Bookmark, Check, Copy, FileText, Highlighter, MessageSquare, SquareStac
 import { useEffect, useState } from 'react';
 import { getProject, listProjects } from '../store/db';
 import { useStore } from '../store/project';
-import { hashOf, IN_TEXT, isIn, KINDS, linkTo, parseLink, snippetOf, type GlossLink, type Kind, type Target } from '../targets';
+import { hashOf, IN_TEXT, isIn, linkTo, parseLink, snippetOf, type GlossLink, type Kind, type Target } from '../targets';
 import type { Project } from '../types';
+import { m } from '../i18n';
 
 const ICONS: Record<Kind, typeof Copy> = { h: Highlighter, c: StickyNote, m: MessageSquare, v: SquareStack, d: FileText, b: Bookmark };
 
@@ -11,14 +12,14 @@ const ICONS: Record<Kind, typeof Copy> = { h: Highlighter, c: StickyNote, m: Mes
  * Its icon is the one for copying, as the share link's is, not a chain, which is the button that links one passage to another. */
 export function CopyLink({ target, className = 'icon', text, role }: { target: Target; className?: string; text?: string; role?: 'menuitem' }) {
   const [copied, setCopied] = useState(false);
-  const label = `Copy link to this ${KINDS[target.kind]}`;
+  const label = m.canvasLinks.copy(m.canvasLinks.kinds[target.kind]);
   return (
     <button
       type="button"
       role={role}
       className={className}
-      aria-label={copied ? 'Link copied' : label}
-      title={copied ? 'Link copied' : label}
+      aria-label={copied ? m.canvasLinks.copied : label}
+      title={copied ? m.canvasLinks.copied : label}
       onClick={async () => {
         const p = useStore.getState().project;
         if (!p) return;
@@ -28,7 +29,7 @@ export function CopyLink({ target, className = 'icon', text, role }: { target: T
       }}
     >
       {copied ? <Check size={16} /> : <Copy size={16} />}
-      {text && <span>{copied ? 'Copied' : text}</span>}
+      {text && <span>{copied ? m.canvasLinks.copiedShort : text}</span>}
     </button>
   );
 }
@@ -68,23 +69,24 @@ export function LinkChips({ text }: { text: string }) {
       link,
       href: other ? local(other) : hashOf(link),
       text: other ? snippetOf(other, link) : null,
-      where: other?.name ?? (other === null ? 'Not on this device' : undefined),
+      where: other?.name ?? (other === null ? m.canvasLinks.notHere : undefined),
     };
   });
   return (
     <div className="link-chips nodrag">
       {chips.map(({ link, href, text, where }) => {
         const Icon = ICONS[link.kind];
+        const kind = m.canvasLinks.kinds[link.kind];
         const gone = text === null && (isIn(project, link) || where !== undefined);
         return (
           <a
             key={hashOf(link)}
             href={href}
             className={gone ? 'gone' : undefined}
-            title={gone ? `This ${KINDS[link.kind]} is not here any more` : `Go to this ${KINDS[link.kind]}${where ? ` in “${where}”` : ''}`}
+            title={gone ? m.canvasLinks.gone(kind) : where ? m.canvasLinks.goToIn(kind, where) : m.canvasLinks.goTo(kind)}
           >
             <Icon size={13} aria-hidden="true" />
-            <span className="text">{text ?? (gone ? `A ${KINDS[link.kind]} no longer here` : '…')}</span>
+            <span className="text">{text ?? (gone ? m.canvasLinks.noLonger(kind) : '…')}</span>
             {where && <span className="where">{where}</span>}
           </a>
         );

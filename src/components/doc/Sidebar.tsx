@@ -15,13 +15,14 @@ import { AnnotsAction } from './AnnotsAction';
 import { Bookmarks } from './Bookmarks';
 import { Pages } from './Pages';
 import { Unplaced } from './Unplaced';
+import { m } from '../../i18n';
 
 type OutlineItem = Awaited<ReturnType<PDFDocumentProxy['getOutline']>>[number];
 export type Tab = 'contents' | 'pages' | 'highlights';
 const TABS: [Tab, string][] = [
-  ['contents', 'Contents'],
-  ['pages', 'Pages'],
-  ['highlights', 'Highlights'],
+  ['contents', m.docSidebar.tabs.contents],
+  ['pages', m.docSidebar.tabs.pages],
+  ['highlights', m.docSidebar.tabs.highlights],
 ];
 
 /** The document open in a pane, for the sidebar's lists, opened again for each new version of its `file`; null while it opens or if it cannot. */
@@ -66,13 +67,13 @@ export function Sidebar({
   return (
     <>
       {zotero && (
-        <div className="doc-cite" aria-label="From Zotero">
+        <div className="doc-cite" aria-label={m.docSidebar.fromZotero}>
           <span className="title">{zotero.title}</span>
           {byline(zotero) && <span className="by">{byline(zotero)}</span>}
           {zotero.citationKey && <span className="cite-key">@{zotero.citationKey}</span>}
         </div>
       )}
-      <div className="side-tabs" role="tablist" aria-label="Sidebar">
+      <div className="side-tabs" role="tablist" aria-label={m.docSidebar.label}>
         {TABS.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
             {label}
@@ -82,9 +83,9 @@ export function Sidebar({
       <div className="side-list" role="tabpanel" aria-label={TABS.find(([id]) => id === tab)![1]}>
         {!doc ? null : tab === 'contents' ? (
           <>
-            <h3 className="side-head">Bookmarks</h3>
+            <h3 className="side-head">{m.docSidebar.bookmarks}</h3>
             <Bookmarks docId={docId} pane={pane} fresh={fresh} onJump={onJump} />
-            <h3 className="side-head">Contents</h3>
+            <h3 className="side-head">{m.docSidebar.contents}</h3>
             <Contents doc={doc} docId={docId} pane={pane} onJump={onJump} />
           </>
         ) : tab === 'pages' ? (
@@ -128,7 +129,7 @@ function Contents({ doc, docId, pane, onJump }: { doc: PDFDocumentProxy; docId: 
   };
 
   if (outline === undefined) return null;
-  if (!outline) return <p className="side-empty">This PDF has no table of contents. The Pages tab shows every page.</p>;
+  if (!outline) return <p className="side-empty">{m.docSidebar.noContents}</p>;
   const list = (items: OutlineItem[]) => (
     <ul>
       {items.map((item, i) => (
@@ -147,7 +148,7 @@ function Contents({ doc, docId, pane, onJump }: { doc: PDFDocumentProxy; docId: 
       ))}
     </ul>
   );
-  return <nav aria-label="Table of contents">{list(outline)}</nav>;
+  return <nav aria-label={m.docSidebar.toc}>{list(outline)}</nav>;
 }
 
 const byPlace = (a: Highlight, b: Highlight) =>
@@ -160,7 +161,7 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
   const filter = useTagView((s) => s.filter);
   const all = (project?.highlights ?? []).filter((h) => h.docId === docId && h.parts.length);
   const mine = all.filter((h) => passes(h.tags, filter)).sort(byPlace);
-  if (!project || !all.length) return <p className="side-empty">Highlights, figures and comments in this document will be listed here.</p>;
+  if (!project || !all.length) return <p className="side-empty">{m.docSidebar.noHighlights}</p>;
   return (
     <>
       {project.tags.length > 0 && (
@@ -168,7 +169,7 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
           <TagFilter />
         </div>
       )}
-      {!mine.length && <p className="side-empty">No highlight here has the tags chosen.</p>}
+      {!mine.length && <p className="side-empty">{m.docSidebar.noneTagged}</p>}
       <ul className="marks">
         {mine.map((h) => (
           <li key={h.id}>
@@ -180,10 +181,10 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
               }}
             >
               <span className="what">
-                {h.area && <Image size={14} aria-label="Figure" />}
-                {h.typed && <Type size={14} aria-label="Text box" />}
-                <span className="text">{h.text || (h.area ? 'Figure' : '')}</span>
-                <span className="page">p. {h.parts[0]?.page}</span>
+                {h.area && <Image size={14} aria-label={m.doc.figure} />}
+                {h.typed && <Type size={14} aria-label={m.doc.textBox} />}
+                <span className="text">{h.text || (h.area ? m.doc.figure : '')}</span>
+                <span className="page">{m.doc.pageShort(h.parts[0]?.page ?? 0)}</span>
               </span>
               {h.commentId && <span className="note">{commentOf(project, h)?.text}</span>}
               <TagChips ids={h.tags} />
@@ -198,8 +199,8 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
                     onJump();
                   }}
                 >
-                  <Link2 size={13} aria-label="Linked passage" />
-                  <span className="text">{quoted(end.highlight) || 'Figure'}</span>
+                  <Link2 size={13} aria-label={m.docSidebar.linkedPassage} />
+                  <span className="text">{quoted(end.highlight) || m.doc.figure}</span>
                   <span className="page">
                     {end.highlight.docId === docId ? '' : `${docName(project, end.highlight.docId)}, `}
                     {where(end.highlight)}
@@ -214,9 +215,9 @@ function Highlights({ docId, pane, onJump }: { docId: string; pane: Pane; onJump
                     onJump();
                   }}
                 >
-                  <StickyNote size={13} aria-label="Linked card" />
-                  <span className="text">{cardText(project, end.card) || 'Handwriting'}</span>
-                  <span className="page">card</span>
+                  <StickyNote size={13} aria-label={m.docSidebar.linkedCard} />
+                  <span className="text">{cardText(project, end.card) || m.doc.handwriting}</span>
+                  <span className="page">{m.docSidebar.card}</span>
                 </button>
               ),
             )}

@@ -4,6 +4,7 @@ import { download, send } from '../download';
 import { combinedPdf } from '../pdf/combine';
 import { orderedDocs } from '../store/docs';
 import { useStore } from '../store/project';
+import { m } from '../i18n';
 
 /** Chooses documents, and their order, to export as one annotated PDF, with the canvas on show as its last page if wanted. */
 export function CombinedExport({ onClose }: { onClose: () => void }) {
@@ -37,29 +38,29 @@ export function CombinedExport({ onClose }: { onClose: () => void }) {
               picked.map((d) => d.id),
               withCanvas ? canvasId : null,
             );
-            await hand(`${project.name} (combined).pdf`, blob);
+            await hand(m.docCombined.file(project.name), blob);
             if (problems.length) setProblems(problems);
             else ref.current?.close();
           } catch (err) {
-            setProblems([`The PDF could not be exported: ${(err as Error).message}`]);
+            setProblems([m.doc.exportFailed((err as Error).message)]);
           } finally {
             setBusy(false);
           }
         }}
       >
-        <h2 id="combined-h">Export documents as one PDF</h2>
-        <p>Each document comes with its highlights, comments and handwriting, in this order, with an entry in the PDF’s outline holding its bookmarks.</p>
-        <ul className="combined-docs" aria-label="Documents to export">
+        <h2 id="combined-h">{m.docCombined.heading}</h2>
+        <p>{m.docCombined.intro}</p>
+        <ul className="combined-docs" aria-label={m.docCombined.docs}>
           {docs.map((d, i) => (
             <li key={d.id}>
               <label>
                 <input type="checkbox" checked={chosen.has(d.id)} onChange={(e) => setChosen((c) => new Set(e.target.checked ? [...c, d.id] : [...c].filter((x) => x !== d.id)))} />
                 <span className="title">{d.name}</span>
               </label>
-              <button type="button" className="icon" aria-label={`Move ${d.name} up`} disabled={i === 0} onClick={() => swap(i, i - 1)}>
+              <button type="button" className="icon" aria-label={m.docCombined.moveUp(d.name)} disabled={i === 0} onClick={() => swap(i, i - 1)}>
                 <ArrowUp size={15} />
               </button>
-              <button type="button" className="icon" aria-label={`Move ${d.name} down`} disabled={i === docs.length - 1} onClick={() => swap(i, i + 1)}>
+              <button type="button" className="icon" aria-label={m.docCombined.moveDown(d.name)} disabled={i === docs.length - 1} onClick={() => swap(i, i + 1)}>
                 <ArrowDown size={15} />
               </button>
             </li>
@@ -67,7 +68,7 @@ export function CombinedExport({ onClose }: { onClose: () => void }) {
         </ul>
         <label className="combined-canvas">
           <input type="checkbox" checked={withCanvas} disabled={!project.cards.length} onChange={(e) => setWithCanvas(e.target.checked)} />
-          Add the canvas{canvas ? ` “${canvas.name}”` : ''} as the last page
+          {canvas ? m.docCombined.namedCanvas(canvas.name) : m.docCombined.canvas}
         </label>
         {problems.map((p) => (
           <p key={p} className="share-problem" role="alert">
@@ -76,13 +77,13 @@ export function CombinedExport({ onClose }: { onClose: () => void }) {
         ))}
         <footer>
           <button type="button" disabled={busy} onClick={() => ref.current?.close()}>
-            {problems.length ? 'Close' : 'Cancel'}
+            {problems.length ? m.doc.close : m.doc.cancel}
           </button>
           <button type="submit" value="send" disabled={busy || !picked.length}>
-            <Share size={16} /> Send
+            <Share size={16} /> {m.docCombined.send}
           </button>
           <button type="submit" className="primary" disabled={busy || !picked.length}>
-            <FileDown size={16} /> {busy ? 'Exporting…' : 'Export PDF'}
+            <FileDown size={16} /> {busy ? m.docCombined.exporting : m.docCombined.export}
           </button>
         </footer>
       </form>

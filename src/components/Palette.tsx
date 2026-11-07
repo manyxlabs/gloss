@@ -9,6 +9,7 @@ import { paneRoom } from '../panes';
 import { manageTags, toggleFilter, useTagView } from '../store/tags';
 import { setTermsOn, useTerms } from '../terms';
 import { showEntry } from './doc/Sidebar';
+import { m } from '../i18n';
 
 type Item = { id: string; kind: string; label: string; icon: LucideIcon; run: () => void };
 type Entry = { title: string; depth: number; dest: Parameters<typeof showEntry>[2] };
@@ -17,7 +18,7 @@ type Entry = { title: string; depth: number; dest: Parameters<typeof showEntry>[
 let lastPane: Pane = 0;
 const notePane = (e: Event) => {
   const pane = (e.target as Element | null)?.closest?.('.doc-pane');
-  if (pane) lastPane = Math.max(0, ['Documents', 'Second document', 'Third document'].indexOf(pane.getAttribute('aria-label') ?? '')) as Pane;
+  if (pane) lastPane = Math.max(0, m.doc.panes.indexOf(pane.getAttribute('aria-label') ?? '')) as Pane;
 };
 
 /** The PDF's contents, flattened in reading order with their depth. */
@@ -110,7 +111,7 @@ export function Palette() {
   const items: Item[] = [];
   if (number && doc) {
     const page = Math.min(Math.max(1, Number(number)), doc.pages);
-    items.push({ id: 'page', kind: doc.name, label: `Go to page ${page} of ${doc.pages}`, icon: FileText, run: () => showPage(doc.id, page, { pane }) });
+    items.push({ id: 'page', kind: doc.name, label: m.canvasPalette.goToPage(page, doc.pages), icon: FileText, run: () => showPage(doc.id, page, { pane }) });
   }
   /** A nested canvas is named with the canvases it is inside, as it is reached through them. */
   const trail = (id: string, seen = new Set<string>()): string => {
@@ -122,42 +123,50 @@ export function Palette() {
   const panes = paneCount(useStore.getState());
   const tagFilter = project.tags.map((t) => ({
     id: `tag-${t.id}`,
-    kind: 'Tag',
-    label: `${filter.includes(t.id) ? 'Stop filtering by' : 'Filter by'} ${t.name}`,
+    kind: m.canvasPalette.kinds.tag,
+    label: filter.includes(t.id) ? m.canvasPalette.stopFilter(t.name) : m.canvasPalette.filter(t.name),
     icon: Hash,
     run: () => toggleFilter(t.id),
   }));
   const all: Item[] = [
-    ...project.docs.map((d) => ({ id: `doc-${d.id}`, kind: 'Document', label: d.name, icon: FileText, run: () => setActiveDoc(d.id, pane) })),
+    ...project.docs.map((d) => ({ id: `doc-${d.id}`, kind: m.canvasPalette.kinds.document, label: d.name, icon: FileText, run: () => setActiveDoc(d.id, pane) })),
     ...entries.map((e, i) => ({
       id: `toc-${i}`,
-      kind: 'Contents',
+      kind: m.canvasPalette.kinds.contents,
       label: `${'  '.repeat(e.depth)}${e.title}`,
       icon: ListTree,
       run: () => void loadDoc(docId!, password).then((d) => showEntry(d, docId!, e.dest, pane)),
     })),
     ...(docId ? bookmarksOf(project, docId) : []).map((b) => ({
       id: `bookmark-${b.id}`,
-      kind: 'Bookmark',
-      label: `${b.name} (p. ${b.page})`,
+      kind: m.canvasPalette.kinds.bookmark,
+      label: m.canvasPalette.bookmark(b.name, b.page),
       icon: Bookmark,
       run: () => showPage(b.docId, b.page, { pane, y: b.y }),
     })),
-    ...project.canvases.map((c) => ({ id: `canvas-${c.id}`, kind: 'Canvas', label: trail(c.id), icon: LayoutDashboard, run: () => (setCanvas(c.id), setView('canvas')) })),
+    ...project.canvases.map((c) => ({
+      id: `canvas-${c.id}`,
+      kind: m.canvasPalette.kinds.canvas,
+      label: trail(c.id),
+      icon: LayoutDashboard,
+      run: () => (setCanvas(c.id), setView('canvas')),
+    })),
     ...tagFilter,
-    { id: 'undo', kind: 'Action', label: 'Undo', icon: Undo2, run: undo },
-    { id: 'redo', kind: 'Action', label: 'Redo', icon: Redo2, run: redo },
-    { id: 'note', kind: 'Action', label: 'New note on the canvas', icon: StickyNote, run: () => (setView('canvas'), addNote()) },
-    ...(panes < paneRoom() ? [{ id: 'open-pane', kind: 'Action', label: panes === 1 ? 'Open side by side' : 'Open a third pane', icon: Columns2, run: openPane }] : []),
-    ...(panes > 1 ? [{ id: 'close-pane', kind: 'Action', label: 'Close the last pane', icon: Columns2, run: () => closePane((panes - 1) as 1 | 2) }] : []),
+    { id: 'undo', kind: m.canvasPalette.kinds.action, label: m.workspace.undo, icon: Undo2, run: undo },
+    { id: 'redo', kind: m.canvasPalette.kinds.action, label: m.workspace.redo, icon: Redo2, run: redo },
+    { id: 'note', kind: m.canvasPalette.kinds.action, label: m.canvasPalette.newNote, icon: StickyNote, run: () => (setView('canvas'), addNote()) },
+    ...(panes < paneRoom()
+      ? [{ id: 'open-pane', kind: m.canvasPalette.kinds.action, label: panes === 1 ? m.canvasPalette.sideBySide : m.canvasPalette.thirdPane, icon: Columns2, run: openPane }]
+      : []),
+    ...(panes > 1 ? [{ id: 'close-pane', kind: m.canvasPalette.kinds.action, label: m.canvasPalette.closePane, icon: Columns2, run: () => closePane((panes - 1) as 1 | 2) }] : []),
     ...(doc
       ? [
-          { id: 'squeeze', kind: 'Action', label: 'Squeeze to highlights', icon: Zap, run: () => void collapseAround([doc.id], {}, 2) },
-          { id: 'expand', kind: 'Action', label: 'Expand all squeezes', icon: Zap, run: () => expandAll(doc.id) },
+          { id: 'squeeze', kind: m.canvasPalette.kinds.action, label: m.canvasPalette.squeeze, icon: Zap, run: () => void collapseAround([doc.id], {}, 2) },
+          { id: 'expand', kind: m.canvasPalette.kinds.action, label: m.canvasPalette.expand, icon: Zap, run: () => expandAll(doc.id) },
         ]
       : []),
-    { id: 'terms', kind: 'Action', label: terms ? 'Turn off defined terms' : 'Turn on defined terms', icon: BookOpen, run: () => setTermsOn(!terms) },
-    { id: 'tags', kind: 'Action', label: 'Manage tags', icon: Settings2, run: () => manageTags() },
+    { id: 'terms', kind: m.canvasPalette.kinds.action, label: terms ? m.canvasPalette.termsOff : m.canvasPalette.termsOn, icon: BookOpen, run: () => setTermsOn(!terms) },
+    { id: 'tags', kind: m.canvasPalette.kinds.action, label: m.canvasPalette.manageTags, icon: Settings2, run: () => manageTags() },
   ];
   items.push(...all.filter((i) => matches(`${i.kind} ${i.label}`, words)).slice(0, 60));
   const current = items[Math.min(active, items.length - 1)];
@@ -178,11 +187,11 @@ export function Palette() {
 
   return (
     <div className="command-backdrop" onPointerDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="command-palette glass" role="dialog" aria-modal="true" aria-label="Go to">
+      <div className="command-palette glass" role="dialog" aria-modal="true" aria-label={m.canvasPalette.goTo}>
         <input
           ref={input}
-          aria-label="Go to a page, document, contents entry, canvas, tag or action"
-          placeholder={doc ? `Page number in ${doc.name}, or a name or action` : 'A name or action'}
+          aria-label={m.canvasPalette.inputLabel}
+          placeholder={doc ? m.canvasPalette.placeholderDoc(doc.name) : m.canvasPalette.placeholder}
           role="combobox"
           aria-expanded="true"
           aria-controls="command-list"
@@ -193,8 +202,8 @@ export function Palette() {
           // A modal keeps the keyboard: a jump still settling elsewhere must not take the focus from it.
           onBlur={(e) => !e.currentTarget.closest('[role="dialog"]')?.contains(e.relatedTarget) && requestAnimationFrame(() => input.current?.focus())}
         />
-        <div className="command-list" id="command-list" role="listbox" aria-label="Places and actions" ref={list}>
-          {!items.length && <p className="none">Nothing matches “{q}”.</p>}
+        <div className="command-list" id="command-list" role="listbox" aria-label={m.canvasPalette.list} ref={list}>
+          {!items.length && <p className="none">{m.canvasPalette.none(q)}</p>}
           {items.map((item) => (
             <button
               key={item.id}

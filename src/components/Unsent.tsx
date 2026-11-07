@@ -1,5 +1,6 @@
 import { Share, X } from 'lucide-react';
 import { download, useUnsent } from '../download';
+import { m } from '../i18n';
 
 /** Offers to send a file whose share sheet could not open by itself (see useUnsent). */
 export function Unsent() {
@@ -8,7 +9,7 @@ export function Unsent() {
   const close = () => useUnsent.setState({ file: null });
   return (
     <div className="toast glass" role="status">
-      <span>“{file.name}” is ready.</span>
+      <span>{m.homeUnsent.ready(file.name)}</span>
       <button
         className="primary"
         onClick={() => {
@@ -17,9 +18,9 @@ export function Unsent() {
           navigator.share({ files: [file] }).catch((err: Error) => err.name !== 'AbortError' && download(file.name, file));
         }}
       >
-        <Share size={15} /> Send
+        <Share size={15} /> {m.homeUnsent.send}
       </button>
-      <button className="icon" aria-label="Dismiss" onClick={close}>
+      <button className="icon" aria-label={m.common.dismiss} onClick={close}>
         <X size={16} />
       </button>
     </div>

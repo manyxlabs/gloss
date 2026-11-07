@@ -172,18 +172,18 @@ test('private links and folders are explained, and the Worker refuses what it mu
   await shot(page, 'links-private');
   await expect(page.getByRole('tablist', { name: 'Open documents' }).getByRole('tab')).toHaveCount(1);
 
-  const refused = async (base: string, url: string, status: number, error: RegExp) => {
+  const refused = async (base: string, url: string, status: number, error: object) => {
     const res = await request.get(`${base}/api/file?url=${encodeURIComponent(url)}`);
     expect(res.status(), url).toBe(status);
-    expect((await res.json()).error, url).toMatch(error);
+    expect((await res.json()).error, url).toEqual(error);
   };
   // The default guard: private hosts, IP numbers and other schemes, before anything is fetched.
-  for (const url of [`${providers}/direct/reef-paper`, 'http://printer.local/scan.pdf', 'http://intranet/report.pdf']) await refused(guarded, url, 400, /private network/);
+  for (const url of [`${providers}/direct/reef-paper`, 'http://printer.local/scan.pdf', 'http://intranet/report.pdf']) await refused(guarded, url, 400, { code: 'private' });
   for (const url of ['http://127.0.0.1/a.pdf', 'http://169.254.169.254/latest/meta-data/', 'http://[::1]/a.pdf', 'http://2130706433/a.pdf'])
-    await refused(guarded, url, 400, /IP numbers/);
-  await refused(guarded, 'file:///etc/passwd', 400, /Only http and https/);
-  await refused(guarded, 'http://user:secret@example.com/a.pdf', 400, /user name or password/);
+    await refused(guarded, url, 400, { code: 'ipNumber' });
+  await refused(guarded, 'file:///etc/passwd', 400, { code: 'scheme' });
+  await refused(guarded, 'http://user:secret@example.com/a.pdf', 400, { code: 'credentials' });
   // A redirect is checked again, and a download stops at the size limit.
-  await refused('', `${providers}/direct/to-metadata.pdf`, 400, /IP numbers/);
-  await refused('', `${providers}/direct/huge.pdf`, 413, /larger than 50 MB/);
+  await refused('', `${providers}/direct/to-metadata.pdf`, 400, { code: 'ipNumber' });
+  await refused('', `${providers}/direct/huge.pdf`, 413, { code: 'fileTooLarge', mb: 50 });
 });

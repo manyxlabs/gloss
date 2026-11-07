@@ -3,6 +3,7 @@
 // including each redirect and image, is checked first so it cannot be pointed at private networks.
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom/worker';
+import type { Problem } from './problem';
 
 const TIMEOUT = 10_000;
 const MAX_PAGE = 5 * 1024 * 1024;
@@ -15,11 +16,11 @@ const UA = 'Mozilla/5.0 (compatible; Gloss/1.0; +https://gloss.manyxlabs.com)';
 /** A reason to show the reader; `upstream` is the status the site answered with, when it was an error. */
 export class Refusal extends Error {
   constructor(
-    message: string,
+    readonly problem: Problem,
     readonly status = 400,
     readonly upstream?: number,
   ) {
-    super(message);
+    super(problem.code);
   }
 }
 
@@ -29,10 +30,9 @@ export class Refusal extends Error {
  */
 export type Guard = { allowPrivate: boolean; signal: AbortSignal; follow?: (url: URL) => void; via?: (url: URL) => URL };
 /** What is fetched, for the reasons given when it is refused. */
-export type Wanted = { accept: RegExp; max: number; notIt: string; tooLarge: string; headers?: string };
-const PAGE: Pick<Wanted, 'notIt' | 'tooLarge'> = { notIt: 'That address is not a web page.', tooLarge: 'The page is too large.' };
+export type Wanted = { accept: RegExp; max: number; notIt: Problem; tooLarge: Problem; headers?: string };
+const PAGE: Pick<Wanted, 'notIt' | 'tooLarge'> = { notIt: { code: 'notPage' }, tooLarge: { code: 'pageTooLarge' } };
 
-const PRIVATE = 'Addresses on a private network are not fetched.';
 const privateName = (h: string) => !h.includes('.') || /(^|\.)(localhost|local|internal|lan|home\.arpa)$/.test(h);
 
 function privateIp(ip: string) {
@@ -60,7 +60,7 @@ async function lookup(host: string, signal: AbortSignal) {
   const answers = await Promise.all(
     ['A', 'AAAA'].map(async (type) => {
       const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${type}`, { headers: { accept: 'application/dns-json' }, signal });
-      if (!res.ok) throw new Refusal('The site’s address could not be checked.', 502);
+      if (!res.ok) throw new Refusal({ code: 'unchecked' }, 502);
       const { Answer = [] } = (await res.json()) as { Answer?: { type: number; data: string }[] };
       return Answer.filter((a) => a.type === 1 || a.type === 28).map((a) => a.data);
     }),
@@ -73,24 +73,24 @@ async function check(raw: string, { allowPrivate, signal }: Guard) {
   try {
     url = new URL(raw);
   } catch {
-    throw new Refusal('That is not a web address.');
+    throw new Refusal({ code: 'notAddress' });
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Refusal('Only http and https pages can be added.');
-  if (url.username || url.password) throw new Refusal('Addresses with a user name or password are not fetched.');
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Refusal({ code: 'scheme' });
+  if (url.username || url.password) throw new Refusal({ code: 'credentials' });
   // The URL parser has already turned every spelling of an IP address (decimal, hex, short forms) into this one.
-  if (/^(\d+\.){3}\d+$/.test(url.hostname) || url.hostname.startsWith('[')) throw new Refusal('Addresses given as IP numbers are not fetched. Use the site’s name.');
+  if (/^(\d+\.){3}\d+$/.test(url.hostname) || url.hostname.startsWith('[')) throw new Refusal({ code: 'ipNumber' });
   // Only the local test setup turns this off, to fetch a page it serves itself.
   if (!allowPrivate) {
-    if (privateName(url.hostname)) throw new Refusal(PRIVATE);
+    if (privateName(url.hostname)) throw new Refusal({ code: 'private' });
     const ips = await lookup(url.hostname, signal);
-    if (!ips.length) throw new Refusal('That site could not be found.', 502);
+    if (!ips.length) throw new Refusal({ code: 'notFound' }, 502);
     // DNS can answer differently by the time of the fetch itself; Workers cannot pin the address, so this narrows rather than closes that gap.
-    if (ips.some(privateIp)) throw new Refusal(PRIVATE);
+    if (ips.some(privateIp)) throw new Refusal({ code: 'private' });
   }
   return url;
 }
 
-async function read(body: ReadableStream<Uint8Array> | null, max: number, tooLarge: string) {
+async function read(body: ReadableStream<Uint8Array> | null, max: number, tooLarge: Problem) {
   const chunks: Uint8Array[] = [];
   let size = 0;
   const reader = body?.getReader();
@@ -117,12 +117,12 @@ export async function get(raw: string, guard: Guard, { accept, max, notIt, tooLa
       .toLowerCase()
       .split(';')
       .map((s) => s.trim());
-    const refuse = async (message: string, status: number) => {
+    const refuse = async (problem: Problem, status: number) => {
       await res.body?.cancel();
-      return new Refusal(message, status);
+      return new Refusal(problem, status);
     };
     if (res.status >= 300 && res.status < 400 && location) {
-      if (hop === MAX_HOPS) throw await refuse('The address redirects too many times.', 502);
+      if (hop === MAX_HOPS) throw await refuse({ code: 'redirects' }, 502);
       await res.body?.cancel();
       const next = new URL(location, url);
       guard.follow?.(next);
@@ -131,7 +131,7 @@ export async function get(raw: string, guard: Guard, { accept, max, notIt, tooLa
     }
     if (!res.ok) {
       await res.body?.cancel();
-      throw new Refusal(`The site answered with an error (${res.status}).`, 502, res.status);
+      throw new Refusal({ code: 'upstream', status: res.status }, 502, res.status);
     }
     if (!accept.test(type)) throw await refuse(notIt, 415);
     if (Number(res.headers.get('content-length')) > max) throw await refuse(tooLarge, 413);
@@ -219,15 +219,17 @@ async function clean(html: string, base: URL, allowPrivate: boolean) {
 }
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
+/** The answer to a refused fetch, as `{ error: Problem }`. */
+export const refused = (error: Problem, status: number) => json({ error }, status);
 
 export async function handlePage(request: Request, env: { ALLOW_PRIVATE_HOSTS?: string }): Promise<Response> {
-  if (request.method !== 'GET') return json({ error: 'Only GET is supported.' }, 405);
+  if (request.method !== 'GET') return refused({ code: 'method' }, 405);
   const allowPrivate = env.ALLOW_PRIVATE_HOSTS === '1';
   try {
     const page = await get(new URL(request.url).searchParams.get('url') ?? '', { allowPrivate, signal: AbortSignal.timeout(TIMEOUT) }, { ...PAGE, accept: HTML, max: MAX_PAGE });
     const { document } = parseHTML(decode(page));
     const article = new Readability(document).parse();
-    if (!article?.content) throw new Refusal('No article could be found on that page.', 422);
+    if (!article?.content) throw new Refusal({ code: 'noArticle' }, 422);
     return json({
       url: page.url.href,
       title: article.title?.trim() || page.url.hostname,
@@ -236,8 +238,8 @@ export async function handlePage(request: Request, env: { ALLOW_PRIVATE_HOSTS?: 
       html: await clean(article.content, page.url, allowPrivate),
     });
   } catch (err) {
-    if (err instanceof Refusal) return json({ error: err.message }, err.status);
-    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) return json({ error: 'The page took too long to load.' }, 504);
-    return json({ error: 'The page could not be fetched.' }, 502);
+    if (err instanceof Refusal) return refused(err.problem, err.status);
+    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) return refused({ code: 'pageTimeout' }, 504);
+    return refused({ code: 'pageFailed' }, 502);
   }
 }

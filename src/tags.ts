@@ -1,3 +1,4 @@
+import { locale } from './i18n';
 import type { Card, Project, Tag } from './types';
 
 /** A card's tags: an excerpt's are its passage's, so a passage and its card never disagree. */
@@ -17,8 +18,8 @@ export const tagWord = (t: Tag) => t.name.trim().replace(/\s+/g, '-');
 
 /** Tags by category, the uncategorised first, each in alphabetical order. */
 export function byCategory(tags: Tag[]) {
-  const sorted = [...tags].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-  const names = [...new Set(sorted.flatMap((t) => (t.category ? [t.category] : [])))].sort((a, b) => a.localeCompare(b));
+  const sorted = [...tags].sort((a, b) => a.name.localeCompare(b.name, locale, { numeric: true, sensitivity: 'base' }));
+  const names = [...new Set(sorted.flatMap((t) => (t.category ? [t.category] : [])))].sort((a, b) => a.localeCompare(b, locale));
   return [
     ...(sorted.some((t) => !t.category) ? [{ category: undefined as string | undefined, tags: sorted.filter((t) => !t.category) }] : []),
     ...names.map((category) => ({ category: category as string | undefined, tags: sorted.filter((t) => t.category === category) })),

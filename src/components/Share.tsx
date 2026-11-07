@@ -2,15 +2,15 @@ import { Check, Copy, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/project';
 import { shareLink } from '../sync/crypto';
-import { useSync, type Status } from '../sync/state';
+import { useSync } from '../sync/state';
 import { Notifications } from './Notifications';
 import { keepName, NameField, Peers } from './Presence';
 import { screens } from './Screens';
+import { m } from '../i18n';
+import { rich } from '../i18n/rich';
 
 // The sync engine and Yjs load only once a project is shared.
 const engine = () => import('../sync/session');
-
-const LABEL: Record<Status, string> = { synced: 'Synced', syncing: 'Syncing', offline: 'Offline' };
 
 /** The Share button and dialog, and while the project is shared: who is here and whether it is in sync. */
 export function Share() {
@@ -26,7 +26,7 @@ export function Share() {
     if (!id || !room || !key) return;
     let stop: (() => void) | undefined;
     let gone = false;
-    void engine().then((m) => !gone && (stop = m.startSync(id, { room, key })));
+    void engine().then((e) => !gone && (stop = e.startSync(id, { room, key })));
     return () => {
       gone = true;
       stop?.();
@@ -42,11 +42,13 @@ export function Share() {
   const close = () => dialog.current?.close();
   const another = (
     <p className="fine">
-      To show this project on another of your own screens too, such as a tablet beside this one,{' '}
-      <button type="button" className="link" onClick={() => (close(), screens.open())}>
-        use another screen
-      </button>
-      .
+      {rich(m.homeShare.another, {
+        screens: (s) => (
+          <button type="button" className="link" onClick={() => (close(), screens.open())}>
+            {s}
+          </button>
+        ),
+      })}
     </p>
   );
 
@@ -58,30 +60,27 @@ export function Share() {
           <Peers />
           <span className={`sync-status ${status}`} role="status" title={problem ?? undefined}>
             <i aria-hidden="true" />
-            {LABEL[status]}
+            {m.homeShare.status[status]}
           </span>
         </>
       )}
-      <button className="share" onClick={() => dialog.current?.showModal()} title="Sync this project across devices and work on it together">
-        <Users size={16} /> Share
+      <button className="share" onClick={() => dialog.current?.showModal()} title={m.homeShare.shareTitle}>
+        <Users size={16} /> {m.homeShare.share}
       </button>
       {/* A click on the backdrop lands on the dialog itself, and closes it. */}
       <dialog ref={dialog} className="sheet glass" aria-labelledby="share-h" onClick={(e) => e.target === e.currentTarget && close()}>
-        <h2 id="share-h">{sync ? 'This project is shared' : 'Share this project'}</h2>
+        <h2 id="share-h">{sync ? m.homeShare.sharedHeading : m.homeShare.shareHeading}</h2>
         {sync ? (
           <>
-            <p>Anyone with this link can open this project, read it and edit it, on any device, as you work.</p>
+            <p>{m.homeShare.anyone}</p>
             <div className="share-link">
-              <input readOnly value={link} aria-label="Share link" onFocus={(e) => e.currentTarget.select()} />
+              <input readOnly value={link} aria-label={m.homeShare.linkLabel} onFocus={(e) => e.currentTarget.select()} />
               <button className="primary" onClick={() => void copy()}>
-                {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Copied' : 'Copy link'}
+                {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? m.home.copied : m.homeShare.copyLink}
               </button>
             </div>
-            <p className="fine">The link is the key. Treat it like the PDFs themselves: give it only to people who may see them.</p>
-            <p className="fine">
-              To keep a document or a canvas to yourself, mark it <b>Only on this device</b>, from the lock in the document’s toolbar or in Canvas style. It and everything on it
-              are then never sent, encrypted or not, and the copies on the other devices are removed.
-            </p>
+            <p className="fine">{m.homeShare.keyNote}</p>
+            <p className="fine">{rich(m.homeShare.privateNote, { b: (s) => <b>{s}</b> })}</p>
             {another}
             {problem && <p className="share-problem">{problem}</p>}
             <footer>
@@ -89,14 +88,14 @@ export function Share() {
                 className="ghost"
                 onClick={() =>
                   void engine()
-                    .then((m) => m.stopSharing())
+                    .then((e) => e.stopSharing())
                     .then(close)
                 }
-                title="Others keep the project; this copy stays here but stops getting their changes"
+                title={m.homeShare.stopTitle}
               >
-                Stop syncing on this device
+                {m.homeShare.stop}
               </button>
-              <button onClick={close}>Done</button>
+              <button onClick={close}>{m.home.done}</button>
             </footer>
           </>
         ) : (
@@ -104,27 +103,21 @@ export function Share() {
             onSubmit={(e) => {
               e.preventDefault();
               keepName(e.currentTarget);
-              void engine().then((m) => m.share());
+              void engine().then((e) => e.share());
             }}
           >
-            <p>
-              Sharing keeps this project, its PDFs and its canvas in step across your devices and with anyone you give the link to. Changes appear for everyone as they are made,
-              and edits made offline catch up later.
-            </p>
-            <p>
-              Everything is scrambled on this device before it leaves. The key is part of the link and never reaches the server, which only stores scrambled data it cannot read.
-              Anyone with the link can read and edit.
-            </p>
+            <p>{m.homeShare.intro}</p>
+            <p>{m.homeShare.encrypted}</p>
             {another}
             <label className="name-field">
-              <span>Your name, as the others will see it</span>
+              <span>{m.homeShare.nameLabel}</span>
               <NameField />
             </label>
             <footer>
               <button type="button" onClick={close}>
-                Cancel
+                {m.home.cancel}
               </button>
-              <button className="primary">Create link</button>
+              <button className="primary">{m.homeShare.create}</button>
             </footer>
           </form>
         )}

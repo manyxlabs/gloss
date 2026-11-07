@@ -30,6 +30,7 @@ import { paneRoom } from '../panes';
 import { screenShown } from '../sync/state';
 import { passwordAsker } from '../password';
 import { askAbout } from '../annots/ask';
+import { m } from '../i18n';
 import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
 
 /** Which version of each document's file a document has, as page edits are undone with the rest. */
@@ -320,7 +321,7 @@ export async function openProject(id: string) {
         ...stored,
         inks: stored.inks ?? [],
         folds: stored.folds ?? [],
-        canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: 'Canvas' }],
+        canvases: stored.canvases ?? [{ id: MAIN_CANVAS, name: m.engineStore.canvas }],
         bookmarks: stored.bookmarks ?? [],
         docFolders: stored.docFolders ?? [],
         tags: stored.tags ?? [],
@@ -354,7 +355,7 @@ export function closeProject() {
   set({ project: null, activeDocId: null, sideDocId: null, thirdDocId: null, past: [], future: [] });
 }
 
-export const UNTITLED = 'Untitled project';
+export const UNTITLED = m.engineStore.untitled;
 
 export const newProject = (name: string): Project => ({
   id: uid(),
@@ -367,7 +368,7 @@ export const newProject = (name: string): Project => ({
   links: [],
   inks: [],
   folds: [],
-  canvases: [{ id: MAIN_CANVAS, name: 'Canvas 1' }],
+  canvases: [{ id: MAIN_CANVAS, name: m.engineStore.canvasN(1) }],
   comments: [],
   passageLinks: [],
   cardLinks: [],
@@ -437,7 +438,7 @@ export async function importFiles(project: Project, inputs: Input[], options: Co
       added.push([{ id: uid(), name, pages: doc.numPages, size: data.size, ...(source ? { source } : {}), ...(password === undefined ? {} : { password }) }, data]);
       await close();
     } catch {
-      problems.push(`${name} could not be read as a PDF.`);
+      problems.push(m.engine.notPdf(name));
     }
   }
   if (added.length) await addFiles(added.map(([meta, file]) => [meta.id, file]));
@@ -750,7 +751,7 @@ export function addCanvas() {
   const { project } = get();
   if (!project) return;
   const id = uid();
-  edit((p) => ({ canvases: [...p.canvases, { id, name: `Canvas ${p.canvases.length + 1}` }] }), false);
+  edit((p) => ({ canvases: [...p.canvases, { id, name: m.engineStore.canvasN(p.canvases.length + 1) }] }), false);
   set({ canvasId: id });
 }
 

@@ -1,5 +1,6 @@
 import { BorderStyle, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
 import type { NoteItem, Outline } from './export';
+import { m } from './i18n';
 import { inkPng, type InkImage } from './inkImage';
 
 const MUTED = '6B6B78';
@@ -28,12 +29,12 @@ async function item(i: NoteItem) {
   const body =
     i.kind !== 'excerpt'
       ? [...(i.kind === 'note' && i.text ? [para(i.text)] : []), ...(i.ink ? [await picture(i.ink)] : [])]
-      : [quoted(i.text), quoted(`(${i.doc}, ${i.where})`, MUTED), ...(i.note ? [para(`Comment: ${i.note}`)] : []), ...(i.comment ? [para(i.comment)] : [])];
+      : [quoted(i.text), quoted(`(${i.doc}, ${i.where})`, MUTED), ...(i.note ? [para(m.canvasNotes.comment(i.note))] : []), ...(i.comment ? [para(i.comment)] : [])];
   return [
     ...body,
-    ...(i.tags.length ? [para(`Tags: ${i.tags.join(' ')}`, MUTED)] : []),
-    ...(i.links.length ? [para(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, MUTED)] : []),
-    ...i.passages.map((l) => para(`Linked passage: ${l}`, MUTED)),
+    ...(i.tags.length ? [para(m.canvasNotes.tags(i.tags.join(' ')), MUTED)] : []),
+    ...(i.links.length ? [para(m.canvasNotes.linkedTo(i.links), MUTED)] : []),
+    ...i.passages.map((l) => para(m.canvasNotes.passage(l), MUTED)),
   ];
 }
 
@@ -41,19 +42,19 @@ async function item(i: NoteItem) {
 export async function notesDocx(o: Outline) {
   const children = [heading(o.title, HeadingLevel.TITLE)];
   for (const s of o.sections) {
-    if (s.title !== undefined) children.push(heading(s.title, HeadingLevel.HEADING_1), ...(s.tags?.length ? [para(`Tags: ${s.tags.join(' ')}`, MUTED)] : []));
+    if (s.title !== undefined) children.push(heading(s.title, HeadingLevel.HEADING_1), ...(s.tags?.length ? [para(m.canvasNotes.tags(s.tags.join(' ')), MUTED)] : []));
     for (const i of s.items) children.push(...(await item(i)));
   }
   if (o.highlights.length) {
-    children.push(heading('Highlights', HeadingLevel.HEADING_1));
+    children.push(heading(m.canvasNotes.highlights, HeadingLevel.HEADING_1));
     for (const d of o.highlights) {
       children.push(heading(d.doc, HeadingLevel.HEADING_2));
       for (const h of d.items)
         children.push(
           new Paragraph({ bullet: { level: 0 }, children: runs(`${h.where}: ${h.text}`) }),
-          ...(h.note ? [new Paragraph({ indent: { left: 720 }, children: runs(`Comment: ${h.note}`) })] : []),
-          ...(h.tags.length ? [new Paragraph({ indent: { left: 720 }, children: runs(`Tags: ${h.tags.join(' ')}`, MUTED) })] : []),
-          ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(`Linked passage: ${l}`, MUTED) })),
+          ...(h.note ? [new Paragraph({ indent: { left: 720 }, children: runs(m.canvasNotes.comment(h.note)) })] : []),
+          ...(h.tags.length ? [new Paragraph({ indent: { left: 720 }, children: runs(m.canvasNotes.tags(h.tags.join(' ')), MUTED) })] : []),
+          ...h.passages.map((l) => new Paragraph({ indent: { left: 720 }, children: runs(m.canvasNotes.passage(l), MUTED) })),
         );
     }
   }

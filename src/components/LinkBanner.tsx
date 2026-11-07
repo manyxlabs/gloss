@@ -2,6 +2,7 @@ import { Link2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { cancelLinking, useLinking } from '../store/links';
 import { useStore } from '../store/project';
+import { m } from '../i18n';
 
 /** Says that the next passage picked is the other end of a link, or another place for a comment, until it is picked or cancelled. */
 export function LinkBanner() {
@@ -24,13 +25,10 @@ export function LinkBanner() {
 
   if (!linking || gone) return null;
   return (
-    <section className="link-banner" aria-label="Linking">
+    <section className="link-banner" aria-label={m.homeLinking.label}>
       <Link2 size={16} aria-hidden="true" />
-      <p>
-        {linking.refused ??
-          (linking.kind === 'link' ? 'Select text or click a highlight to link to, in any document.' : 'Select text or click a highlight to attach this comment to as well.')}
-      </p>
-      <button onClick={cancelLinking}>Cancel</button>
+      <p>{linking.refused ?? (linking.kind === 'link' ? m.homeLinking.link : m.homeLinking.comment)}</p>
+      <button onClick={cancelLinking}>{m.home.cancel}</button>
     </section>
   );
 }

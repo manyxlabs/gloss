@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { addDocs, useStore } from '../store/project';
 import type { DocMeta, ZoteroItem } from '../types';
 import { byline, connect, disconnect, pdfsOf, savedAccount, search, sendNote, ZoteroError, type ZoteroAccount, type ZoteroResult } from '../zotero';
+import { m } from '../i18n';
+import { rich } from '../i18n/rich';
 
-const reason = (err: unknown) => (err instanceof ZoteroError ? err.message : 'Something went wrong talking to Zotero.');
+const reason = (err: unknown) => (err instanceof ZoteroError ? err.message : m.homeZotero.generic);
 
 /**
  * Zotero, with the reader's own key: connecting, then browsing and searching their library to
@@ -18,7 +20,7 @@ export function ZoteroDialog({ send, onClose, onProblems }: { send?: DocMeta & {
   return (
     <dialog ref={ref} className="sheet glass zotero-dialog" aria-labelledby="zotero-h" onClose={onClose}>
       <h2 id="zotero-h">
-        <BookOpen size={18} /> {send ? 'Send notes to Zotero' : 'Add from Zotero'}
+        <BookOpen size={18} /> {send ? m.homeZotero.sendHeading : m.homeZotero.addHeading}
       </h2>
       {!account ? (
         <Connect onConnected={setAccount} close={close} />
@@ -51,19 +53,22 @@ function Connect({ onConnected, close }: { onConnected: (a: ZoteroAccount) => vo
       }}
     >
       <p>
-        Gloss talks to Zotero with a key of your own. Make one at{' '}
-        <a href="https://www.zotero.org/settings/keys" target="_blank" rel="noopener noreferrer">
-          zotero.org/settings/keys
-        </a>
-        : press <b>Create new private key</b> and allow access to your library. Read only is enough to import; to send notes back, allow write access too.
+        {rich(m.homeZotero.connectIntro, {
+          keys: (s) => (
+            <a href="https://www.zotero.org/settings/keys" target="_blank" rel="noopener noreferrer">
+              {s}
+            </a>
+          ),
+          b: (s) => <b>{s}</b>,
+        })}
       </p>
-      <p className="fine">Your user ID is on the same page, as “Your user ID for use in API calls”. The key is kept only in this browser and sent only to Zotero.</p>
+      <p className="fine">{m.homeZotero.userIdNote}</p>
       <label className="name-field">
-        User ID
-        <input name="user" inputMode="numeric" autoComplete="off" required pattern="\d+" title="Your user ID is a number" />
+        {m.homeZotero.userId}
+        <input name="user" inputMode="numeric" autoComplete="off" required pattern="\d+" title={m.homeZotero.userIdTitle} />
       </label>
       <label className="name-field">
-        API key
+        {m.homeZotero.apiKey}
         <input name="key" type="password" autoComplete="off" required />
       </label>
       {problem && (
@@ -73,10 +78,10 @@ function Connect({ onConnected, close }: { onConnected: (a: ZoteroAccount) => vo
       )}
       <footer>
         <button type="button" onClick={close}>
-          Cancel
+          {m.home.cancel}
         </button>
         <button type="submit" className="primary" disabled={busy}>
-          {busy ? 'Connecting…' : 'Connect'}
+          {busy ? m.homeZotero.connecting : m.homeZotero.connect}
         </button>
       </footer>
     </form>
@@ -113,7 +118,7 @@ function Library({ account, onImported, onDisconnect, close }: { account: Zotero
     setProblem(null);
     try {
       const files = await pdfsOf(account, r);
-      if (!files.length) return setProblem(`“${r.item.title}” has no PDF stored in Zotero. Attach one there, or add a linked file’s PDF from the computer.`);
+      if (!files.length) return setProblem(m.homeZotero.noPdfStored(r.item.title));
       onImported(await addDocs(files, {}, { zotero: r.item }));
     } catch (err) {
       setProblem(reason(err));
@@ -126,48 +131,55 @@ function Library({ account, onImported, onDisconnect, close }: { account: Zotero
     <>
       <div className="zotero-account">
         <span>
-          {account.username} · {account.write ? 'read and write' : 'read only'}
+          {account.username} · {account.write ? m.homeZotero.readWrite : m.homeZotero.readOnly}
         </span>
         <button className="ghost" onClick={onDisconnect}>
-          <LogOut size={15} /> Disconnect
+          <LogOut size={15} /> {m.homeZotero.disconnect}
         </button>
       </div>
       <label className="zotero-search">
         <SearchIcon size={16} aria-hidden="true" />
-        <input type="search" aria-label="Search your Zotero library" placeholder="Title, author or year" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+        <input
+          type="search"
+          aria-label={m.homeZotero.searchLabel}
+          placeholder={m.homeZotero.searchPlaceholder}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+        />
       </label>
       {problem && (
         <p className="share-problem" role="alert">
           {problem}
         </p>
       )}
-      <ul className="zotero-results" aria-label="Zotero items" aria-busy={results === null}>
-        {results?.length === 0 && <li className="side-empty">{query ? 'Nothing in your library matches.' : 'Your library is empty.'}</li>}
+      <ul className="zotero-results" aria-label={m.homeZotero.items} aria-busy={results === null}>
+        {results?.length === 0 && <li className="side-empty">{query ? m.homeZotero.noMatch : m.homeZotero.empty}</li>}
         {results?.map((r) => (
           <li key={r.key}>
             <span className="what">
               <span className="title">{r.item.title}</span>
-              <span className="by">{byline(r.item) || 'No author or year'}</span>
+              <span className="by">{byline(r.item) || m.homeZotero.noByline}</span>
             </span>
             {imported.has(r.key) ? (
               <span className="done">
-                <Check size={15} /> Added
+                <Check size={15} /> {m.homeZotero.added}
               </span>
             ) : (
               <button
                 disabled={!r.pdf || importing !== null}
-                aria-label={`Add ${r.item.title}`}
-                title={r.pdf ? 'Add its PDF to this project' : 'It has no attachments'}
+                aria-label={m.homeZotero.addItem(r.item.title)}
+                title={r.pdf ? m.homeZotero.addTitle : m.homeZotero.noAttachments}
                 onClick={() => void add(r)}
               >
-                <FileText size={15} /> {importing === r.key ? 'Adding…' : r.pdf ? 'Add' : 'No PDF'}
+                <FileText size={15} /> {importing === r.key ? m.home.adding : r.pdf ? m.home.add : m.homeZotero.noPdf}
               </button>
             )}
           </li>
         ))}
       </ul>
       <footer>
-        <button onClick={close}>Close</button>
+        <button onClick={close}>{m.home.close}</button>
       </footer>
     </>
   );
@@ -177,10 +189,10 @@ function Send({ account, doc, close }: { account: ZoteroAccount; doc: DocMeta & 
   const [state, setState] = useState<{ busy: true } | { sent: number } | { problem: string } | null>(null);
   return (
     <>
-      <p>Adds a note under “{doc.zotero.title}” in your Zotero library, with this document’s highlights, figures and comments in page order. Sending again adds another note.</p>
+      <p>{m.homeZotero.sendIntro(doc.zotero.title)}</p>
       {state && 'sent' in state && (
         <p role="status" className="zotero-sent">
-          <Check size={16} /> Sent {state.sent} {state.sent === 1 ? 'highlight' : 'highlights'} to Zotero.
+          <Check size={16} /> {m.homeZotero.sent(state.sent)}
         </p>
       )}
       {state && 'problem' in state && (
@@ -189,7 +201,7 @@ function Send({ account, doc, close }: { account: ZoteroAccount; doc: DocMeta & 
         </p>
       )}
       <footer>
-        <button onClick={close}>{state && 'sent' in state ? 'Done' : 'Cancel'}</button>
+        <button onClick={close}>{state && 'sent' in state ? m.home.done : m.home.cancel}</button>
         <button
           className="primary"
           disabled={!!state && 'busy' in state}
@@ -202,7 +214,7 @@ function Send({ account, doc, close }: { account: ZoteroAccount; doc: DocMeta & 
             }
           }}
         >
-          {state && 'busy' in state ? 'Sending…' : 'Send notes'}
+          {state && 'busy' in state ? m.homeZotero.sending : m.homeZotero.sendNotes}
         </button>
       </footer>
     </>

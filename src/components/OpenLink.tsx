@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { listProjects } from '../store/db';
 import { useStore } from '../store/project';
 import { reveal } from '../store/reveal';
-import { KINDS, parseLink } from '../targets';
+import { parseLink } from '../targets';
+import { m } from '../i18n';
 import { Lost } from './Lost';
 
 /** Opens a link to something in a shared project at this device's copy of it, which is found by its room. */
@@ -19,11 +20,7 @@ export function OpenShared({ room }: { room: string }) {
     });
     return () => void (stale = true);
   }, [room]);
-  return missing ? (
-    <Lost title="This shared project is not on this device">
-      The link leads to something in a shared project, and only someone who has the project can follow it. Open the project’s share link here first, then this link again.
-    </Lost>
-  ) : null;
+  return missing ? <Lost title={m.homeLinks.notHereTitle}>{m.homeLinks.notHere}</Lost> : null;
 }
 
 /**
@@ -46,7 +43,7 @@ export function useLinkTarget(onMissing: (problem: string) => void) {
       // After the canvas and the documents have drawn what they hold, so they can scroll to it.
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        if (!reveal(l)) missing.current(`The linked ${KINDS[l.kind]} is no longer in this project.`);
+        if (!reveal(l)) missing.current(m.homeLinks.missing[l.kind]);
       });
     };
     go();

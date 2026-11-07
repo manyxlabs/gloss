@@ -4,6 +4,7 @@ import { nestedIn, pathTo } from '../canvases';
 import { addCanvas, canvasOf, removeCanvas, renameCanvas, setCanvas, useStore } from '../store/project';
 import { Menu } from './Menu';
 import { onTabKeys, revealTab, useRevealOnResize } from './tabs';
+import { m } from '../i18n';
 
 /**
  * The project's top-level canvases, one per line of thought; double-click a name to rename it. A
@@ -24,18 +25,18 @@ export function CanvasTabs() {
     const { project } = useStore.getState();
     const inside = new Set([id, ...(project ? nestedIn(project, id).map((n) => n.canvas.id) : [])]);
     const cards = project ? project.cards.filter((c) => inside.has(canvasOf(project, c))).length : 0;
-    if (!cards || confirm(`Remove “${name}” and its ${cards} card${cards === 1 ? '' : 's'}? Undo brings them back.`)) removeCanvas(id);
+    if (!cards || confirm(m.canvas.removeConfirm(name, cards))) removeCanvas(id);
   };
 
   return (
     <div className="tabs canvas-tabs">
-      <div className="tab-list" role="tablist" aria-label="Canvases" ref={list} onKeyDown={(e) => !editing && onTabKeys(e)}>
+      <div className="tab-list" role="tablist" aria-label={m.canvas.canvases} ref={list} onKeyDown={(e) => !editing && onTabKeys(e)}>
         {canvases.map((c) => (
           <div key={c.id} className={`tab${c.id === current ? ' active' : ''}`}>
             {editing === c.id ? (
               <input
                 className="rename"
-                aria-label="Canvas name"
+                aria-label={m.canvas.name}
                 defaultValue={c.name}
                 autoFocus
                 onFocus={(e) => e.target.select()}
@@ -49,16 +50,16 @@ export function CanvasTabs() {
                 tabIndex={c.id === current ? 0 : -1}
                 onClick={() => setCanvas(c.id)}
                 onDoubleClick={() => setEditing(c.id)}
-                title="Double-click to rename"
+                title={m.canvas.renameHint}
               >
-                {c.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
+                {c.local && <Lock size={12} aria-label={m.canvas.onlyHere} className="lock" />}
                 {c.name}
               </button>
             )}
             {all?.some((x) => x.parentId === c.id) && (
               <button
                 className="close nested"
-                aria-label={`Canvases in ${c.name}`}
+                aria-label={m.canvas.canvasesIn(c.name)}
                 aria-expanded={nested?.id === c.id}
                 tabIndex={c.id === current ? 0 : -1}
                 onClick={(e) => setNested(nested ? null : { id: c.id, anchor: e.currentTarget })}
@@ -67,7 +68,7 @@ export function CanvasTabs() {
               </button>
             )}
             {canvases.length > 1 && (
-              <button className="close" aria-label={`Remove ${c.name}`} tabIndex={c.id === current ? 0 : -1} onClick={() => remove(c.id, c.name)}>
+              <button className="close" aria-label={m.canvas.remove(c.name)} tabIndex={c.id === current ? 0 : -1} onClick={() => remove(c.id, c.name)}>
                 <X size={13} />
               </button>
             )}
@@ -75,7 +76,7 @@ export function CanvasTabs() {
         ))}
       </div>
       {nested && all && (
-        <Menu anchor={nested.anchor} label={`Canvases in ${all.find((c) => c.id === nested.id)?.name ?? ''}`} onClose={() => setNested(null)}>
+        <Menu anchor={nested.anchor} label={m.canvas.canvasesIn(all.find((c) => c.id === nested.id)?.name ?? '')} onClose={() => setNested(null)}>
           {[{ canvas: all.find((c) => c.id === nested.id)!, depth: 0 }, ...nestedIn({ canvases: all }, nested.id)].map(({ canvas, depth }) => (
             <button
               key={canvas.id}
@@ -84,13 +85,13 @@ export function CanvasTabs() {
               style={{ paddingLeft: 12 + depth * 16 }}
               onClick={() => (setNested(null), setCanvas(canvas.id))}
             >
-              {canvas.local && <Lock size={12} aria-label="Only on this device" className="lock" />}
+              {canvas.local && <Lock size={12} aria-label={m.canvas.onlyHere} className="lock" />}
               {canvas.name}
             </button>
           ))}
         </Menu>
       )}
-      <button className="add" aria-label="New canvas" title="New canvas" onClick={addCanvas}>
+      <button className="add" aria-label={m.canvas.new} title={m.canvas.new} onClick={addCanvas}>
         <Plus size={15} />
       </button>
     </div>

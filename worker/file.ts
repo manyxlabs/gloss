@@ -3,14 +3,15 @@
 // link straight to a file. It goes through the same checks as a web page (page.ts), and only files Gloss
 // can open come back.
 import { PROVIDER_HOSTS, shareLink, signIn, type Provider } from './links';
-import { get, Refusal, type Guard } from './page';
+import { get, Refusal, refused, type Guard, type Wanted } from './page';
+import type { Problem } from './problem';
 
 const TIMEOUT = 30_000;
 const MAX_FILE = 50 * 1024 * 1024;
 /** What a server may call a file worth reading: its own type, or a generic download whose bytes then say what it is. */
 const DECLARED =
   /^(application\/pdf|application\/vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|presentationml\.presentation)|image\/[\w.+-]+|text\/(plain|markdown|x-markdown|html)|application\/(octet-stream|x-download|force-download|zip|binary)|binary\/octet-stream|)$/;
-const NOT_A_FILE = 'That address is not a web page or a file Gloss can open.';
+const NOT_A_FILE: Problem = { code: 'notFile' };
 
 type Kind = { ext: string; type: string };
 const KINDS = {
@@ -67,8 +68,7 @@ function nameOf(headers: Headers, url: URL) {
   return name.replace(/[\\/]|\p{Cc}/gu, ' ').trim();
 }
 
-const privately = (provider: Provider) =>
-  `${provider} did not hand over the file, which usually means it is private. Share it so that anyone with the link can view it, then add the link again.`;
+const privately = (provider: Provider): Problem => ({ code: 'privateLink', provider });
 
 /** Drive asks before handing over a file too large for it to scan: the page's form names the address that downloads it anyway. */
 function driveConfirm(html: string) {
@@ -79,10 +79,8 @@ function driveConfirm(html: string) {
   return url.href;
 }
 
-const json = (body: unknown, status: number) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
-
 export async function handleFile(request: Request, env: { ALLOW_PRIVATE_HOSTS?: string; TEST_PROVIDER_ORIGIN?: string }): Promise<Response> {
-  if (request.method !== 'GET') return json({ error: 'Only GET is supported.' }, 405);
+  if (request.method !== 'GET') return refused({ code: 'method' }, 405);
   const raw = new URL(request.url).searchParams.get('url') ?? '';
   const link = shareLink(raw);
   const origin = env.TEST_PROVIDER_ORIGIN;
@@ -95,9 +93,9 @@ export async function handleFile(request: Request, env: { ALLOW_PRIVATE_HOSTS?: 
     // The local tests stand in for the providers, at their addresses' paths on a local server.
     via: origin ? (url) => (PROVIDER_HOSTS.test(url.hostname) ? new URL(`${origin}/${url.host}${url.pathname}${url.search}`) : url) : undefined,
   };
-  const wanted = { accept: DECLARED, max: MAX_FILE, notIt: NOT_A_FILE, tooLarge: `The file is larger than ${MAX_FILE >> 20} MB.`, headers: '*/*' };
+  const wanted: Wanted = { accept: DECLARED, max: MAX_FILE, notIt: NOT_A_FILE, tooLarge: { code: 'fileTooLarge', mb: MAX_FILE >> 20 }, headers: '*/*' };
   try {
-    if (link && 'folder' in link) throw new Refusal(`That ${link.provider} link is to a folder. Share a single file and add its link.`);
+    if (link && 'folder' in link) throw new Refusal({ code: 'folder', provider: link.provider });
     let file = await get(link?.url ?? raw, guard, wanted);
     if (file.type === 'text/html') {
       const confirmed = link?.provider === 'Google Drive' && driveConfirm(new TextDecoder().decode(file.bytes));
@@ -106,16 +104,17 @@ export async function handleFile(request: Request, env: { ALLOW_PRIVATE_HOSTS?: 
     const name = nameOf(file.headers, file.url);
     const kind = kindOf(file.bytes, file.type, name);
     if (!kind) throw new Refusal(link && file.type === 'text/html' ? privately(link.provider) : NOT_A_FILE, link && file.type === 'text/html' ? 403 : 415);
-    const base = name.replace(/\.[^.]*$/, '') || (link ? `From ${link.provider}` : file.url.hostname);
+    // A provider's file without a name is named by the app, in the reader's language, from the extension alone.
+    const base = name.replace(/\.[^.]*$/, '') || (link ? '' : file.url.hostname);
     return new Response(file.bytes, {
       headers: { 'content-type': kind.type, 'x-file-name': encodeURIComponent(`${base}.${kind.ext}`), 'cache-control': 'no-store' },
     });
   } catch (err) {
     if (err instanceof Refusal) {
-      if (link && err.upstream && [401, 403, 404].includes(err.upstream)) return json({ error: privately(link.provider) }, 403);
-      return json({ error: err.message }, err.status);
+      if (link && err.upstream && [401, 403, 404].includes(err.upstream)) return refused(privately(link.provider), 403);
+      return refused(err.problem, err.status);
     }
-    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) return json({ error: 'The file took too long to download.' }, 504);
-    return json({ error: 'The file could not be fetched.' }, 502);
+    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) return refused({ code: 'fileTimeout' }, 504);
+    return refused({ code: 'fileFailed' }, 502);
   }
 }

@@ -1,5 +1,6 @@
 import { getDocument, GlobalWorkerOptions, PasswordException, PasswordResponses, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { m } from '../i18n';
 import { getFile } from '../store/db';
 import type { Rect } from '../types';
 import { cleanText } from './anchor';
@@ -8,10 +9,13 @@ GlobalWorkerOptions.workerSrc = workerUrl;
 
 const assets = (dir: string) => `${import.meta.env.BASE_URL}pdfjs/${dir}/`;
 
+/** An error whose message is written for the reader, in their language; any other comes from a library and is not shown. */
+export class ReaderError extends Error {}
+
 /** The PDF needs a password: none was given, or `wrong` when the one given did not open it. */
-export class PdfPasswordError extends Error {
+export class PdfPasswordError extends ReaderError {
   constructor(readonly wrong: boolean) {
-    super(wrong ? 'The password is not right.' : 'The PDF needs a password.');
+    super(wrong ? m.enginePdf.wrongPassword : m.enginePdf.needsPassword);
   }
 }
 
@@ -58,7 +62,7 @@ function opened(key: string, password?: string) {
   let doc = open.get(key);
   if (!doc) {
     doc = getFile(key).then((blob) => {
-      if (!blob) throw new Error('This PDF is missing from this browser’s storage.');
+      if (!blob) throw new ReaderError(m.engine.missingFile);
       return openPdf(blob, password);
     });
     // A failure must not stay cached, or the document could not be retried without a reload.
@@ -171,7 +175,7 @@ export function regionImage(docId: string, password: string | undefined, pageNo:
       canvas.height = Math.max(1, Math.round(h * viewport.height));
       await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -x * viewport.width, -y * viewport.height] }).promise;
       const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done));
-      if (!blob) throw new Error('The page could not be drawn.');
+      if (!blob) throw new ReaderError(m.enginePdf.notDrawn);
       return URL.createObjectURL(blob);
     });
     url.catch(() => images.delete(key));

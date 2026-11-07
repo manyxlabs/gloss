@@ -4,6 +4,7 @@
 // squeezes and bookmarks follow the words nearest them.
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { Input } from '../convert';
+import { m } from '../i18n';
 import { addFiles, deleteVersion, fileKey } from '../store/db';
 import { openProtected, switchVersion, uid, useStore } from '../store/project';
 import type { Highlight, Ink, Part, Point, Project, Rect } from '../types';
@@ -297,10 +298,10 @@ export async function replaceDoc(docId: string, input: Input): Promise<Replaced>
   if (!data) return { problems };
   const opened = await openProtected(data, 'name' in input ? input.name : name).catch(() => undefined);
   if (opened === null) return { problems };
-  if (!opened) return { problems: [...problems, 'The new version could not be read as a PDF.'] };
+  if (!opened) return { problems: [...problems, m.enginePdf.newNotPdf] };
   let done: Replaced = { problems };
   // In turn with page edits, as each starts from the version the last one made.
-  const failed = await rewrite('The document could not be replaced.', async () => {
+  const failed = await rewrite(m.enginePdf.notReplaced, async () => {
     const doc = useStore.getState().project?.docs.find((d) => d.id === docId);
     if (!doc) return [];
     const [old, next] = await Promise.all([loadDoc(docId, doc.password).then(wordsOf), wordsOf(opened.doc)]);
@@ -320,7 +321,7 @@ export async function replaceDoc(docId: string, input: Input): Promise<Replaced>
     }));
     if (!switched) {
       await deleteVersion(key);
-      return ['The document changed while it was being replaced. Try again.'];
+      return [m.enginePdf.changedReplacing];
     }
     const text = [...placed.highlights.values()].filter((h) => !h.area && !h.typed);
     done = { problems, placed: text.length, unplaced: placed.unplaced, byPage: placed.byPage, opened: placed.opened };

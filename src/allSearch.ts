@@ -4,6 +4,7 @@ import { openPdf, readTexts } from './pdf/pdfjs';
 import { cardText, snippets } from './search';
 import { fileKey, getFile, listProjects } from './store/db';
 import type { DocMeta, Project } from './types';
+import { m } from './i18n';
 
 /**
  * Each document's page texts, kept in a database of their own by the version of the file they
@@ -69,7 +70,7 @@ export async function searchAll(raw: string, progress: (done: number, total: num
       const pages = await textsOf(doc).catch(() => [] as string[]);
       pages.forEach((text, i) =>
         snippets(text.replace(/\s+/g, ' '), query).forEach((snippet, n) =>
-          mine.push({ id: `d-${project.id}-${doc.id}-${i}-${n}`, kind: 'page', project, docId: doc.id, page: i + 1, label: `${doc.name}, p. ${i + 1}`, snippet }),
+          mine.push({ id: `d-${project.id}-${doc.id}-${i}-${n}`, kind: 'page', project, docId: doc.id, page: i + 1, label: `${doc.name}, ${m.homeLinks.page(i + 1)}`, snippet }),
         ),
       );
     }
@@ -81,7 +82,13 @@ export async function searchAll(raw: string, progress: (done: number, total: num
     for (const c of project.comments ?? []) {
       const h = project.highlights.find((x) => x.commentId === c.id);
       if (h && c.text.toLowerCase().includes(query))
-        mine.push({ id: `m-${project.id}-${c.id}`, kind: 'comment', project, highlightId: h.id, label: `${commentOf(project, h)?.text} (on ${cite(project, h)})` });
+        mine.push({
+          id: `m-${project.id}-${c.id}`,
+          kind: 'comment',
+          project,
+          highlightId: h.id,
+          label: m.homeSearch.commentOn(commentOf(project, h)?.text ?? '', cite(project, h)),
+        });
     }
     for (const h of project.highlights)
       if (h.typed && h.text.toLowerCase().includes(query)) mine.push({ id: `b-${project.id}-${h.id}`, kind: 'box', project, highlightId: h.id, label: cite(project, h) });

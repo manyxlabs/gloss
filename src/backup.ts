@@ -1,6 +1,7 @@
 import { strFromU8, strToU8, unzip, zip, type Unzipped } from 'fflate';
 import { addFiles, fileKey, getFile, listProjects, putProject } from './store/db';
 import type { Project } from './types';
+import { m } from './i18n';
 
 const FORMAT = 'gloss-backup';
 const VERSION = 1;
@@ -13,7 +14,7 @@ export async function backupOf(project: Project): Promise<Blob> {
   const files: Record<string, Uint8Array> = {};
   for (const doc of project.docs) {
     const blob = await getFile(fileKey(doc));
-    if (!blob) throw new Error(`“${doc.name}” is missing from this browser’s storage, so it cannot be backed up.`);
+    if (!blob) throw new Error(m.homeBackup.fileMissing(doc.name));
     files[`files/${doc.id}.pdf`] = new Uint8Array(await blob.arrayBuffer());
   }
   files['gloss.json'] = strToU8(JSON.stringify({ format: FORMAT, version: VERSION, project }));
@@ -34,7 +35,7 @@ export class BackupError extends Error {}
  */
 export async function restore(file: File, again: (name: string, original: boolean) => boolean): Promise<Project | null> {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const entries = await new Promise<Unzipped>((ok, fail) => unzip(bytes, (err, out) => (err ? fail(new BackupError(`${file.name} is not a Gloss backup.`)) : ok(out))));
+  const entries = await new Promise<Unzipped>((ok, fail) => unzip(bytes, (err, out) => (err ? fail(new BackupError(m.homeBackup.notBackup(file.name))) : ok(out))));
   const manifest = entries['gloss.json'];
   let parsed: { format?: string; version?: number; project?: Project };
   try {
@@ -43,8 +44,8 @@ export async function restore(file: File, again: (name: string, original: boolea
     parsed = {};
   }
   const old = parsed.project;
-  if (parsed.format !== FORMAT || !old || !Array.isArray(old.docs)) throw new BackupError(`${file.name} is not a Gloss backup.`);
-  if ((parsed.version ?? 0) > VERSION) throw new BackupError(`${file.name} was made by a newer version of Gloss. Reload the page to update, then try again.`);
+  if (parsed.format !== FORMAT || !old || !Array.isArray(old.docs)) throw new BackupError(m.homeBackup.notBackup(file.name));
+  if ((parsed.version ?? 0) > VERSION) throw new BackupError(m.homeBackup.newer(file.name));
   const from = `${old.id}@${old.updatedAt}`;
   const here = await listProjects();
   const copy = here.find((p) => p.restoredFrom === from);
@@ -54,7 +55,7 @@ export async function restore(file: File, again: (name: string, original: boolea
   const ids = new Map(old.docs.map((d) => [d.id, crypto.randomUUID()]));
   const blobs: [string, Blob][] = old.docs.map((d) => {
     const bytes = entries[`files/${d.id}.pdf`];
-    if (!bytes) throw new BackupError(`${file.name} is missing “${d.name}”.`);
+    if (!bytes) throw new BackupError(m.homeBackup.docMissing(file.name, d.name));
     return [ids.get(d.id)!, new Blob([bytes as BlobPart], { type: 'application/pdf' })];
   });
   const doc = (id: string) => ids.get(id) ?? id;

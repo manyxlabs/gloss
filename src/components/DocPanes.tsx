@@ -4,6 +4,7 @@ import { DocDialogs } from './DocActions';
 import { DocPane } from './DocPane';
 import { LinkBanner } from './LinkBanner';
 import { usePaneRoom } from '../panes';
+import { m } from '../i18n';
 
 const SIZES_KEY = 'gloss:pane-sizes';
 /** No pane is dragged narrower than this share of the documents' width. */
@@ -37,8 +38,8 @@ export function DocPanes({ onProblems, only }: { onProblems: (problems: string[]
     const start = shares.slice(0, i).reduce((a, b) => a + b, 0);
     const pair = shares[i]! + shares[i + 1]!;
     let next = shares;
-    const move = (m: PointerEvent) => {
-      const at = Math.min(pair - MIN_SHARE, Math.max(MIN_SHARE, (m.clientX - left) / width - start));
+    const move = (e: PointerEvent) => {
+      const at = Math.min(pair - MIN_SHARE, Math.max(MIN_SHARE, (e.clientX - left) / width - start));
       next = shares.map((s, k) => (k === i ? at : k === i + 1 ? pair - at : s));
       setSizes((all) => ({ ...all, [count]: next }));
     };
@@ -59,7 +60,7 @@ export function DocPanes({ onProblems, only }: { onProblems: (problems: string[]
     <div className={`docs${count > 1 ? ' split' : ''}`} ref={box} style={{ '--pane-columns': columns } as React.CSSProperties}>
       {Array.from({ length: count }, (_, i) => (
         <Fragment key={only ?? i}>
-          {i > 0 && <div className="divider pane-divider" role="separator" aria-orientation="vertical" aria-label={`Resize pane ${i}`} onPointerDown={drag(i - 1)} />}
+          {i > 0 && <div className="divider pane-divider" role="separator" aria-orientation="vertical" aria-label={m.doc.resizePane(i)} onPointerDown={drag(i - 1)} />}
           <DocPane pane={(only ?? i) as Pane} onProblems={onProblems} />
         </Fragment>
       ))}

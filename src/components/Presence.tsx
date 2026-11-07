@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { isLocalCanvas } from '../canvases';
 import { useStore } from '../store/project';
 import { GUEST, presence, setName, useMe, useScreen, useSync, type Presence } from '../sync/state';
+import { m } from '../i18n';
 
 const initials = (name: string) =>
   name
@@ -15,7 +16,7 @@ const initials = (name: string) =>
 const peerStyle = (color: string) => ({ '--peer': color }) as React.CSSProperties;
 
 /** The field for how this person appears to the others, kept on this device for every shared project; left empty, they are a guest. */
-export const NameField = () => <input name="name" aria-label="Your name" defaultValue={useMe.getState().name} maxLength={40} autoFocus placeholder={GUEST} />;
+export const NameField = () => <input name="name" aria-label={m.homePeople.yourName} defaultValue={useMe.getState().name} maxLength={40} autoFocus placeholder={GUEST} />;
 export const keepName = (form: HTMLFormElement) => setName(new FormData(form).get('name')?.toString().trim().slice(0, 40) || GUEST);
 
 /** Asks someone who joined a shared project how they should appear; skipping makes them a guest. */
@@ -27,8 +28,8 @@ function NameDialog({ onClose }: { onClose: () => void }) {
   return (
     <dialog ref={ref} className="sheet glass" aria-labelledby="name-h" onClose={() => (keepName(form.current!), onClose())}>
       <form method="dialog" ref={form}>
-        <h2 id="name-h">What should others call you?</h2>
-        <p>People in this project see your name beside your cursor and where you are reading.</p>
+        <h2 id="name-h">{m.homePeople.nameHeading}</h2>
+        <p>{m.homePeople.nameIntro}</p>
         <NameField />
         <footer>
           {!named && (
@@ -38,11 +39,11 @@ function NameDialog({ onClose }: { onClose: () => void }) {
                 (form.current!.elements.namedItem('name') as HTMLInputElement).value = '';
               }}
             >
-              Skip
+              {m.homePeople.skip}
             </button>
           )}
           <button type="submit" className="primary">
-            Save
+            {m.homePeople.save}
           </button>
         </footer>
       </form>
@@ -60,27 +61,27 @@ export function Peers() {
   const [naming, setNaming] = useState(!me.name && !group);
   const where = (p: Presence) => {
     const doc = docs?.find((d) => d.id === p.docId);
-    return doc ? `Reading “${doc.name}”, page ${p.page ?? 1}` : 'Looking around';
+    return doc ? m.homePeople.reading(doc.name, p.page ?? 1) : m.homePeople.looking;
   };
   return (
-    <div className="peers" aria-label="People in this project">
+    <div className="peers" aria-label={m.homePeople.inProject}>
       {/* This person's other screens are not someone else. */}
       {Object.entries(peers)
         .filter(([, p]) => !group || p.screen !== group)
         .map(([id, p]) => (
-          <span key={id} className="avatar" style={peerStyle(p.color)} tabIndex={0} aria-label={`${p.name || 'Someone'}: ${where(p)}`}>
+          <span key={id} className="avatar" style={peerStyle(p.color)} tabIndex={0} aria-label={m.homePeople.peer(p.name || m.homePeople.someone, where(p))}>
             {initials(p.name)}
             <span className="tip" role="tooltip">
-              <b>{p.name || 'Someone'}</b>
+              <b>{p.name || m.homePeople.someone}</b>
               {where(p)}
             </span>
           </span>
         ))}
-      <button className="avatar" style={peerStyle(me.color)} onClick={() => setNaming(true)} aria-label={`You (${me.name || 'no name yet'}). Change your name`}>
+      <button className="avatar" style={peerStyle(me.color)} onClick={() => setNaming(true)} aria-label={m.homePeople.youChange(me.name)}>
         {initials(me.name)}
         <span className="tip" role="tooltip">
-          <b>You{me.name ? `, ${me.name}` : ''}</b>
-          Click to change your name
+          <b>{m.homePeople.you(me.name)}</b>
+          {m.homePeople.clickToChange}
         </span>
       </button>
       {naming && <NameDialog onClose={() => setNaming(false)} />}
@@ -99,8 +100,8 @@ export function PeopleItems() {
   const [naming, setNaming] = useState(false);
   return (
     <>
-      <div className="menu-group" role="group" aria-label="People in this project">
-        <h4>People here</h4>
+      <div className="menu-group" role="group" aria-label={m.homePeople.inProject}>
+        <h4>{m.homePeople.here}</h4>
         {Object.entries(peers)
           .filter(([, p]) => !group || p.screen !== group)
           .map(([id, p]) => (
@@ -108,14 +109,14 @@ export function PeopleItems() {
               <span className="avatar" style={peerStyle(p.color)} aria-hidden="true">
                 {initials(p.name)}
               </span>
-              {p.name || 'Someone'}
+              {p.name || m.homePeople.someone}
             </button>
           ))}
         <button role="menuitem" onClick={() => setNaming(true)}>
           <span className="avatar" style={peerStyle(me.color)} aria-hidden="true">
             {initials(me.name)}
           </span>
-          You{me.name ? `, ${me.name}` : ''}: change your name…
+          {m.homePeople.youRename(me.name)}
         </button>
       </div>
       {naming && <NameDialog onClose={() => setNaming(false)} />}
@@ -162,7 +163,7 @@ export function Cursors() {
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2 1.5v12l3.4-3.1 2.3 5 2.2-1-2.3-4.9h4.7z" />
               </svg>
-              <span>{name || 'Someone'}</span>
+              <span>{name || m.homePeople.someone}</span>
             </div>
           ),
       )}

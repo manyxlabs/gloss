@@ -6,6 +6,7 @@ import { bringIn } from '../../annots/bring';
 import { summary } from '../../annots/read';
 import { useForeign } from '../../annots/useForeign';
 import { useStore } from '../../store/project';
+import { m } from '../../i18n';
 
 /** "Bring in this PDF's annotations", for a document in the project whose PDF holds some from another app. */
 export function AnnotsAction({ docId }: { docId: string }) {
@@ -18,7 +19,7 @@ export function AnnotsAction({ docId }: { docId: string }) {
   if (asking || (!what && !problems.length)) return null;
   return (
     <div className="side-note annots-action">
-      {what && <p>This PDF has {what} from another app.</p>}
+      {what && <p>{m.docBanners.annotsFound(what)}</p>}
       {problems.map((p) => (
         <p key={p} role="alert">
           {p}
@@ -33,7 +34,7 @@ export function AnnotsAction({ docId }: { docId: string }) {
             setBusy(false);
           }}
         >
-          <Highlighter size={15} /> {busy ? 'Bringing them in…' : 'Bring in this PDF’s annotations'}
+          <Highlighter size={15} /> {busy ? m.docBanners.bringingThem : m.docBanners.bringInAnnots}
         </button>
       )}
     </div>

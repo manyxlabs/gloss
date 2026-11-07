@@ -2,6 +2,7 @@ import fontkit from '@pdf-lib/fontkit';
 import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFFont, type PDFPage } from 'pdf-lib';
 import { covered, fontFile } from '../convert/typeset';
 import { MARKER_ALPHA, outline, PAGE_PIXELS, PAPER, smoothed } from '../ink';
+import { m } from '../i18n';
 import { cite, commentOf, endsOf } from '../links';
 import { swatchOf } from '../palette';
 import { fileKey, getFile } from '../store/db';
@@ -9,7 +10,7 @@ import { TEXT_LINE, TEXT_PAD } from '../store/project';
 import type { Highlight, Project } from '../types';
 import { bookmarksOf } from '../store/bookmarks';
 import { appendOutline, bookmarkEntries } from './outline';
-import { loadDoc } from './pdfjs';
+import { loadDoc, ReaderError } from './pdfjs';
 
 const BORDER = 1.5;
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
@@ -58,11 +59,10 @@ function wrap(text: string, width: number, measure: (s: string) => number) {
 export async function annotatedPdf(project: Project, docId: string) {
   const doc = project.docs.find((d) => d.id === docId);
   const bytes = doc && (await getFile(fileKey(doc)));
-  if (!bytes) throw new Error('This PDF is missing from this browser’s storage.');
+  if (!bytes) throw new ReaderError(m.engine.missingFile);
   const pdf = await PDFDocument.load(await bytes.arrayBuffer(), { updateMetadata: false, ignoreEncryption: true });
   // pdf-lib cannot decrypt, and what it wrote into the still encrypted file would be unreadable.
-  if (pdf.isEncrypted)
-    throw new Error('it is password protected, and annotations cannot be written into a protected PDF. Save a copy without the password, add that, and export it.');
+  if (pdf.isEncrypted) throw new ReaderError(m.enginePdf.exportProtected);
   const source = await loadDoc(docId, doc?.password);
   const ctx = pdf.context;
   const multiply = ctx.obj({ Type: 'ExtGState', BM: 'Multiply' });

@@ -5,6 +5,7 @@ import { toggleCanvasLink } from '../store/cards';
 import { useStore } from '../store/project';
 import type { Card } from '../types';
 import { Menu } from './Menu';
+import { m } from '../i18n';
 
 /** Links a card to other canvases, each then a chip on the card that opens it: every canvas, nested ones under the one they are in. */
 export function CanvasLinkButton({ card }: { card: Card }) {
@@ -14,11 +15,11 @@ export function CanvasLinkButton({ card }: { card: Card }) {
   const linked = card.data.canvasLinks ?? [];
   return (
     <>
-      <button aria-label="Link to a canvas" title="Link this card to another canvas" aria-expanded={!!anchor} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
-        <SquareStack size={16} /> Canvas
+      <button aria-label={m.canvasCard.linkCanvas} title={m.canvasCard.linkCanvasTitle} aria-expanded={!!anchor} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+        <SquareStack size={16} /> {m.canvas.label}
       </button>
       {anchor && (
-        <Menu anchor={anchor} label="Link to a canvas" onClose={() => setAnchor(null)}>
+        <Menu anchor={anchor} label={m.canvasCard.linkCanvas} onClose={() => setAnchor(null)}>
           {tree.map(({ canvas, depth }) => (
             <button
               key={canvas.id}

@@ -1,6 +1,8 @@
 import { Link2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { ConvertOptions } from '../convert';
+import { m } from '../i18n';
+import { rich } from '../i18n/rich';
 
 /** An address typed without its scheme, such as example.com/page or example.com:8080, is taken as https. */
 const normalized = (raw: string) => {
@@ -24,12 +26,12 @@ export function WebPicker({ kind = 'icon', add }: { kind?: 'icon' | 'text' | 'bi
   return (
     <>
       {kind === 'icon' ? (
-        <button className="icon" aria-label="Add from a link" title="Add a web page, or a file from a share link" disabled={!!stage} onClick={open}>
+        <button className="icon" aria-label={m.homeWeb.addFromLink} title={m.homeWeb.addTitle} disabled={!!stage} onClick={open}>
           <Link2 size={16} />
         </button>
       ) : (
         <button className={kind === 'big' ? 'big' : undefined} disabled={!!stage} onClick={open}>
-          <Link2 size={16} /> Add from a link
+          <Link2 size={16} /> {m.homeWeb.addFromLink}
         </button>
       )}
       {/* However it closes, Cancel or Escape, the work stops with it. */}
@@ -41,12 +43,12 @@ export function WebPicker({ kind = 'icon', add }: { kind?: 'icon' | 'text' | 'bi
             const field = form.elements.namedItem('url') as HTMLInputElement;
             const url = normalized(field.value);
             if (!url) {
-              field.setCustomValidity('That is not a web address.');
+              field.setCustomValidity(m.homeWeb.notAddress);
               return void field.reportValidity();
             }
             const controller = new AbortController();
             work.current = controller;
-            setStage('Starting…');
+            setStage(m.homeWeb.starting);
             try {
               await add(url, { signal: controller.signal, onProgress: setStage });
               form.reset();
@@ -59,34 +61,27 @@ export function WebPicker({ kind = 'icon', add }: { kind?: 'icon' | 'text' | 'bi
             }
           }}
         >
-          <h2 id="web-h">Add from a link</h2>
+          <h2 id="web-h">{m.homeWeb.addFromLink}</h2>
           <input
             name="url"
             type="text"
             inputMode="url"
             required
             placeholder="https://"
-            aria-label="Link"
+            aria-label={m.homeWeb.link}
             autoComplete="url"
             autoCapitalize="off"
             spellCheck={false}
             readOnly={!!stage}
             onInput={(e) => e.currentTarget.setCustomValidity('')}
           />
-          {stage ? (
-            <p role="status">{stage}</p>
-          ) : (
-            <p>
-              A web page is kept as its article. A share link from Google Drive, Dropbox, OneDrive or Box, or a link straight to a file, adds the file itself, so share it with{' '}
-              <b>anyone with the link</b>. Gloss fetches links through its server and keeps what it adds in this browser.
-            </p>
-          )}
+          {stage ? <p role="status">{stage}</p> : <p>{rich(m.homeWeb.explain, { b: (s) => <b>{s}</b> })}</p>}
           <div className="actions">
             <button type="button" onClick={() => dialog.current!.close()}>
-              Cancel
+              {m.home.cancel}
             </button>
             <button className="primary" disabled={!!stage}>
-              {stage ? 'Adding…' : 'Add'}
+              {stage ? m.home.adding : m.home.add}
             </button>
           </div>
         </form>

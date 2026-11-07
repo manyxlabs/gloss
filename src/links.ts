@@ -1,3 +1,4 @@
+import { m } from './i18n';
 import type { Card, CardLink, Comment, Highlight, PassageLink, Project } from './types';
 
 /** Drops comments, passage links and card links whose passages or cards are gone; a comment stays while any passage still names it. */
@@ -49,13 +50,13 @@ export function endsOf(p: Pick<Project, 'highlights' | 'cards' | 'passageLinks' 
   return [...passages, ...cards];
 }
 
-export const docName = (p: Pick<Project, 'docs'>, docId: string) => p.docs.find((d) => d.id === docId)?.name ?? 'Document';
+export const docName = (p: Pick<Project, 'docs'>, docId: string) => p.docs.find((d) => d.id === docId)?.name ?? m.homeLinks.document;
 
 /** A figure has no text to quote; it is marked where the image would go, with any text it holds. */
-export const quoted = (h: Highlight) => (h.area ? `[Figure${h.text ? `: ${h.text}` : ''}]` : h.text);
+export const quoted = (h: Highlight) => (h.area ? m.homeLinks.figureQuoted(h.text) : h.text);
 
 /** Where a passage is: its page, or that it waits to be placed again since its document was replaced. */
-export const where = (h: Highlight) => (h.parts[0] ? `p. ${h.parts[0].page}` : 'not placed');
+export const where = (h: Highlight) => (h.parts[0] ? m.homeLinks.page(h.parts[0].page) : m.homeLinks.notPlaced);
 
 /** A passage as notes cite it: its words, a figure's, or a text box's, which are the reader's own and so not quoted, with where it is. */
-export const cite = (p: Pick<Project, 'docs'>, h: Highlight) => `${h.area || h.typed ? quoted(h) : `“${h.text}”`} (${docName(p, h.docId)}, ${where(h)})`;
+export const cite = (p: Pick<Project, 'docs'>, h: Highlight) => m.homeLinks.cite(h.area || h.typed ? quoted(h) : m.homeLinks.quote(h.text), docName(p, h.docId), where(h));

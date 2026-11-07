@@ -7,8 +7,7 @@ import { cardText } from '../search';
 import type { Color } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { TagPicker } from './Tags';
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+import { m } from '../i18n';
 
 /**
  * Acts on every match of a search, in one document or in all of them, as LiquidText does: highlight,
@@ -32,13 +31,13 @@ export function SearchActions({ query, docId, onDone }: { query: string; docId?:
     setBusy(true);
     try {
       const ids = actOnMatches(await findAll(query, docs), query, act, undoable);
-      setMessage(ids.length ? done(ids.length) : `Nothing matches “${query}”.`);
+      setMessage(ids.length ? done(ids.length) : m.canvasPalette.none(query));
       return ids;
     } finally {
       setBusy(false);
     }
   };
-  const highlight = (color: Color) => void run({ color }, (n) => `${plural(n, 'passage')} highlighted.`);
+  const highlight = (color: Color) => void run({ color }, m.canvasSearch.highlighted);
   const tag = async (id: string, on: boolean, fresh: boolean) => {
     if (!on) {
       setTag({ highlights: applied[id] ?? [] }, id, false);
@@ -46,17 +45,17 @@ export function SearchActions({ query, docId, onDone }: { query: string; docId?:
       return;
     }
     const name = useStore.getState().project?.tags.find((t) => t.id === id)?.name;
-    const ids = await run({ color: 'yellow', tag: id }, (n) => `${plural(n, 'passage')} tagged ${name}.`, !fresh);
+    const ids = await run({ color: 'yellow', tag: id }, (n) => m.canvasSearch.taggedAll(n, name ?? ''), !fresh);
     setApplied((a) => ({ ...a, [id]: ids }));
   };
-  const excerpt = () => void run({ color: 'yellow', excerpt: true }, (n) => `${plural(n, 'passage')} excerpted to the canvas.`).then(onDone);
-  const link = (to: Act['link']) => void run({ color: 'yellow', link: to }, (n) => `${plural(n, 'passage')} linked.`).then(onDone);
+  const excerpt = () => void run({ color: 'yellow', excerpt: true }, m.canvasSearch.excerpted).then(onDone);
+  const link = (to: Act['link']) => void run({ color: 'yellow', link: to }, m.canvasSearch.linked).then(onDone);
   const collapse = async () => {
     setBusy(true);
     try {
       const ids = docs ?? useStore.getState().project?.docs.map((d) => d.id) ?? [];
       const n = await collapseAround(ids, { query }, 2);
-      setMessage(n ? `Squeezed to ${plural(n, 'match')}, with two lines around each. Expand all from the document’s squeeze button.` : `Nothing matches “${query}”.`);
+      setMessage(n ? m.canvasSearch.squeezed(n) : m.canvasPalette.none(query));
       if (n) onDone();
     } finally {
       setBusy(false);
@@ -64,39 +63,39 @@ export function SearchActions({ query, docId, onDone }: { query: string; docId?:
   };
 
   return (
-    <div className="search-actions" role="group" aria-label={docName ? `Act on the matches in ${docName}` : 'Act on all matches'} aria-busy={busy}>
+    <div className="search-actions" role="group" aria-label={docName ? m.canvasSearch.actIn(docName) : m.canvasSearch.actAll} aria-busy={busy}>
       <div className="row">
         <span className="label">
-          <Highlighter size={15} /> Highlight all
+          <Highlighter size={15} /> {m.canvasSearch.highlightAll}
         </span>
-        <ColorPicker label={(name) => `Highlight all ${name}`} onPick={(c) => !busy && highlight(c)} />
+        <ColorPicker label={m.canvasSearch.highlightAllIn} onPick={(c) => !busy && highlight(c)} />
       </div>
       <div className="row">
         <button aria-expanded={open === 'tag'} disabled={busy} onClick={() => setOpen(open === 'tag' ? null : 'tag')}>
-          <Tag size={15} /> Tag all
+          <Tag size={15} /> {m.canvasSearch.tagAll}
         </button>
         <button disabled={busy} onClick={excerpt}>
-          <LayoutGrid size={15} /> Excerpt all
+          <LayoutGrid size={15} /> {m.canvasSearch.excerptAll}
         </button>
         <button aria-expanded={open === 'link'} disabled={busy} onClick={() => setOpen(open === 'link' ? null : 'link')}>
-          <Link2 size={15} /> Link all
+          <Link2 size={15} /> {m.canvasSearch.linkAll}
         </button>
         <button disabled={busy} onClick={() => void collapse()}>
-          <FoldVertical size={15} /> Squeeze to matches
+          <FoldVertical size={15} /> {m.canvasSearch.squeezeAll}
         </button>
       </div>
       {open === 'tag' && <TagPicker on={Object.keys(applied)} onToggle={(id, on, fresh) => void tag(id, on, fresh)} onClose={() => setOpen(null)} />}
       {open === 'link' && (
         <div className="row links">
           <button disabled={busy} onClick={() => link('note')}>
-            <StickyNote size={15} /> To a new note
+            <StickyNote size={15} /> {m.canvasSearch.toNote}
           </button>
           {target ? (
             <button disabled={busy} onClick={() => link({ cardId: target.id })} title={cardText(useStore.getState().project!, target)}>
-              <Link2 size={15} /> To the chosen card
+              <Link2 size={15} /> {m.canvasSearch.toCard}
             </button>
           ) : (
-            <span className="hint">Or choose a card on the canvas to link them to it.</span>
+            <span className="hint">{m.canvasSearch.chooseCard}</span>
           )}
         </div>
       )}

@@ -1,3 +1,4 @@
+import { m } from './i18n';
 import { pageTexts } from './pdf/pdfjs';
 import { cardTags, tagWord } from './tags';
 import type { Card, Project, Tag } from './types';
@@ -57,11 +58,11 @@ export async function search(project: Project, raw: string) {
   // With tags named, what is found is what carries them: passages and cards, narrowed by any words.
   if (picks.length) {
     const highlights: HighlightHit[] = project.highlights.flatMap((h) =>
-      tagged(h.tags, picks) && h.text.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, text: h.text || 'Figure' }] : [],
+      tagged(h.tags, picks) && h.text.toLowerCase().includes(query) ? [{ highlightId: h.id, docId: h.docId, page: h.parts[0]?.page ?? 1, text: h.text || m.engine.figure }] : [],
     );
     const cards: CardHit[] = project.cards.flatMap((c) => {
       const text = cardText(project, c);
-      return c.data.kind !== 'excerpt' && tagged(cardTags(project, c), picks) && text.toLowerCase().includes(query) ? [{ cardId: c.id, text: text || 'Handwriting' }] : [];
+      return c.data.kind !== 'excerpt' && tagged(cardTags(project, c), picks) && text.toLowerCase().includes(query) ? [{ cardId: c.id, text: text || m.engine.handwriting }] : [];
     });
     return { docs: [] as DocHit[], cards, comments: [] as CommentHit[], highlights };
   }

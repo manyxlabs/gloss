@@ -1,4 +1,5 @@
 import type { XYPosition } from '@xyflow/react';
+import { m } from '../i18n';
 import type { Background, CanvasMeta, Card, Color, Project, Stroke } from '../types';
 import { canvasSpot, edit, newCard, uid, useStore, without, type Drawn } from './project';
 
@@ -17,7 +18,7 @@ export function addSketch(position = canvasSpot.next()) {
 export function addNestedCanvas(position = canvasSpot.next()) {
   const { project, canvasId } = get();
   if (!project) return;
-  const canvas: CanvasMeta = { id: uid(), name: `Canvas ${project.canvases.length + 1}`, parentId: canvasId };
+  const canvas: CanvasMeta = { id: uid(), name: m.engineStore.canvasN(project.canvases.length + 1), parentId: canvasId };
   const card = newCard({ kind: 'canvas', target: canvas.id }, position);
   edit((p) => ({ canvases: [...p.canvases, canvas], cards: [...p.cards.map((c) => ({ ...c, selected: false })), card] }));
   return card;

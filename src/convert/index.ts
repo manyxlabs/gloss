@@ -1,6 +1,9 @@
-import { isPdf } from '../pdf/pdfjs';
+import { date, m } from '../i18n';
+import { isPdf, ReaderError } from '../pdf/pdfjs';
 import type { DocSource } from '../types';
-import { kindOf, refusal } from './formats';
+import type { Problem } from '../../worker/problem';
+import { kindOf } from './formats';
+import { refusal } from './refusal';
 import type { Block, Watch } from './typeset';
 
 // The typesetter brings fonts and pdf-lib, so it loads only once something needs converting.
@@ -24,7 +27,7 @@ async function decode(file: Blob) {
 
 async function fromBlocks(name: string, blocks: Block[], source: DocSource, problems: string[], watch?: Watch): Promise<Converted> {
   const { bytes, warnings } = await (await typesetter()).typeset(name, blocks, watch);
-  problems.push(...warnings.map((w) => `${name}: ${w}`));
+  problems.push(...warnings.map((w) => m.engineConvert.warning(name, w)));
   return { name, data: asPdf(bytes), source };
 }
 
@@ -37,7 +40,7 @@ async function fromDocx(file: File) {
 async function fromPptx(file: File, problems: string[]): Promise<Converted> {
   const { readPptx } = await import('./pptx');
   const { size, slides } = readPptx(new Uint8Array(await file.arrayBuffer()));
-  if (!slides.length) throw new Error('It has no slides.');
+  if (!slides.length) throw new ReaderError(m.engineConvert.noSlides);
   const name = base(file.name);
   const ts = await (await typesetter()).Typesetter.create(name);
   for (const slide of slides) {
@@ -49,14 +52,14 @@ async function fromPptx(file: File, problems: string[]): Promise<Converted> {
     }
     ts.draw(pages, size);
   }
-  problems.push(...[...ts.warnings].map((w) => `${name}: ${w}`));
+  problems.push(...[...ts.warnings].map((w) => m.engineConvert.warning(name, w)));
   return { name, data: asPdf(await ts.pdf.save()), source: { kind: 'pptx', name: file.name } };
 }
 
 async function fromImages(files: File[], problems: string[]): Promise<Converted | null> {
   const name = base(files[0]!.name);
   const ts = await (await typesetter()).Typesetter.create(name);
-  for (const file of files) if (!(await ts.drawImage(file))) problems.push(`${file.name} could not be read as an image.`);
+  for (const file of files) if (!(await ts.drawImage(file))) problems.push(m.engineConvert.notImage(file.name));
   if (!ts.pdf.getPageCount()) return null;
   return { name, data: asPdf(await ts.pdf.save()), source: { kind: 'image', name: files.map((f) => f.name).join(', ') } };
 }
@@ -64,9 +67,9 @@ async function fromImages(files: File[], problems: string[]): Promise<Converted 
 /** A file from a link, converted as if it had been opened here, remembering the link. */
 async function fromLink(url: string, problems: string[], { signal, onProgress }: ConvertOptions): Promise<Converted[]> {
   const { fetchLinked } = await import('./link');
-  onProgress?.('Fetching the file…');
+  onProgress?.(m.engineConvert.fetchingFile);
   const file = await fetchLinked(url, signal);
-  onProgress?.('Converting…');
+  onProgress?.(m.engineConvert.converting);
   const done = await convert([file], { signal });
   problems.push(...done.problems);
   return done.converted.map((c) => ({ ...c, source: { ...(c.source ?? { kind: 'link', name: file.name }), url } }));
@@ -74,7 +77,7 @@ async function fromLink(url: string, problems: string[], { signal, onProgress }:
 
 /** A web page's article; null when the address is not a web page, as a link straight to a file. */
 async function fromWeb(url: string, problems: string[], { signal, onProgress }: ConvertOptions): Promise<Converted | null> {
-  onProgress?.('Fetching the page…');
+  onProgress?.(m.engineConvert.fetchingPage);
   const res = await fetch(`/api/page?url=${encodeURIComponent(url)}`, { signal });
   if (res.status === 415) return null;
   const page = (await res.json().catch((err: unknown) => (signal?.aborted ? Promise.reject(err) : null))) as {
@@ -83,18 +86,18 @@ async function fromWeb(url: string, problems: string[], { signal, onProgress }: 
     byline?: string;
     site?: string;
     html: string;
-    error?: string;
+    error?: Problem;
   } | null;
-  if (!res.ok || !page?.html) throw new Error(page?.error ?? 'Web pages can be added only where Gloss runs with its server.');
+  if (!res.ok || !page?.html) throw new ReaderError(page?.error ? (await import('./link')).told(page.error) : m.engineConvert.noPageServer);
   const by = [page.byline, page.site].filter(Boolean).join(' · ');
   const blocks: Block[] = [
     { kind: 'heading', level: 1, runs: [{ text: page.title }] },
     ...(by ? [{ kind: 'para', muted: true, runs: [{ text: by }] } satisfies Block] : []),
-    { kind: 'para', muted: true, runs: [{ text: page.url, link: true }, { text: `\nSaved on ${new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}` }] },
+    { kind: 'para', muted: true, runs: [{ text: page.url, link: true }, { text: `\n${m.engineConvert.savedOn(date(new Date(), { dateStyle: 'long' }))}` }] },
     { kind: 'rule' },
     ...(await html()).htmlToBlocks(page.html),
   ];
-  return fromBlocks(page.title, blocks, { kind: 'web', url: page.url }, problems, { signal, onPage: (n) => onProgress?.(`Converting page ${n}…`) });
+  return fromBlocks(page.title, blocks, { kind: 'web', url: page.url }, problems, { signal, onPage: (n) => onProgress?.(m.engineConvert.convertingPage(n)) });
 }
 
 /**
@@ -127,14 +130,8 @@ export async function convert(inputs: Input[], options: ConvertOptions = {}) {
       } else problems.push(refusal(input.name));
     } catch (err) {
       if (options.signal?.aborted) throw err;
-      // Library errors are not written for readers; only our own sentences are shown.
-      const message =
-        err instanceof Error && /^[A-Z].*\.$/.test(err.message)
-          ? err.message
-          : 'url' in input
-            ? 'Gloss could not reach its server to fetch it.'
-            : 'It may be damaged, or in a form Gloss does not read.';
-      problems.push(`${'url' in input ? input.url : input.name} could not be added. ${message}`);
+      const message = err instanceof ReaderError ? err.message : 'url' in input ? m.engineConvert.unreachable : m.engineConvert.unreadable;
+      problems.push(m.engineConvert.notAdded('url' in input ? input.url : input.name, message));
     }
   }
   return { converted, problems };

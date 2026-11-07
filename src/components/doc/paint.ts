@@ -5,6 +5,7 @@ import { useLinking } from '../../store/links';
 import { TEXT_LINE, TEXT_PAD, useStore } from '../../store/project';
 import type { Highlight } from '../../types';
 import { paintPhotos } from './photos';
+import { m } from '../../i18n';
 
 export type PageView = { id: number; div: HTMLElement };
 
@@ -58,7 +59,7 @@ function paintBoxes(layer: HTMLElement, boxes: Highlight[], marks: (h: Highlight
       el.dataset.boxId = h.id;
       Object.assign(el.style, { lineHeight: String(TEXT_LINE), padding: `${TEXT_PAD[1]}em ${TEXT_PAD[0]}em`, color: PAPER.ink });
       const text = document.createElement('div');
-      Object.assign(text, { className: 'box-text', role: 'textbox', ariaLabel: 'Text box', ariaMultiLine: 'true' });
+      Object.assign(text, { className: 'box-text', role: 'textbox', ariaLabel: m.doc.textBox, ariaMultiLine: 'true' });
       const grip = document.createElement('span');
       grip.className = 'box-grip';
       el.append(text, grip);
@@ -123,15 +124,15 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
   const commented = starting.flatMap((h) => {
     const comment = commentOf(project, h);
     if (!comment) return [];
-    const mark = marker('note-mark', h, `Comment: ${comment.text}`, comment.text);
+    const mark = marker('note-mark', h, m.docMarks.comment(comment.text), comment.text);
     mark.dataset.noteId = h.id;
     return [{ h, mark }];
   });
   const linked = starting.flatMap((h) => {
     const ends = endsOf(project, h.id);
     if (!ends.length) return [];
-    const names = ends.map((e) => ('highlight' in e ? cite(project, e.highlight) : `Card: ${cardText(project, e.card) || 'Handwriting'}`));
-    const mark = marker('link-mark', h, ends.length === 1 ? `Linked to ${names[0]}` : `Linked to ${ends.length} places`, `Linked to:\n${names.join('\n')}`);
+    const names = ends.map((e) => ('highlight' in e ? cite(project, e.highlight) : m.docMarks.card(cardText(project, e.card) || m.doc.handwriting)));
+    const mark = marker('link-mark', h, ends.length === 1 ? m.docMarks.linkedTo(names[0]!) : m.docMarks.linkedPlaces(ends.length), m.docMarks.linkedList(names.join('\n')));
     mark.dataset.linkId = h.id;
     mark.innerHTML = LINK_ICON;
     return [{ h, mark }];
@@ -139,12 +140,12 @@ export function paint(view: PageView, flashId: string | null, docId: string | nu
   const pageHeight = view.div.offsetHeight || 1;
   for (const side of [commented, linked])
     spread(
-      side.map((m) => m.mark),
-      side.map((m) => centre(m.h)),
+      side.map((s) => s.mark),
+      side.map((s) => centre(s.h)),
       pageHeight,
     );
   const notes = layer(view.div, () => document.createElement('div'), 'note-layer', '.annotationLayer');
-  notes.replaceChildren(...commented.map((m) => m.mark), ...linked.map((m) => m.mark));
+  notes.replaceChildren(...commented.map((c) => c.mark), ...linked.map((l) => l.mark));
 
   // Drawn in a fixed number of units across the page, so strokes keep their shape at any zoom,
   // and enough of them that the path's rounding to hundredths does not show.

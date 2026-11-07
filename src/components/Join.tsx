@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { listProjects, putProject } from '../store/db';
 import type { Binding } from '../sync/crypto';
 import { joinScreens } from '../sync/state';
+import { m } from '../i18n';
 
 // One join per room at a time, so a repeated effect cannot make two copies of the project.
 const joins = new Map<string, Promise<string>>();
@@ -11,7 +12,7 @@ async function join(binding: Binding) {
   if (bound) return bound.id;
   // Loaded here rather than imported above, so pdf.js is not part of the start page.
   const { newProject } = await import('../store/project');
-  const project = { ...newProject('Shared project'), sync: binding };
+  const project = { ...newProject(m.homeSync.sharedProject), sync: binding };
   await putProject(project);
   return project.id;
 }

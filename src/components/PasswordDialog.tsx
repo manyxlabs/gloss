@@ -1,6 +1,7 @@
 import { LockKeyhole } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { passwordAsker } from '../password';
+import { m } from '../i18n';
 
 type Request = { file: string; wrong: boolean; answer: (password: string | null) => void; at: number };
 
@@ -40,17 +41,17 @@ export function PasswordDialog() {
         }}
       >
         <h2 id="password-title">
-          <LockKeyhole size={18} /> Password needed
+          <LockKeyhole size={18} /> {m.homePassword.heading}
         </h2>
-        <p>“{request.file}” is protected. Enter its password to open it.</p>
-        <input name="password" type="password" aria-label="Password" autoComplete="off" autoFocus required aria-invalid={request.wrong} />
-        {request.wrong && <p className="wrong">That password is not right. Try again.</p>}
+        <p>{m.homePassword.protected(request.file)}</p>
+        <input name="password" type="password" aria-label={m.homePassword.label} autoComplete="off" autoFocus required aria-invalid={request.wrong} />
+        {request.wrong && <p className="wrong">{m.homePassword.wrong}</p>}
         <div className="row">
           <button type="button" onClick={() => finish(null)}>
-            Cancel
+            {m.home.cancel}
           </button>
           <button type="submit" className="primary">
-            Open
+            {m.homePassword.open}
           </button>
         </div>
       </form>

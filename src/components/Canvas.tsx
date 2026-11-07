@@ -50,6 +50,8 @@ import { Cursors } from './Presence';
 import { SelectionBar } from './SelectionBar';
 import { TagFilter } from './Tags';
 import { Tools } from './Tools';
+import { m } from '../i18n';
+import { rich } from '../i18n/rich';
 
 const nodeTypes = { card: CardNode };
 /** Fingers this much closer or further apart than they started count as a pinch in or out. */
@@ -371,7 +373,7 @@ export function Canvas() {
     <section
       ref={section}
       className={`canvas tool-${tool}${over ? ' over' : ''}${style?.cardColor ? ' tinted' : ''}`}
-      aria-label="Canvas"
+      aria-label={m.canvas.label}
       style={
         {
           ...(style?.accent ? { '--accent': `var(--edge-${style.accent})`, '--accent-soft': `color-mix(in srgb, var(--edge-${style.accent}) 15%, transparent)` } : {}),
@@ -428,7 +430,7 @@ export function Canvas() {
             style?.background !== 'plain' && <Background variant={style?.background === 'grid' ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={GAP} size={1.2} />
           )}
           <Controls showInteractive={false} />
-          {cards.length > 0 && <MiniMap pannable zoomable ariaLabel="Map of the canvas" style={{ width: 140, height: 96 }} />}
+          {cards.length > 0 && <MiniMap pannable zoomable ariaLabel={m.canvas.map} style={{ width: 140, height: 96 }} />}
           <Cursors />
           <SelectionBar cards={cards} links={links} />
         </ReactFlow>
@@ -437,41 +439,35 @@ export function Canvas() {
         </svg>
         <div className="canvas-tools">
           <button onClick={() => addNote()}>
-            <StickyNote size={16} /> Note
+            <StickyNote size={16} /> {m.canvas.note}
           </button>
-          <button className="icon overflow" aria-label="Ink box" title="Ink box: a box to write in by hand" onClick={() => addSketch()}>
+          <button className="icon overflow" aria-label={m.canvas.inkBox} title={m.canvas.inkBoxTitle} onClick={() => addSketch()}>
             <SquarePen size={16} />
           </button>
-          <button className="icon overflow" aria-label="Nested canvas" title="Nested canvas: a card that opens a canvas of its own" onClick={() => addNestedCanvas()}>
+          <button className="icon overflow" aria-label={m.canvas.nested} title={m.canvas.nestedTitle} onClick={() => addNestedCanvas()}>
             <SquareStack size={16} />
           </button>
           <Tools side="canvasTool" />
           <CanvasStyleMenu />
           {project?.tags.length ? <TagFilter /> : null}
           {/* Shown on a phone only, where the header is far from the canvas. */}
-          <button
-            className="icon picture-export overflow"
-            aria-label="Export the canvas as a picture"
-            title="Export the canvas as a picture"
-            disabled={!cards.length}
-            onClick={openCanvasExport}
-          >
+          <button className="icon picture-export overflow" aria-label={m.canvas.exportPicture} title={m.canvas.exportPicture} disabled={!cards.length} onClick={openCanvasExport}>
             <ImageDown size={17} />
           </button>
-          <MoreMenu label="More canvas tools">
+          <MoreMenu label={m.canvas.moreTools}>
             {(close, anchor) => (
               <>
                 <button role="menuitem" onClick={() => (close(), addSketch())}>
-                  <SquarePen size={16} /> Ink box
+                  <SquarePen size={16} /> {m.canvas.inkBox}
                 </button>
                 <button role="menuitem" onClick={() => (close(), addNestedCanvas())}>
-                  <SquareStack size={16} /> Nested canvas
+                  <SquareStack size={16} /> {m.canvas.nested}
                 </button>
                 <button role="menuitem" onClick={() => (close(), setStyleFrom(anchor))}>
-                  <Paintbrush size={16} /> Canvas style…
+                  <Paintbrush size={16} /> {m.canvas.styleMenu}
                 </button>
                 <button role="menuitem" disabled={!cards.length} onClick={() => (close(), openCanvasExport())}>
-                  <ImageDown size={16} /> Export the canvas as a picture…
+                  <ImageDown size={16} /> {m.canvas.exportPictureMenu}
                 </button>
               </>
             )}
@@ -481,14 +477,14 @@ export function Canvas() {
         {!cards.length && (
           <p className="canvas-hint">
             <span className="mouse-only">
-              Select text in a document and press <b>Excerpt</b>, or drag it here.
+              {rich(m.canvas.hintMouse, { b: (s) => <b>{s}</b> })}
               <br />
-              Double-click anywhere to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them.
+              {m.canvas.hintMouseMore}
             </span>
             <span className="touch-only">
-              Select text in a document and tap <b>Excerpt</b>.
+              {rich(m.canvas.hintTouch, { b: (s) => <b>{s}</b> })}
               <br />
-              Tap <b>Note</b> to write a note, or pick the pen to write by hand. Drag from a card’s edge to another card to connect them, or pinch two cards together to group them.
+              {rich(m.canvas.hintTouchMore, { b: (s) => <b>{s}</b> })}
             </span>
           </p>
         )}

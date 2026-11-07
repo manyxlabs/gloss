@@ -264,6 +264,33 @@ A redirect to a sign in page, or a refusal from the provider, is reported as a p
 Pickers that browse a Google Drive, Dropbox, OneDrive or Box account need app keys registered with each provider, which Gloss does not have.
 A picker would hand its files to the same path as files opened from the computer: `addDocs` (or `importFiles` from the start page), which converts them in `src/convert`.
 
+## Languages
+
+Gloss speaks English, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Kannada and Malayalam.
+English is the default, at the addresses it always had.
+The public pages, the start page and the privacy policy, have an address in each other language under its code: `/hi/`, `/hi/privacy`, `/ta/`, `/ta/privacy` and so on.
+The build writes each of them as its own HTML file, with its `lang`, title, description, canonical address and `hreflang` alternates for every language plus `x-default`, and lists all of them in `sitemap.xml`.
+The app behind the start page (a project, a share link) is in the language last picked in the switcher, kept in `localStorage`, or else the browser's own.
+Someone who picked a language is brought from `/` to its start page; nobody else is ever moved, crawlers included.
+Share links always point at `/`, so whoever opens one sees their own language.
+
+Each language has one catalogue in `src/i18n` (`en.ts`, `hi.ts`, ...), typed as `Messages`, so a key missing from a translation, or one English does not have, fails the type check.
+Numbers, plurals and dates go through `Intl` with the language's Indian locale, always with Western digits (`src/i18n/intl.ts`).
+A page loads only its own catalogue and its script's Noto Sans face, self-hosted from `@fontsource`.
+The translated privacy policy says that the English one prevails.
+
+Text that pdf-lib typesets into exported PDFs stays English, because it cannot shape Indian scripts (see Scripts above).
+The web app manifest is English too: there is one, with `start_url: '/'`.
+
+To add a language:
+
+1. Write its catalogue, `src/i18n/<code>.ts`, as `const xx: Messages = { ... }`.
+2. Add the code to `LANGS`, its name in its own script to `NAMES`, and its `@fontsource` face to `SCRIPTS`, in `src/i18n/langs.ts`.
+3. Add its catalogue and font loaders in `src/i18n/index.ts`, and its catalogue to `CATALOGUES` in `src/i18n/pages.ts`.
+4. Install the font package, `@fontsource/noto-sans-<script>`, if its script is new.
+
+`e2e/languages.spec.ts` checks every language: the pages' language tags, the switcher, that nothing overflows at 360px and that no English is left on translated pages.
+
 ## Contributing
 
 Issues and pull requests are welcome at [manyxlabs/gloss](https://github.com/manyxlabs/gloss).

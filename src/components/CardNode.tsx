@@ -12,6 +12,7 @@ import { LinkChips } from './LinkChips';
 import { MentionSuggest } from './Mentions';
 import { TagChips } from './Tags';
 import { useDimmed } from './useDimmed';
+import { m } from '../i18n';
 
 /** Focuses a field once its new card shows: React Flow keeps a card hidden until it has measured it, and a hidden field cannot take focus. */
 function useAutoFocus(ref: RefObject<HTMLElement | null>, on: boolean | undefined) {
@@ -109,7 +110,7 @@ function Quote({ text }: { text: string }) {
       </blockquote>
       {(long || open) && (
         <button className="more nodrag ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
-          {open ? 'Show less' : 'Show all'}
+          {open ? m.canvasCard.showLess : m.canvasCard.showAll}
         </button>
       )}
     </>
@@ -133,8 +134,8 @@ function Figure({ highlight, password }: { highlight: Highlight; password?: stri
     );
     return () => void (stale = true);
   }, [highlight.docId, password, part]);
-  if (image && 'url' in image) return <img className="snip" src={image.url} alt={highlight.text || 'Figure'} draggable={false} />;
-  return <div className="snip">{image ? 'The figure could not be drawn from the PDF.' : null}</div>;
+  if (image && 'url' in image) return <img className="snip" src={image.url} alt={highlight.text || m.canvasCard.figure} draggable={false} />;
+  return <div className="snip">{image ? m.canvasCard.figureFailed : null}</div>;
 }
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
@@ -156,26 +157,31 @@ function GroupCard({ id, data, selected }: { id: string; data: GroupData & Pick<
   const dim = useDimmed(id);
   useAutoFocus(name, fresh);
   return (
-    <section className={`group${selected ? ' selected' : ''}${data.collapsed ? ' collapsed' : ''}${dim ? ' dim' : ''}`} aria-label={data.title || 'Group'}>
+    <section className={`group${selected ? ' selected' : ''}${data.collapsed ? ' collapsed' : ''}${dim ? ' dim' : ''}`} aria-label={data.title || m.canvasCard.group}>
       {!data.collapsed && <NodeResizer isVisible={selected} minWidth={200} minHeight={120} lineClassName="group-edge" handleClassName="group-corner" onResizeStart={checkpoint} />}
       <header>
         <button
           className="nodrag icon fold"
-          aria-label={data.collapsed ? 'Open group' : 'Collapse group'}
-          title={data.collapsed ? 'Open group' : 'Collapse group to its name'}
+          aria-label={data.collapsed ? m.canvasCard.openGroup : m.canvasCard.collapseGroup}
+          title={data.collapsed ? m.canvasCard.openGroup : m.canvasCard.collapseGroupTitle}
           onClick={() => collapseGroup(id, !data.collapsed)}
         >
           {data.collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
-        <input ref={name} className="nodrag" value={data.title} placeholder="Name this group" aria-label="Group name" onChange={(e) => updateCard(id, { title: e.target.value })} />
+        <input
+          ref={name}
+          className="nodrag"
+          value={data.title}
+          placeholder={m.canvasCard.groupPlaceholder}
+          aria-label={m.canvasCard.groupName}
+          onChange={(e) => updateCard(id, { title: e.target.value })}
+        />
         <TagChips ids={data.tags} />
         {data.collapsed ? (
-          <span className="count">
-            {count} card{count === 1 ? '' : 's'}
-          </span>
+          <span className="count">{m.canvas.cards(count)}</span>
         ) : (
-          <button className="nodrag ghost" onClick={() => ungroup(id)} title="Keep the cards, remove the group">
-            Ungroup
+          <button className="nodrag ghost" onClick={() => ungroup(id)} title={m.canvasCard.ungroupTitle}>
+            {m.canvasCard.ungroup}
           </button>
         )}
       </header>
@@ -236,17 +242,17 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
       />
 
       {data.kind === 'note' ? (
-        <Grow cardId={id} value={data.text} onChange={(text) => updateCard(id, { text })} placeholder="Write a note" autoFocus={fresh} label="Note" />
+        <Grow cardId={id} value={data.text} onChange={(text) => updateCard(id, { text })} placeholder={m.canvasCard.notePlaceholder} autoFocus={fresh} label={m.canvas.note} />
       ) : highlight ? (
         <>
           {highlight.area ? <Figure highlight={highlight} password={doc?.password} /> : <Quote text={highlight.text} />}
           <footer>
-            <button className="source nodrag" onClick={() => showSource(highlight.id)} title="Show it in the document">
-              <span>{doc?.name ?? 'Document'}</span> · {where(highlight)}
+            <button className="source nodrag" onClick={() => showSource(highlight.id)} title={m.canvasCard.showSource}>
+              <span>{doc?.name ?? m.canvasCard.document}</span> · {where(highlight)}
             </button>
             {data.comment === undefined && !commenting && (
               <button className="nodrag ghost" onClick={() => setCommenting(true)}>
-                Comment
+                {m.canvasCard.comment}
               </button>
             )}
           </footer>
@@ -261,14 +267,14 @@ function TextCard({ id, data, selected }: NodeProps<Card> & { data: ExcerptData 
                 const card = useStore.getState().project?.cards.find((c) => c.id === id);
                 if (card?.data.kind === 'excerpt' && card.data.comment !== undefined && !card.data.comment.trim()) updateCard(id, { comment: undefined });
               }}
-              placeholder="Your thoughts"
+              placeholder={m.canvasCard.commentPlaceholder}
               autoFocus={commenting}
-              label="Comment"
+              label={m.canvasCard.comment}
             />
           )}
         </>
       ) : (
-        <p className="missing">The text this came from is gone.</p>
+        <p className="missing">{m.canvasCard.missing}</p>
       )}
       {data.kind === 'note' && data.strokes?.length ? <CardInk strokes={data.strokes} /> : null}
       <LinkChips text={data.kind === 'note' ? data.text : (data.comment ?? '')} />

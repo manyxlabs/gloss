@@ -6,6 +6,7 @@ import { summary } from '../../annots/read';
 import { useForeign } from '../../annots/useForeign';
 import type { DocMeta } from '../../types';
 import { DocBanner } from './DocBanner';
+import { m } from '../../i18n';
 
 /** Asks, once a PDF is added, whether to bring in the highlights, notes and ink another app left in it. */
 export function AnnotsBanner({ doc, onProblems }: { doc: DocMeta; onProblems: (problems: string[]) => void }) {
@@ -27,21 +28,21 @@ export function AnnotsBanner({ doc, onProblems }: { doc: DocMeta; onProblems: (p
   };
   return (
     <DocBanner
-      label="Annotations from another app"
+      label={m.docBanners.annotsLabel}
       icon={<Highlighter size={18} />}
       wide
       actions={
         <>
           <button disabled={busy} onClick={() => asked(doc.id)}>
-            Keep as is
+            {m.docBanners.keep}
           </button>
           <button className="primary" disabled={busy} onClick={() => void bring()}>
-            Bring them in
+            {m.docBanners.bringIn}
           </button>
         </>
       }
     >
-      <p role={busy ? 'status' : undefined}>{busy ? 'Bringing in the annotations…' : `This PDF has ${what} from another app. Bring them in?`}</p>
+      <p role={busy ? 'status' : undefined}>{busy ? m.docBanners.bringingIn : m.docBanners.annotsAsk(what)}</p>
     </DocBanner>
   );
 }

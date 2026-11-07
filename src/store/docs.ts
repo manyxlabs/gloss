@@ -1,6 +1,7 @@
 // Arranging a project's documents: pinned first, in an order of the reader's choosing, in folders.
 import { groupBy, openable, type FolderFile } from '../convert/folder';
 import { kindOf } from '../convert/formats';
+import { m } from '../i18n';
 import type { DocMeta, Project } from '../types';
 import { withProgress } from './progress';
 import { addImported, edit, importFiles, uid } from './project';
@@ -83,8 +84,8 @@ export async function importFolder(project: Project, files: FolderFile[], onProg
 
 /** Adds what was dropped or chosen as a folder to the open project, in one step of undo. */
 export async function addFolder(read: Promise<FolderFile[]>) {
-  const { files, problems } = openable(await withProgress('Finding the files…', () => read));
-  return withProgress('Adding files', async (step) => {
+  const { files, problems } = openable(await withProgress(m.library.findingFiles, () => read));
+  return withProgress(m.library.addingFiles, async (step) => {
     step(0, files.length);
     return [...problems, ...(await addImported((p) => importFolder(p, files, (n) => step(n, files.length))))];
   });

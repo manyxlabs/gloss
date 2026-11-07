@@ -1,5 +1,7 @@
 import { quoted } from './links';
 import { cardText } from './search';
+import { m } from './i18n';
+import { appUrl } from './sync/crypto';
 import type { Project } from './types';
 
 /** What a copied link leads to: a passage, a card, a comment, a canvas, a document or a bookmark. */
@@ -19,8 +21,7 @@ const PATH = /#\/(p|s)\/([\w-]+)\/([hcmvdb])\/([\w-]+)/;
 export const IN_TEXT = /\bhttps?:\/\/[^\s#]+#\/[ps]\/[\w-]+\/[hcmvdb]\/[\w-]+/g;
 
 export const hashOf = (l: GlossLink) => `#/${'room' in l ? `s/${l.room}` : `p/${l.project}`}/${l.kind}/${l.id}`;
-export const linkTo = (p: Pick<Project, 'id' | 'sync'>, t: Target) =>
-  `${location.origin}${location.pathname}${hashOf(p.sync ? { ...t, room: p.sync.room } : { ...t, project: p.id })}`;
+export const linkTo = (p: Pick<Project, 'id' | 'sync'>, t: Target) => `${appUrl()}${hashOf(p.sync ? { ...t, room: p.sync.room } : { ...t, project: p.id })}`;
 
 export function parseLink(text: string): GlossLink | null {
   const m = PATH.exec(text);
@@ -37,11 +38,11 @@ export function snippetOf(p: Project, { kind, id }: Target): string | null {
   const clip = (s: string) => (s.length > 70 ? `${s.slice(0, 69).trimEnd()}…` : s);
   if (kind === 'h') {
     const h = p.highlights.find((x) => x.id === id);
-    return h ? clip(quoted(h) || 'Figure') : null;
+    return h ? clip(quoted(h) || m.homeLinks.figure) : null;
   }
   if (kind === 'c') {
     const c = p.cards.find((x) => x.id === id);
-    return c ? clip(cardText(p, c) || (c.data.kind === 'sketch' ? 'Ink box' : 'Handwriting')) : null;
+    return c ? clip(cardText(p, c) || (c.data.kind === 'sketch' ? m.homeLinks.inkBox : m.homeLinks.handwriting)) : null;
   }
   if (kind === 'm') {
     const c = p.comments.find((x) => x.id === id);

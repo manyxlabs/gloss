@@ -9,13 +9,13 @@ import { Menu } from '../Menu';
 import { ExtractItems } from './ExtractItems';
 import { OcrMenuItem } from './OcrMenuItem';
 import { usePictures } from './photos';
+import { locale, m } from '../../i18n';
 
 /** Thumbnail width in CSS pixels, drawn at the screen's own resolution. */
 const THUMB_WIDTH = 104;
 const PAGES_MIME = 'application/x-gloss-pages';
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const listed = (items: string[]) => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+const listed = (items: string[]) => new Intl.ListFormat(locale).format(items);
 const sorted = (pages: Iterable<number>) => [...new Set(pages)].sort((a, b) => a - b);
 
 /**
@@ -96,13 +96,12 @@ export function Pages({
     if (!project || pages.length >= count) return;
     const a = anchoredOn(project, docId, pages);
     const lost = listed([
-      ...(a.highlights ? [plural(a.highlights, 'highlight')] : []),
-      ...(a.comments ? [plural(a.comments, 'comment')] : []),
-      ...(a.excerpts ? [plural(a.excerpts, 'excerpt card')] : []),
-      ...(a.inks ? [plural(a.inks, 'handwritten stroke')] : []),
+      ...(a.highlights ? [m.docPages.highlights(a.highlights)] : []),
+      ...(a.comments ? [m.docPages.comments(a.comments)] : []),
+      ...(a.excerpts ? [m.docPages.excerpts(a.excerpts)] : []),
+      ...(a.inks ? [m.docPages.strokes(a.inks)] : []),
     ]);
-    const what = pages.length === 1 ? `page ${pages[0]}` : `pages ${listed(pages.map(String))}`;
-    if (lost && !confirm(`Delete ${what}? ${lost} on ${pages.length === 1 ? 'it' : 'them'} will be deleted too. Undo brings everything back.`)) return;
+    if (lost && !confirm(m.docPages.deleteConfirm(pages.length, listed(pages.map(String)), lost))) return;
     void run(remove(pages));
   };
 
@@ -153,7 +152,7 @@ export function Pages({
       {locked && <p className="side-note">{PROTECTED}</p>}
       {busy && (
         <p className="side-note" role="status">
-          Updating pages…
+          {m.docPages.updating}
         </p>
       )}
       {problems.length > 0 && (
@@ -161,30 +160,30 @@ export function Pages({
           {problems.map((p) => (
             <p key={p}>{p}</p>
           ))}
-          <button className="icon" aria-label="Dismiss" onClick={() => setProblems([])}>
+          <button className="icon" aria-label={m.common.dismiss} onClick={() => setProblems([])}>
             <X size={14} />
           </button>
         </div>
       )}
       {several && !locked && (
-        <div className="pages-bar" role="toolbar" aria-label="Selected pages">
-          <span>{plural(chosen.length, 'page')}</span>
-          <button className="icon" aria-label="Rotate left" title="Rotate left" disabled={busy} onClick={() => void run(rotate(chosen, -90), () => chosen)}>
+        <div className="pages-bar" role="toolbar" aria-label={m.docPages.selected}>
+          <span>{m.docPages.pages(chosen.length)}</span>
+          <button className="icon" aria-label={m.docPages.rotateLeft} title={m.docPages.rotateLeft} disabled={busy} onClick={() => void run(rotate(chosen, -90), () => chosen)}>
             <RotateCcw size={16} />
           </button>
-          <button className="icon" aria-label="Rotate right" title="Rotate right" disabled={busy} onClick={() => void run(rotate(chosen, 90), () => chosen)}>
+          <button className="icon" aria-label={m.docPages.rotateRight} title={m.docPages.rotateRight} disabled={busy} onClick={() => void run(rotate(chosen, 90), () => chosen)}>
             <RotateCw size={16} />
           </button>
           <button
             className="icon"
-            aria-label="Delete pages"
-            title={chosen.length >= count ? 'A document needs at least one page' : 'Delete'}
+            aria-label={m.docPages.deletePages}
+            title={chosen.length >= count ? m.docPages.needOne : m.doc.delete}
             disabled={busy || chosen.length >= count}
             onClick={() => del(chosen)}
           >
             <Trash2 size={16} />
           </button>
-          <button className="icon" aria-label="Clear selection" title="Clear selection" onClick={() => setPicked([])}>
+          <button className="icon" aria-label={m.docPages.clear} title={m.docPages.clear} onClick={() => setPicked([])}>
             <X size={16} />
           </button>
         </div>
@@ -200,14 +199,14 @@ export function Pages({
             onDrop={onDrop}
             onDragEnd={() => setDrop(null)}
           >
-            <button aria-label={`Page ${n}`} aria-current={current === n ? 'page' : undefined} aria-pressed={chosen.includes(n)} onClick={(e) => pick(n, e)}>
+            <button aria-label={m.doc.page(n)} aria-current={current === n ? 'page' : undefined} aria-pressed={chosen.includes(n)} onClick={(e) => pick(n, e)}>
               <Thumb doc={doc} docId={docId} password={password} page={n} ratio={ratio} />
               <span>{n}</span>
             </button>
             {!locked && (
               <button
                 className="icon page-more"
-                aria-label="Page actions"
+                aria-label={m.docPages.actions}
                 aria-haspopup="menu"
                 aria-expanded={menu?.page === n}
                 disabled={busy}
@@ -220,35 +219,35 @@ export function Pages({
         ))}
       </ol>
       {menu && (
-        <Menu anchor={menu.button} label={at.length > 1 ? `${plural(at.length, 'page')}` : `Page ${menu.page}`} onClose={() => setMenu(null)}>
+        <Menu anchor={menu.button} label={at.length > 1 ? m.docPages.pages(at.length) : m.doc.page(menu.page)} onClose={() => setMenu(null)}>
           <button role="menuitem" onClick={() => void run(rotate(at, -90), () => at)}>
-            <RotateCcw size={16} /> Rotate left
+            <RotateCcw size={16} /> {m.docPages.rotateLeft}
           </button>
           <button role="menuitem" onClick={() => void run(rotate(at, 90), () => at)}>
-            <RotateCw size={16} /> Rotate right
+            <RotateCw size={16} /> {m.docPages.rotateRight}
           </button>
           <button role="menuitem" disabled={at[0] === 1} onClick={() => moveTo(at, at[0]! - 1)}>
-            <ArrowUp size={16} /> Move up
+            <ArrowUp size={16} /> {m.doc.moveUp}
           </button>
           <button role="menuitem" disabled={at.at(-1) === count} onClick={() => moveTo(at, at.at(-1)! + 2)}>
-            <ArrowDown size={16} /> Move down
+            <ArrowDown size={16} /> {m.doc.moveDown}
           </button>
           <button role="menuitem" onClick={() => void run(duplicate(at))}>
-            <CopyPlus size={16} /> Duplicate
+            <CopyPlus size={16} /> {m.docPages.duplicate}
           </button>
           <OcrMenuItem docId={docId} pages={at} onClose={() => setMenu(null)} onProblems={setProblems} />
           <hr />
           <ExtractItems docId={docId} pages={at} pane={pane} onClose={() => setMenu(null)} onProblems={setProblems} />
           <hr />
           <button role="menuitem" onClick={() => addFrom(at[0]! - 1)}>
-            <FilePlus2 size={16} /> Insert pages before…
+            <FilePlus2 size={16} /> {m.docPages.insertBefore}
           </button>
           <button role="menuitem" onClick={() => addFrom(at.at(-1)!)}>
-            <FilePlus2 size={16} /> Insert pages after…
+            <FilePlus2 size={16} /> {m.docPages.insertAfter}
           </button>
           <hr />
           <button role="menuitem" className="danger" disabled={at.length >= count} onClick={() => del(at)}>
-            <Trash2 size={16} /> {at.length > 1 ? `Delete ${plural(at.length, 'page')}` : 'Delete page'}
+            <Trash2 size={16} /> {m.docPages.deleteN(at.length)}
           </button>
         </Menu>
       )}

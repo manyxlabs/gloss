@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { frame, MAX_FILE, MAX_FRAME, MAX_PRESENCE, parse, PROTOCOL, T } from '../../worker/protocol';
 import { addFiles, deleteFile, fileKey, getFile, getProject } from '../store/db';
 import { panesShowing, useStore } from '../store/project';
+import { m } from '../i18n';
 import type { Card, DocMeta, Project } from '../types';
 import { b64, decrypt, deriveKeys, encrypt, newRoom, unb64, type Binding, type Keys } from './crypto';
 import { forget, introduce, publish, record } from './activity';
@@ -384,22 +385,22 @@ class Session {
     // Only the version the room's document names, so a device that has not caught up does not upload its old one.
     for (const d of project.docs.filter((x) => !hidden.has(x.id))) {
       const name = remote(d);
-      if (remote(docs.get(d.id) ?? d) === name && !this.files.has(name)) void this.transfer(name, `upload “${d.name}”`, () => this.upload(fileKey(d), name, d.name));
+      if (remote(docs.get(d.id) ?? d) === name && !this.files.has(name)) void this.transfer(name, m.homeSync.uploadFailed(d.name), () => this.upload(fileKey(d), name, d.name));
     }
     for (const d of docs.values()) {
       const name = remote(d);
-      if (this.files.has(name) && !here.has(name) && !this.downloaded.has(name)) void this.transfer(name, `download “${d.name}”`, () => this.download(name, fileKey(d)));
+      if (this.files.has(name) && !here.has(name) && !this.downloaded.has(name)) void this.transfer(name, m.homeSync.downloadFailed(d.name), () => this.download(name, fileKey(d)));
     }
   }
 
-  private async transfer(id: string, what: string, run: () => Promise<void>) {
+  private async transfer(id: string, problem: string, run: () => Promise<void>) {
     if (this.transfers.has(id)) return;
     this.transfers.add(id);
     this.status();
     try {
       await run();
     } catch {
-      if (!this.stopped) useSync.setState({ problem: `Could not ${what}. It is tried again when the connection comes back.` });
+      if (!this.stopped) useSync.setState({ problem });
     } finally {
       this.transfers.delete(id);
       this.status();
@@ -414,7 +415,7 @@ class Session {
   private async upload(key: string, id: string, name: string) {
     const blob = await getFile(key);
     if (!blob) return;
-    if (blob.size + 28 > MAX_FILE) return void useSync.setState({ problem: `“${name}” is larger than ${MAX_FILE >> 20} MB, so it stays on this device.` });
+    if (blob.size + 28 > MAX_FILE) return void useSync.setState({ problem: m.homeSync.tooLarge(name, MAX_FILE >> 20) });
     const body = await encrypt(this.keys.key, new Uint8Array(await blob.arrayBuffer()), `file:${id}`);
     const res = await fetch(this.fileUrl(id), { method: 'PUT', headers: this.auth(), body });
     if (!res.ok) throw new Error(res.statusText);
@@ -444,9 +445,7 @@ class Session {
     this.ws = ws;
     this.server = new Y.Doc();
     ws.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      this.receiving = this.receiving
-        .then(() => this.receive(ws, e.data))
-        .catch(() => useSync.setState({ problem: 'Some changes could not be decrypted, so they were left out.' }));
+      this.receiving = this.receiving.then(() => this.receive(ws, e.data)).catch(() => useSync.setState({ problem: m.homeSync.undecryptable }));
     };
     ws.onclose = () => this.drop(ws);
     this.status();

@@ -2,12 +2,13 @@ import { Coffee, Image, Moon, Sun, SunMoon } from 'lucide-react';
 import { useState } from 'react';
 import { PAGE_LOOKS, setKeepImages, setPageLook, useReading, type PageLook } from '../../reading';
 import { Menu } from '../Menu';
+import { m } from '../../i18n';
 
 const LOOKS: Record<PageLook, [string, typeof Sun]> = {
-  light: ['Light pages', Sun],
-  dark: ['Dark pages', Moon],
-  sepia: ['Sepia pages', Coffee],
-  theme: ['Follow the app theme', SunMoon],
+  light: [m.docMenu.looks.light, Sun],
+  dark: [m.docMenu.looks.dark, Moon],
+  sepia: [m.docMenu.looks.sepia, Coffee],
+  theme: [m.docMenu.looks.theme, SunMoon],
 };
 
 /** The page colours to choose from, as menu items; `close` is called once one is chosen. */
@@ -25,8 +26,8 @@ export function PageLookItems({ close }: { close: () => void }) {
       })}
       <hr />
       {/* Stays open, as one may want to see the page each way. */}
-      <button role="menuitemcheckbox" aria-checked={reading.keepImages} onClick={() => setKeepImages(!reading.keepImages)} title="On dark pages, show pictures as printed">
-        <Image size={16} /> Keep images as they are
+      <button role="menuitemcheckbox" aria-checked={reading.keepImages} onClick={() => setKeepImages(!reading.keepImages)} title={m.docMenu.keepImagesTitle}>
+        <Image size={16} /> {m.docMenu.keepImages}
       </button>
     </>
   );
@@ -41,8 +42,8 @@ export function PageLookMenu() {
     <>
       <button
         className="icon overflow"
-        aria-label="Page colours"
-        title="Page colours"
+        aria-label={m.docMenu.pageColours}
+        title={m.docMenu.pageColours}
         aria-haspopup="menu"
         aria-expanded={!!button}
         onClick={(e) => setButton(button ? null : e.currentTarget)}
@@ -50,7 +51,7 @@ export function PageLookMenu() {
         <Shown size={17} />
       </button>
       {button && (
-        <Menu anchor={button} label="Page colours" onClose={() => setButton(null)}>
+        <Menu anchor={button} label={m.docMenu.pageColours} onClose={() => setButton(null)}>
           <PageLookItems close={() => setButton(null)} />
         </Menu>
       )}
