@@ -71,7 +71,7 @@ async function inspect(page: Page, file: string, boxes: Record<string, Box>) {
           if (lum < 180) out.grey++;
           if (d[i]! > 170 && d[i + 1]! < 100 && d[i + 2]! < 100) out.red++;
           // The accent colour of handles, selection rings and resize lines, in either theme.
-          if (near(d, i, [81, 69, 229], 30) || near(d, i, [143, 136, 255], 30)) out.accent++;
+          if (near(d, i, [5, 150, 105], 30) || near(d, i, [52, 211, 153], 30)) out.accent++;
         }
         return out;
       };
