@@ -164,6 +164,10 @@ test('however many documents, canvases and panes, the buttons beside the tabs st
     ),
   );
   await expect(docTabs(page).getByRole('tab')).toHaveCount(6);
+  // A strip with room to spare shows its one tab's whole name.
+  const canvasTab = page.getByRole('tablist', { name: 'Canvases' }).getByRole('tab');
+  await expect(canvasTab).toHaveCount(1);
+  expect(await canvasTab.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   for (let i = 0; i < 7; i++) await page.getByRole('button', { name: 'New canvas' }).click();
   await expect(page.getByRole('tablist', { name: 'Canvases' }).getByRole('tab', { name: 'Canvas 8' })).toBeInViewport();
   await page.getByRole('button', { name: 'Open side by side' }).click();
