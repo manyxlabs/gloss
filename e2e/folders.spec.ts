@@ -30,7 +30,10 @@ async function researchFolder(page: Page) {
 async function drop(page: Page, target: Locator, paths: string[]) {
   const box = (await target.boundingBox())!;
   const cdp = await page.context().newCDPSession(page);
-  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // The middle of the part on screen: a drop past the window's edge reaches nothing.
+  const { height } = page.viewportSize()!;
+  const top = Math.max(box.y, 0);
+  const at = { x: box.x + box.width / 2, y: (top + Math.min(box.y + box.height, height)) / 2 };
   for (const type of ['dragEnter', 'dragOver', 'drop'] as const)
     await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { items: [], files: paths, dragOperationsMask: 1 } });
 }

@@ -319,7 +319,8 @@ test('a text box follows the words beside it when its document is replaced with 
   await expect(dialog.getByRole('status')).toContainText('Replaced.');
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect.poll(async () => (await placeOf(box)).page).toBe('2');
-  await box.scrollIntoViewIfNeeded();
+  // Drawn again as its page comes into view, so the first box found can be gone before the scroll ends.
+  await expect(() => box.scrollIntoViewIfNeeded({ timeout: 2000 })).toPass();
   await expect.poll(below).toBeCloseTo(gap, 2);
   await shot(page, 'text-box-replaced');
 });
