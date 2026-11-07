@@ -9,6 +9,8 @@ import { Unsent } from './components/Unsent';
 import { PasswordDialog } from './components/PasswordDialog';
 import { Privacy } from './components/Privacy';
 import { parseLink } from './sync/crypto';
+import { m } from './i18n';
+import { split } from './i18n/langs';
 
 // pdf.js and the canvas are most of the app's weight, so the start page does not wait for them.
 const Workspace = lazy(() => import('./components/Workspace').then((m) => ({ default: m.Workspace })));
@@ -45,14 +47,12 @@ export function App() {
   }, []);
   return (
     <>
-      {location.pathname === '/privacy' ? (
+      {split(location.pathname).rest === 'privacy' ? (
         <Privacy />
       ) : joining ? (
         <Join binding={joining} />
       ) : broken ? (
-        <Lost title="This share link is not complete">
-          Part of the link is missing, so the project it shares cannot be opened. Ask for the link again, and copy all of it, up to the very end.
-        </Lost>
+        <Lost title={m.app.brokenLinkTitle}>{m.app.brokenLink}</Lost>
       ) : room ? (
         <OpenShared key={room} room={room} />
       ) : projectId ? (

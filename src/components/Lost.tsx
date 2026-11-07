@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { m } from '../i18n';
 import { Logo } from './Logo';
 
 /** A page for where Gloss cannot go: a project not in this browser, or a share link cut short. */
@@ -10,7 +11,7 @@ export function Lost({ title, children }: { title: string; children: ReactNode }
         <h1>{title}</h1>
         <p>{children}</p>
         <a className="button primary" href="#/">
-          All projects
+          {m.common.allProjects}
         </a>
       </div>
     </main>

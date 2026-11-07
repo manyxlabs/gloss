@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
+import { m } from '../i18n';
 
 type Theme = 'light' | 'dark';
 const KEY = 'gloss:theme';
@@ -27,14 +28,14 @@ export function ThemeToggle({ item = false }: { item?: boolean }) {
       // Not saved; the theme still applies for this visit.
     }
   };
-  const label = theme === 'dark' ? 'Use light theme' : 'Use dark theme';
+  const label = theme === 'dark' ? m.theme.useLight : m.theme.useDark;
   const Icon = theme === 'dark' ? Sun : Moon;
   return item ? (
     <button role="menuitem" onClick={flip}>
       <Icon size={16} /> {label}
     </button>
   ) : (
-    <button className="icon" onClick={flip} aria-label={label} title={theme === 'dark' ? 'Light theme' : 'Dark theme'}>
+    <button className="icon" onClick={flip} aria-label={label} title={theme === 'dark' ? m.theme.light : m.theme.dark}>
       <Icon size={17} />
     </button>
   );

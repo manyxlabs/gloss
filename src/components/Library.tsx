@@ -16,23 +16,23 @@ import { Projects } from './Projects';
 import { ThemeToggle } from './ThemeToggle';
 import { useInstall } from '../install';
 import { WebPicker } from './WebPicker';
-
-// index.html's title, read before any page changes it, so it is written in one place.
-const HOME_TITLE = document.title;
+import { LanguageSelect } from './LanguageSelect';
+import { href, m } from '../i18n';
+import { rich } from '../i18n/rich';
 
 const FEATURES = [
-  [Link2, 'Excerpts that remember', 'Every card opens the document at the passage it came from, and every passage shows its card.'],
-  [FoldVertical, 'Squeeze the pages between', 'Pinch two distant passages together, or select what is in between and squeeze it, to read them side by side.'],
-  [PenLine, 'Write by hand', 'Draw on the page or the canvas with a finger, a mouse or a stylus, which writes even without picking the pen.'],
-  [Search, 'Search everything', 'One box searches every page of every PDF and every note you wrote.'],
-  [FileDown, 'Take it with you', 'Export the PDF with your highlights and handwriting as real annotations, or your notes as Markdown, PDF or Word.'],
-  [Lock, 'Private by design', 'Your PDFs and notes stay in this browser unless you share a project, and then only encrypted. There is no account.'],
+  [Link2, m.library.features.excerpts],
+  [FoldVertical, m.library.features.squeeze],
+  [PenLine, m.library.features.hand],
+  [Search, m.library.features.search],
+  [FileDown, m.library.features.export],
+  [Lock, m.library.features.private],
 ] as const;
 
 /** A page with highlights on the left, the cards they became on the right. */
 function Illustration() {
   return (
-    <svg className="art" viewBox="0 0 360 220" role="img" aria-label="A page with highlighted passages linked to cards beside it">
+    <svg className="art" viewBox="0 0 360 220" role="img" aria-label={m.library.illustration}>
       <rect x="8" y="8" width="150" height="204" rx="8" fill="var(--panel)" stroke="var(--border)" />
       {[30, 44, 58, 86, 100, 114, 128, 156, 170, 184].map((y, i) => (
         <rect key={y} x="24" y={y} width={i % 3 === 2 ? 80 : 118} height="5" rx="2.5" fill="var(--border)" />
@@ -73,7 +73,7 @@ export function Library() {
   const install = useInstall();
 
   useEffect(() => {
-    document.title = HOME_TITLE;
+    document.title = m.meta.title;
     void listProjects().then(setProjects);
   }, []);
 
@@ -89,14 +89,10 @@ export function Library() {
       for (const b of backups) {
         try {
           // Restoring adds a copy each time, which is rarely meant twice over.
-          const project = await restore(b, (name, original) =>
-            confirm(
-              original ? `“${name}”, the project in this backup, is already here. Restore a copy of it?` : `This backup was already restored as “${name}”. Restore another copy?`,
-            ),
-          );
+          const project = await restore(b, (name, original) => confirm(original ? m.library.restoreAgain(name) : m.library.restoredBefore(name)));
           if (project) restored.push(project.id);
         } catch (err) {
-          failed.push(err instanceof BackupError ? err.message : `${b.name} could not be restored.`);
+          failed.push(err instanceof BackupError ? err.message : m.library.notRestored(b.name));
         }
       }
       setProblems(failed);
@@ -121,7 +117,7 @@ export function Library() {
   const startFolder = async (read: Promise<FolderFile[]>) => {
     setBusy(true);
     try {
-      const { files, problems } = openable(await withProgress('Finding the files…', () => read));
+      const { files, problems } = openable(await withProgress(m.library.findingFiles, () => read));
       // One folder on its own names the project, and only what is inside it is arranged.
       const root = new Set(files.map((f) => f.path[0])).size === 1 ? files[0]?.path[0] : undefined;
       const inside = root ? files.map((f) => ({ ...f, path: f.path.slice(1) })) : files;
@@ -133,7 +129,7 @@ export function Library() {
       const { importFolder } = await import('../store/docs');
       const { newProject, UNTITLED } = await import('../store/project');
       const made: string[] = [];
-      await withProgress('Adding files', async (step) => {
+      await withProgress(m.library.addingFiles, async (step) => {
         let done = 0;
         step(0, files.length);
         for (const plan of plans) {
@@ -170,7 +166,7 @@ export function Library() {
   // Shared to Gloss from another app: the files wait in a cache, put there by public/share-target.js.
   useEffect(() => {
     if (!new URLSearchParams(location.search).has('shared')) return;
-    history.replaceState(null, '', `/${location.hash}`);
+    history.replaceState(null, '', `${location.pathname}${location.hash}`);
     void (async () => {
       const cache = await caches.open('gloss-shared');
       const files = await Promise.all(
@@ -189,7 +185,7 @@ export function Library() {
   const actions = (
     <div className="actions">
       <button className="primary big" disabled={busy} onClick={() => input.current!.click()}>
-        <FolderOpen size={18} /> {busy ? 'Opening…' : 'Open files'}
+        <FolderOpen size={18} /> {busy ? m.library.opening : m.library.openFiles}
       </button>
       <WebPicker kind="big" add={(url, how) => start([{ url }], how)} />
     </div>
@@ -200,19 +196,19 @@ export function Library() {
       <span>
         <span aria-hidden="true">·</span>
         <button className="link" disabled={busy} onClick={() => void start([])}>
-          Start an empty project
+          {m.library.emptyProject}
         </button>
       </span>
       <span>
         <span aria-hidden="true">·</span>
         <button className="link" disabled={busy} onClick={() => folderInput.current!.click()}>
-          Open a folder
+          {m.library.openFolder}
         </button>
       </span>
       <span>
         <span aria-hidden="true">·</span>
         <button className="link" disabled={busy} onClick={() => restoreInput.current!.click()}>
-          Restore a backup
+          {m.library.restoreBackup}
         </button>
       </span>
     </p>
@@ -222,7 +218,7 @@ export function Library() {
     <p className="more">
       <span>
         <span aria-hidden="true">·</span>
-        <span className="from">Open from</span>
+        <span className="from">{m.library.openFrom}</span>
         <CloudPicker provider="Google Drive" kind="link" disabled={busy} add={fromCloud} />
       </span>
       <span>
@@ -233,9 +229,9 @@ export function Library() {
   );
   const hint = (
     <p className="hint">
-      <span className="mouse-only">Or drop files or folders anywhere here:</span>
-      <span className="touch-only">Opens:</span>
-      {['PDF', 'Word', 'PowerPoint', 'Images', 'Text', 'Markdown', 'Web pages', '.gloss backup'].map((f) => (
+      <span className="mouse-only">{m.library.dropHint}</span>
+      <span className="touch-only">{m.library.opens}</span>
+      {Object.values(m.library.kinds).map((f) => (
         <span key={f} className="chip">
           {f}
         </span>
@@ -269,13 +265,14 @@ export function Library() {
       <header className="bar">
         <span className="brand">
           <Logo />
-          Gloss <small>by Manyx Labs</small>
+          Gloss <small>{m.common.byManyx}</small>
         </span>
         {install && (
           <button className="ghost install" onClick={() => void install()}>
-            <MonitorDown size={16} /> Install app
+            <MonitorDown size={16} /> {m.library.install}
           </button>
         )}
+        <LanguageSelect />
         <ThemeToggle />
       </header>
 
@@ -295,12 +292,10 @@ export function Library() {
               <section className="hero">
                 <div>
                   <span className="eyebrow">
-                    <Sparkles size={14} /> Free, private, in your browser
+                    <Sparkles size={14} /> {m.library.eyebrow}
                   </span>
-                  <h1>
-                    Read your documents next to <em>a canvas for your thinking.</em>
-                  </h1>
-                  <p>Pull passages out of your documents, arrange and connect them, write by hand, and jump back to the exact line any excerpt came from.</p>
+                  <h1>{rich(m.library.heading, { em: (s) => <em>{s}</em> })}</h1>
+                  <p>{m.library.intro}</p>
                   {actions}
                   {more}
                   {clouds}
@@ -312,7 +307,7 @@ export function Library() {
                 </div>
               </section>
               <ul className="features">
-                {FEATURES.map(([Icon, title, text]) => (
+                {FEATURES.map(([Icon, { title, text }]) => (
                   <li key={title} className="glass">
                     <Icon size={20} />
                     <strong>{title}</strong>
@@ -373,12 +368,12 @@ export function Footer() {
         Manyx Labs
       </a>
       <a href="https://github.com/manyxlabs/gloss" target="_blank" rel="noopener">
-        Source on GitHub
+        {m.footer.source}
       </a>
       <a href="https://github.com/manyxlabs/gloss/issues" target="_blank" rel="noopener">
-        Report a problem
+        {m.footer.problem}
       </a>
-      <a href="/privacy">Privacy</a>
+      <a href={href('privacy')}>{m.footer.privacy}</a>
     </footer>
   );
 }
