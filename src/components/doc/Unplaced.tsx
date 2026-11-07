@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { commentOf, quoted } from '../../links';
 import { selectionAnchor } from '../../pdf/anchor';
 import { edit, removeHighlight, useStore } from '../../store/project';
+import { m } from '../../i18n';
 
 /**
  * Highlights whose words were not found when their document was replaced, kept with their
@@ -27,11 +28,11 @@ export function Unplaced({ docId }: { docId: string }) {
 
   if (!lost.length) return null;
   return (
-    <section className="unplaced" ref={box} aria-label="Unplaced highlights">
+    <section className="unplaced" ref={box} aria-label={m.docSidebar.unplacedLabel}>
       <h3>
-        <CircleAlert size={14} aria-hidden="true" /> Unplaced ({lost.length})
+        <CircleAlert size={14} aria-hidden="true" /> {m.docSidebar.unplaced(lost.length)}
       </h3>
-      <p className="side-note">Not found in the new version of this document. Select where one belongs in the page, then press Place.</p>
+      <p className="side-note">{m.docSidebar.unplacedNote}</p>
       <ul className="unplaced-marks">
         {lost.map((h) => (
           <li key={h.id} className={`unplaced-item hl-${h.color}`}>
@@ -41,7 +42,7 @@ export function Unplaced({ docId }: { docId: string }) {
             <span className="actions" onMouseDown={(e) => e.preventDefault()}>
               <button
                 disabled={!selected}
-                title={selected ? 'Put it on the selected text' : 'Select the text it belongs on first'}
+                title={selected ? m.docSidebar.placeTitle : m.docSidebar.selectFirst}
                 onClick={() => {
                   const anchor = selectionAnchor(scroller()!);
                   if (!anchor) return;
@@ -49,9 +50,9 @@ export function Unplaced({ docId }: { docId: string }) {
                   edit((p) => ({ highlights: p.highlights.map((x) => (x.id === h.id ? { ...x, parts: anchor.parts, text: anchor.text } : x)) }));
                 }}
               >
-                Place
+                {m.docSidebar.place}
               </button>
-              <button className="icon" aria-label="Delete unplaced highlight" title="Delete it, with its excerpts" onClick={() => removeHighlight(h.id)}>
+              <button className="icon" aria-label={m.docSidebar.deleteUnplaced} title={m.docSidebar.deleteUnplacedTitle} onClick={() => removeHighlight(h.id)}>
                 <Trash2 size={15} />
               </button>
             </span>

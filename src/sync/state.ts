@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { m } from '../i18n';
 
 // What the interface shows of sync, apart from the engine (session.ts), which loads only for a shared project.
 
@@ -51,7 +52,7 @@ export type Activity = { by: string; at: number; list: string; id: string; op: '
 export const useActivity = create<{ people: Person[]; activity: Activity[] }>(() => ({ people: [], activity: [] }));
 
 /** The name of someone who would rather not give one. */
-export const GUEST = 'Guest';
+export const GUEST = m.homePeople.guest;
 /** How this person appears to the others in a shared project. */
 export const useMe = create(() => ({ name: stored('gloss:name') ?? '', color: firstColor() }));
 export const setName = (name: string) => {

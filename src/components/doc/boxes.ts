@@ -3,6 +3,7 @@ import { pick, useLinking } from '../../store/links';
 import { addNote, addTextBox, canvasSpot, excerpt, nextTextBox, startTyping, stopTyping, TEXT_LINE, TEXT_PAD, TEXT_SIZES, updateTextBox, useStore } from '../../store/project';
 import type { Rect } from '../../types';
 import { paint } from './paint';
+import { m } from '../../i18n';
 
 /** A new box's width, and the least a box can be resized to, as fractions of the page's width. */
 const NEW_WIDTH = 0.32;
@@ -126,7 +127,7 @@ export function attachBoxes(root: HTMLElement, docNow: () => string | null, onPi
     if (d.ghost) {
       const [gx, gy] = d.ghost.dataset.grab!.split(',').map(Number) as [number, number];
       d.ghost.style.translate = `${e.clientX - gx}px ${e.clientY - gy}px`;
-      d.ghost.dataset.drop = canvasSpot.at(e.clientX, e.clientY) ? (e.altKey ? 'Drop for a note' : 'Drop for an excerpt, or with Alt a note') : '';
+      d.ghost.dataset.drop = canvasSpot.at(e.clientX, e.clientY) ? (e.altKey ? m.doc.dropNote : m.doc.dropExcerpt) : '';
     }
   };
 

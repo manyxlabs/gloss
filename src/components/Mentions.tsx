@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { PERSON, useActivity, useSync } from '../sync/state';
+import { m } from '../i18n';
 
 /** The @ being typed just before the caret: up to two words of a name. */
 const TYPING = /(?:^|\s)@([\p{L}\p{N}_'.-]*(?: [\p{L}\p{N}_'.-]*)?)$/u;
@@ -34,13 +35,13 @@ export function MentionSuggest({ field }: { field: RefObject<HTMLTextAreaElement
     if (!el || !people.length) return;
     const look = () => {
       const caret = el.selectionStart;
-      const m = el.selectionEnd === caret ? TYPING.exec(el.value.slice(0, caret)) : null;
-      const query = m?.[1]?.toLowerCase() ?? '';
-      const names = m ? people.filter((n) => n.toLowerCase().startsWith(query) && n.toLowerCase() !== query) : [];
+      const typed = el.selectionEnd === caret ? TYPING.exec(el.value.slice(0, caret)) : null;
+      const query = typed?.[1]?.toLowerCase() ?? '';
+      const names = typed ? people.filter((n) => n.toLowerCase().startsWith(query) && n.toLowerCase() !== query) : [];
       if (!names.length) return setOpen(null);
       const box = el.getBoundingClientRect();
       const index = now.current ? Math.min(now.current.index, names.length - 1) : 0;
-      setOpen({ start: caret - m![1]!.length - 1, end: caret, names, index, at: { left: box.left, top: box.bottom + 4 } });
+      setOpen({ start: caret - typed![1]!.length - 1, end: caret, names, index, at: { left: box.left, top: box.bottom + 4 } });
     };
     const put = (name: string, o: Open) => {
       el.focus();
@@ -78,7 +79,7 @@ export function MentionSuggest({ field }: { field: RefObject<HTMLTextAreaElement
 
   if (!open) return null;
   return createPortal(
-    <ul className="mentions glass" role="listbox" aria-label="People to mention" style={open.at}>
+    <ul className="mentions glass" role="listbox" aria-label={m.homePeople.toMention} style={open.at}>
       {open.names.map((n, i) => (
         <li
           key={n}

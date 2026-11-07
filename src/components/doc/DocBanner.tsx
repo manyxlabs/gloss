@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import './banners.css';
+import { m } from '../../i18n';
 
 /** A notice floating over a document's pages, with what can be done about it; `wide` actions go under the message in a narrow pane. */
 export function DocBanner({
@@ -27,7 +28,7 @@ export function DocBanner({
       <div className="doc-banner-actions">
         {actions}
         {onDismiss && (
-          <button className="icon" aria-label="Dismiss" title="Dismiss" onClick={onDismiss}>
+          <button className="icon" aria-label={m.common.dismiss} title={m.common.dismiss} onClick={onDismiss}>
             <X size={16} />
           </button>
         )}

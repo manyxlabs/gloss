@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { m } from '../i18n';
 import { prune } from '../links';
 import type { Anchor } from '../pdf/anchor';
 import type { Color, Highlight } from '../types';
@@ -24,13 +25,13 @@ export function pick(highlightId: string) {
   if (!linking || !p || !target) return false;
   const refuse = (refused: string) => (useLinking.setState({ linking: { ...linking, refused } }), false);
   if (linking.kind === 'link') {
-    if (highlightId === linking.from) return refuse('That is the passage the link starts from. Pick another.');
+    if (highlightId === linking.from) return refuse(m.engineStore.linkSelf);
     const exists = p.passageLinks.some((l) => (l.a === linking.from && l.b === highlightId) || (l.b === linking.from && l.a === highlightId));
     if (!exists) edit((q) => ({ passageLinks: [...q.passageLinks, { id: uid(), a: linking.from, b: highlightId }] }));
   } else {
-    if (target.commentId === linking.commentId) return refuse('This passage already has this comment. Pick another.');
+    if (target.commentId === linking.commentId) return refuse(m.engineStore.hasThisComment);
     // A passage holds one comment, so taking a second would silently drop the first.
-    if (target.commentId) return refuse('That passage has a comment of its own. Pick another.');
+    if (target.commentId) return refuse(m.engineStore.hasOwnComment);
     edit((q) => ({ highlights: q.highlights.map((h) => (h.id === highlightId ? { ...h, commentId: linking.commentId } : h)) }));
   }
   cancelLinking();

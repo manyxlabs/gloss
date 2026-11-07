@@ -1,3 +1,4 @@
+import { m } from '../i18n';
 import type { CanvasMeta, DocMeta } from '../types';
 import { edit } from './project';
 
@@ -13,5 +14,4 @@ export const setDocLocal = (id: string, local: boolean) => edit((p) => ({ docs: 
 export const setCanvasLocal = (id: string, local: boolean) => edit((p) => ({ canvases: p.canvases.map((c) => (c.id === id ? mark(c, local) : c)) }));
 
 /** What making something private does in a shared project, said before it is done. */
-export const privateWarning = (what: string) =>
-  `Keep ${what} on this device only?\n\nIt is removed from everyone else’s copy of this project, with everything on it, and nothing more of it is sent, encrypted or not. Share it again to send it back.`;
+export const privateWarning = m.engineStore.privateWarning;

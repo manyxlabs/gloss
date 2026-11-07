@@ -9,6 +9,7 @@ import { useStore } from '../store/project';
 import type { DocMeta, ZoteroItem } from '../types';
 import { ReplaceDialog } from './ReplaceDialog';
 import { ZoteroDialog } from './ZoteroDialog';
+import { m } from '../i18n';
 
 type Dialog = { replace: DocMeta } | { zotero: true } | { send: DocMeta & { zotero: ZoteroItem } };
 const useDialog = create<{ dialog: Dialog | null }>(() => ({ dialog: null }));
@@ -27,13 +28,13 @@ export function DocDialogs({ onProblems }: { onProblems: (problems: string[]) =>
 /** Sends a document's PDF, as it is or with its highlights, comments and handwriting written in, to another app. */
 async function sendDoc(doc: DocMeta, annotated: boolean, onProblems: (problems: string[]) => void) {
   try {
-    if (annotated) return await send(`${doc.name} (annotated).pdf`, await withProgress('Making the annotated PDF…', () => annotatedPdf(useStore.getState().project!, doc.id)));
+    if (annotated) return await send(m.doc.annotatedFile(doc.name), await withProgress(m.doc.makingAnnotated, () => annotatedPdf(useStore.getState().project!, doc.id)));
     const file = await getFile(fileKey(doc));
     // Stored as it was added, a PDF may have no type, which the share sheet needs.
     if (file) await send(`${doc.name}.pdf`, file.slice(0, file.size, 'application/pdf'));
-    else onProblems(['This PDF is missing from this browser’s storage.']);
+    else onProblems([m.docMenu.missing]);
   } catch (err) {
-    onProblems([`The PDF could not be sent: ${(err as Error).message}`]);
+    onProblems([m.docMenu.sendFailed((err as Error).message)]);
   }
 }
 
@@ -45,32 +46,32 @@ export function DocActions({ doc, onClose, onProblems }: { doc: DocMeta; onClose
   return (
     <>
       <button role="menuitem" onClick={() => (placeDoc(doc.id, { pinned: !doc.pinned }), onClose())}>
-        {doc.pinned ? <PinOff size={16} /> : <Pin size={16} />} {doc.pinned ? 'Unpin' : 'Pin'}
+        {doc.pinned ? <PinOff size={16} /> : <Pin size={16} />} {doc.pinned ? m.docMenu.unpin : m.docMenu.pin}
       </button>
       {folders.length > 0 && <hr />}
       {folders.map((f) => (
         <button key={f.id} role="menuitemradio" aria-checked={doc.folder === f.id} onClick={() => (placeDoc(doc.id, { folder: f.id }), onClose())}>
-          <FolderInput size={16} /> In {f.name}
+          <FolderInput size={16} /> {m.docMenu.inFolder(f.name)}
         </button>
       ))}
       {folders.length > 0 && (
         <button role="menuitemradio" aria-checked={!inFolder} onClick={() => (placeDoc(doc.id, { folder: null }), onClose())}>
-          <FolderInput size={16} /> In no folder
+          <FolderInput size={16} /> {m.docMenu.inNoFolder}
         </button>
       )}
       <hr />
       <button role="menuitem" onClick={() => (onClose(), void sendDoc(doc, false, onProblems))}>
-        <Share size={16} /> Send document…
+        <Share size={16} /> {m.docMenu.send}
       </button>
       <button role="menuitem" onClick={() => (onClose(), void sendDoc(doc, true, onProblems))}>
-        <Share size={16} /> Send with annotations…
+        <Share size={16} /> {m.docMenu.sendAnnotated}
       </button>
       <button role="menuitem" onClick={() => (onClose(), openDocDialog({ replace: doc }))}>
-        <FileUp size={16} /> Replace with a newer version…
+        <FileUp size={16} /> {m.docMenu.replace}
       </button>
       {zotero && (
         <button role="menuitem" onClick={() => (onClose(), openDocDialog({ send: { ...doc, zotero } }))}>
-          <BookOpen size={16} /> Send notes to Zotero…
+          <BookOpen size={16} /> {m.docMenu.toZotero}
         </button>
       )}
     </>

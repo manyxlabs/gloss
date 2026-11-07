@@ -6,6 +6,7 @@ import { paneCount, useStore } from '../store/project';
 import { newScreens, shareLink } from '../sync/crypto';
 import { joinScreens, setShow, shownNow, useLinked, useScreen, type Show } from '../sync/state';
 import { radios } from './Segmented';
+import { m } from '../i18n';
 
 /** What this screen shows now; a pane that has closed gives way to all the documents. */
 export function useShown(): Show {
@@ -23,7 +24,7 @@ function Qr({ text }: { text: string }) {
   const { size, data } = encode(text, { ecc: 'M', border: 2 });
   const path = data.flatMap((row, y) => row.flatMap((dark, x) => (dark ? [`M${x} ${y}h1v1h-1z`] : []))).join('');
   return (
-    <svg className="qr" viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges" role="img" aria-label="QR code of the link">
+    <svg className="qr" viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges" role="img" aria-label={m.homeScreens.qr}>
       <rect width={size} height={size} fill="#fff" />
       <path d={path} fill="#111" />
     </svg>
@@ -56,7 +57,7 @@ export function Screens() {
   const start = () => {
     if (!group) joinScreens(id, newScreens());
     // The screens keep in step as a shared project's devices do.
-    if (!sync) void import('../sync/session').then((m) => m.share());
+    if (!sync) void import('../sync/session').then((e) => e.share());
   };
   const copy = async () => {
     await navigator.clipboard.writeText(link);
@@ -64,70 +65,64 @@ export function Screens() {
     setTimeout(() => setCopied(false), 1500);
   };
   const close = () => dialog.current?.close();
-  const label = linked ? `Screens, ${linked} other linked` : 'Screens';
 
   return (
     <>
-      <button className={`icon screens${linked ? ' linked' : ''}`} aria-label={label} title="Use another screen" onClick={() => screens.open()}>
+      <button className={`icon screens${linked ? ' linked' : ''}`} aria-label={m.homeScreens.label(linked)} title={m.homeScreens.useAnother} onClick={() => screens.open()}>
         <MonitorSmartphone size={17} />
       </button>
       <dialog ref={dialog} className="sheet glass screens-dialog" aria-labelledby="screens-h" onClick={(e) => e.target === e.currentTarget && close()}>
-        <h2 id="screens-h">Use another screen</h2>
-        <p>
-          Open this project on another of your devices, or in a second window here, and give each screen a part: the document on a laptop and the canvas on a tablet, say. A jump on
-          one screen shows on the others.
-        </p>
+        <h2 id="screens-h">{m.homeScreens.useAnother}</h2>
+        <p>{m.homeScreens.intro}</p>
         {link ? (
           <div className="screen-link">
             <Qr text={link} />
             <div>
-              <p className="fine">Scan the code with the other device, or open the link there. Anyone with the link can open the project, so keep it to your own screens.</p>
+              <p className="fine">{m.homeScreens.scan}</p>
               <div className="share-link">
-                <input readOnly value={link} aria-label="Screen link" onFocus={(e) => e.currentTarget.select()} />
+                <input readOnly value={link} aria-label={m.homeScreens.linkLabel} onFocus={(e) => e.currentTarget.select()} />
                 <button className="primary" onClick={() => void copy()}>
-                  {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Copied' : 'Copy'}
+                  {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? m.home.copied : m.home.copy}
                 </button>
               </div>
               <button onClick={() => window.open(link, '_blank', 'popup,noopener')}>
-                <SquareArrowOutUpRight size={16} /> Open a window here
+                <SquareArrowOutUpRight size={16} /> {m.homeScreens.openWindow}
               </button>
             </div>
           </div>
         ) : (
           <>
-            <p className="fine">
-              Screens keep in step through sync{sync ? '' : ', so this shares the project'}. Everything is encrypted on this device before it leaves, and the server cannot read it.
-            </p>
+            <p className="fine">{sync ? m.homeScreens.viaSync : m.homeScreens.viaSyncShares}</p>
             <button className="primary" onClick={start}>
-              <MonitorSmartphone size={16} /> Link another screen
+              <MonitorSmartphone size={16} /> {m.homeScreens.linkAnother}
             </button>
           </>
         )}
         <fieldset className="screen-show">
-          <legend>This screen shows</legend>
+          <legend>{m.homeScreens.shows}</legend>
           {radios(
-            'This screen shows',
+            m.homeScreens.shows,
             show,
             [
-              ['both', 'Both'],
-              ['doc', 'Document'],
-              ['canvas', 'Canvas'],
+              ['both', m.homeScreens.both],
+              ['doc', m.homeScreens.doc],
+              ['canvas', m.homeScreens.canvas],
             ],
             (v) => setShow(id, v),
           )}
           {panes > 1 &&
             radios(
-              'One pane',
+              m.homeScreens.onePane,
               show,
-              Array.from({ length: panes }, (_, i) => [i as Show, `Pane ${i + 1}`]),
+              Array.from({ length: panes }, (_, i) => [i as Show, m.homeScreens.pane(i + 1)]),
               (v) => setShow(id, v),
             )}
         </fieldset>
         <p className="fine" role="status">
-          {linked ? `${linked} other screen${linked > 1 ? 's are' : ' is'} linked.` : 'While no other screen is open, this one shows everything.'}
+          {linked ? m.homeScreens.linked(linked) : m.homeScreens.alone}
         </p>
         <footer>
-          <button onClick={close}>Done</button>
+          <button onClick={close}>{m.home.done}</button>
         </footer>
       </dialog>
     </>

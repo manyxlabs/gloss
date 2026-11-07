@@ -4,8 +4,7 @@ import { ACCEPT } from '../convert/formats';
 import { quoted } from '../links';
 import { replaceDoc, type Replaced } from '../pdf/replace';
 import type { DocMeta } from '../types';
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+import { m } from '../i18n';
 
 /** Replaces a document with a newer version of it, then says where its marks went and which could not be placed. */
 export function ReplaceDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
@@ -20,7 +19,7 @@ export function ReplaceDialog({ doc, onClose }: { doc: DocMeta; onClose: () => v
     try {
       setDone(await replaceDoc(doc.id, file));
     } catch {
-      setDone({ problems: ['The new version could not be read. It may be damaged, or in a form Gloss does not read.'] });
+      setDone({ problems: [m.docReplace.unreadable] });
     } finally {
       setBusy(false);
     }
@@ -29,28 +28,22 @@ export function ReplaceDialog({ doc, onClose }: { doc: DocMeta; onClose: () => v
   return (
     <dialog ref={ref} className="sheet glass replace-dialog" aria-labelledby="replace-h" onClose={onClose} onCancel={(e) => busy && e.preventDefault()}>
       <form method="dialog">
-        <h2 id="replace-h">Replace “{doc.name}”</h2>
+        <h2 id="replace-h">{m.docReplace.heading(doc.name)}</h2>
         {!done ? (
           <>
-            <p>
-              Choose the newer version of this document. Highlights, comments, links, excerpts, handwriting, squeezes and bookmarks move to the same words in it, and anything whose
-              words are gone is kept aside to place again.
-            </p>
-            <p className="fine">Undo puts the old version back.</p>
+            <p>{m.docReplace.intro}</p>
+            <p className="fine">{m.docReplace.undo}</p>
           </>
         ) : 'placed' in done ? (
           <div role="status" className="replace-report">
             <p>
-              Replaced. {plural(done.placed, 'highlight is', 'highlights are')} on the same words in the new version.
-              {done.byPage > 0 && ` ${plural(done.byPage, 'figure, text box or stroke', 'figures, text boxes and strokes')} with no words near stayed in place on the same page.`}
-              {done.opened > 0 && ` ${plural(done.opened, 'squeeze was', 'squeezes were')} opened.`}
+              {m.docReplace.placed(done.placed)}
+              {done.byPage > 0 && ` ${m.docReplace.byPage(done.byPage)}`}
+              {done.opened > 0 && ` ${m.docReplace.opened(done.opened)}`}
             </p>
             {done.unplaced.length > 0 && (
               <>
-                <p>
-                  {plural(done.unplaced.length, 'highlight', 'highlights')} could not be found. {done.unplaced.length === 1 ? 'It is' : 'They are'} listed as unplaced in the
-                  sidebar’s Highlights tab, with {done.unplaced.length === 1 ? 'its' : 'their'} comments, links and excerpts, to place again or delete:
-                </p>
+                <p>{m.docReplace.unplaced(done.unplaced.length)}</p>
                 <ul className="unplaced-list">
                   {done.unplaced.map((h) => (
                     <li key={h.id}>{quoted(h)}</li>
@@ -68,15 +61,15 @@ export function ReplaceDialog({ doc, onClose }: { doc: DocMeta; onClose: () => v
         <footer>
           {done && 'placed' in done ? (
             <button type="submit" className="primary">
-              Done
+              {m.docReplace.done}
             </button>
           ) : (
             <>
               <button type="submit" disabled={busy}>
-                Cancel
+                {m.doc.cancel}
               </button>
               <button type="button" className="primary" disabled={busy} onClick={() => input.current!.click()}>
-                <FileUp size={16} /> {busy ? 'Replacing…' : 'Choose the new version'}
+                <FileUp size={16} /> {busy ? m.docReplace.replacing : m.docReplace.choose}
               </button>
             </>
           )}
@@ -87,7 +80,7 @@ export function ReplaceDialog({ doc, onClose }: { doc: DocMeta; onClose: () => v
         type="file"
         accept={ACCEPT}
         hidden
-        aria-label="New version"
+        aria-label={m.docReplace.newVersion}
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = '';

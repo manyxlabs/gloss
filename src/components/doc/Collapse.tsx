@@ -6,6 +6,7 @@ import { useStore } from '../../store/project';
 import { TermsToggle } from './Terms';
 import type { Color, Tag } from '../../types';
 import { ColorPicker } from '../ColorPicker';
+import { m } from '../../i18n';
 
 const NONE: Tag[] = [];
 
@@ -50,7 +51,7 @@ export function Collapse({ docId }: { docId: string }) {
       const query = (words || last).trim();
       const n = await collapseAround([docId], mode === 'words' ? { query } : { ...(color ? { color } : {}), ...(tag ? { tag } : {}) }, context);
       if (n) setOpen(false);
-      else setMessage(mode === 'words' ? (query ? `Nothing here matches “${query}”.` : 'Type the words to squeeze around.') : 'No highlights here are of that kind.');
+      else setMessage(mode === 'words' ? (query ? m.docSqueeze.nothingMatches(query) : m.docSqueeze.typeWords) : m.docSqueeze.noKind);
     } finally {
       setBusy(false);
     }
@@ -60,8 +61,8 @@ export function Collapse({ docId }: { docId: string }) {
     <div className="collapse-wrap" ref={root}>
       <button
         className="icon"
-        aria-label="Squeeze around highlights or words"
-        title="Squeeze to highlights or search matches, and defined terms"
+        aria-label={m.docSqueeze.button}
+        title={m.docSqueeze.buttonTitle}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (setOpen(!open), setMessage(null))}
@@ -72,38 +73,38 @@ export function Collapse({ docId }: { docId: string }) {
         <form
           className="collapse-panel glass"
           role="dialog"
-          aria-label="Squeeze the document"
+          aria-label={m.docSqueeze.panel}
           onSubmit={(e) => {
             e.preventDefault();
             void squeeze();
           }}
         >
-          <div className="choice" role="radiogroup" aria-label="Squeeze around">
+          <div className="choice" role="radiogroup" aria-label={m.docSqueeze.around}>
             <button type="button" role="radio" aria-checked={mode === 'highlights'} onClick={() => setMode('highlights')}>
-              Highlights
+              {m.docSqueeze.highlights}
             </button>
             <button type="button" role="radio" aria-checked={mode === 'words'} onClick={() => setMode('words')}>
-              Search matches
+              {m.docSqueeze.matches}
             </button>
           </div>
           {mode === 'words' ? (
-            <input aria-label="Words to squeeze around" placeholder={last || 'Words to find'} value={words} autoFocus onChange={(e) => setWords(e.target.value)} />
+            <input aria-label={m.docSqueeze.words} placeholder={last || m.docSqueeze.wordsPlaceholder} value={words} autoFocus onChange={(e) => setWords(e.target.value)} />
           ) : (
             <>
-              <div className="colors" role="group" aria-label="Highlight colour">
+              <div className="colors" role="group" aria-label={m.docSqueeze.colour}>
                 <button
                   type="button"
                   aria-pressed={!color}
                   className={`swatch none${color ? '' : ' current'}`}
-                  aria-label="Any colour"
-                  title="Any colour"
+                  aria-label={m.docSqueeze.anyColour}
+                  title={m.docSqueeze.anyColour}
                   onClick={() => setColor('')}
                 />
                 <ColorPicker current={color || undefined} label={(name) => name} onPick={setColor} />
               </div>
               {tags.length > 0 && (
-                <select aria-label="With the tag" value={tag} onChange={(e) => setTag(e.target.value)}>
-                  <option value="">Any tag or none</option>
+                <select aria-label={m.docSqueeze.withTag} value={tag} onChange={(e) => setTag(e.target.value)}>
+                  <option value="">{m.docSqueeze.anyTag}</option>
                   {tags.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -114,9 +115,7 @@ export function Collapse({ docId }: { docId: string }) {
             </>
           )}
           <label className="context" htmlFor={id}>
-            <span>
-              {context} line{context === 1 ? '' : 's'} of context
-            </span>
+            <span>{m.docSqueeze.context(context)}</span>
             <input id={id} type="range" min={0} max={10} value={context} onChange={(e) => setContext(Number(e.target.value))} />
           </label>
           {message && (
@@ -127,10 +126,10 @@ export function Collapse({ docId }: { docId: string }) {
           <TermsToggle docId={docId} />
           <div className="row">
             <button type="button" disabled={!folded} onClick={() => (expandAll(docId), setOpen(false))}>
-              Expand all
+              {m.docSqueeze.expandAll}
             </button>
             <button type="submit" className="primary" disabled={busy}>
-              Squeeze
+              {m.doc.squeeze}
             </button>
           </div>
         </form>

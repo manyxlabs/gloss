@@ -7,6 +7,7 @@ import type { Card, Link } from '../types';
 import { TagPicker } from './Tags';
 import { CanvasLinkButton } from './CardActions';
 import { CopyLink } from './LinkChips';
+import { m } from '../i18n';
 
 /** Room kept between the bar and what it belongs to. */
 const GAP = 10;
@@ -58,24 +59,24 @@ export function SelectionBar({ cards, links }: { cards: Card[]; links: Link[] })
 
   const chosen = { cards: nodes.map((c) => c.id) };
   const tagged = project && tagging ? tagState(project, chosen) : null;
-  const what = nodes.length + edges.length > 1 ? 'selection' : !nodes[0] ? 'link' : nodes[0].data.kind === 'group' ? 'group' : 'card';
+  const what = m.canvasTools.deleteWhat[nodes.length + edges.length > 1 ? 'selection' : !nodes[0] ? 'link' : nodes[0].data.kind === 'group' ? 'group' : 'card'];
   return (
-    <div className="selection-bar nodrag nopan" role="toolbar" aria-label="Chosen on the canvas" style={at}>
+    <div className="selection-bar nodrag nopan" role="toolbar" aria-label={m.canvasTools.chosen} style={at}>
       {groupable.length > 1 && (
         <button onClick={() => group(groupable.map((c) => c.id))}>
-          <Group size={16} /> Group
+          <Group size={16} /> {m.canvasTools.group}
         </button>
       )}
       {nodes.length > 0 && (
         // An icon alone: the bar sits over what is chosen, and a wider one covers a group's own buttons.
-        <button className="icon" aria-label="Tag" title="Tag" aria-expanded={tagging} onClick={() => setTagging(!tagging)}>
+        <button className="icon" aria-label={m.canvasTools.tag} title={m.canvasTools.tag} aria-expanded={tagging} onClick={() => setTagging(!tagging)}>
           <Tag size={16} />
         </button>
       )}
       {nodes.length === 1 && !edges.length && nodes[0]!.data.kind !== 'group' && <CanvasLinkButton card={nodes[0]!} />}
       {nodes.length === 1 && !edges.length && <CopyLink target={{ kind: 'c', id: nodes[0]!.id }} />}
-      <button aria-label={`Delete ${what}`} title={`Delete ${what}`} onClick={() => void rf.deleteElements({ nodes, edges })}>
-        <Trash2 size={16} /> Delete
+      <button aria-label={what} title={what} onClick={() => void rf.deleteElements({ nodes, edges })}>
+        <Trash2 size={16} /> {m.canvasTools.delete}
       </button>
       {tagged && (
         <div className={`popup tag-popup ${above ? 'under' : 'over'}`}>

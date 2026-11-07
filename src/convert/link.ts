@@ -1,4 +1,7 @@
+import type { Problem } from '../../worker/problem';
 import { shareLink } from '../../worker/links';
+import { m } from '../i18n';
+import { ReaderError } from '../pdf/pdfjs';
 
 /** Addresses that name a file Gloss opens, fetched as the file rather than read as an article. */
 const FILE_PATH = /\.(pdf|docx|pptx|png|jpe?g|gif|webp|heic|heif|avif|bmp|txt|md|markdown)$/i;
@@ -18,8 +21,28 @@ export function isFileLink(url: string) {
 export async function fetchLinked(url: string, signal?: AbortSignal): Promise<File> {
   const res = await fetch(`/api/file?url=${encodeURIComponent(url)}`, { signal });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? 'Files can be added from links only where Gloss runs with its server.');
+    const body = (await res.json().catch(() => null)) as { error?: Problem } | null;
+    throw new ReaderError(body?.error ? told(body.error) : m.engineConvert.noFileServer);
   }
-  return new File([await res.blob()], decodeURIComponent(res.headers.get('x-file-name') ?? 'Linked file'), { type: res.headers.get('content-type') ?? '' });
+  const name = decodeURIComponent(res.headers.get('x-file-name') ?? '');
+  const provider = shareLink(url)?.provider;
+  // The Worker sends only the extension for a provider's file without a name.
+  const named = provider && /^\.\w+$/.test(name) ? m.engineConvert.fromProvider(provider) + name : name || m.engineConvert.linkedFile;
+  return new File([await res.blob()], named, { type: res.headers.get('content-type') ?? '' });
+}
+
+/** Why Gloss's server refused, in the reader's language. */
+export function told(problem: Problem) {
+  const s = m.engineServer;
+  switch (problem.code) {
+    case 'upstream':
+      return s.upstream(problem.status);
+    case 'fileTooLarge':
+      return s.fileTooLarge(problem.mb);
+    case 'folder':
+    case 'privateLink':
+      return s[problem.code](problem.provider);
+    default:
+      return s[problem.code];
+  }
 }

@@ -23,7 +23,7 @@ const SHADES: Record<(typeof HUES)[number], [string, string, string]> = {
 /** `fill` paints a highlight; `edge` outlines it on paper, and stands for it in lines and borders on a light screen. */
 export type Swatch = { name: string; fill: string; edge: string };
 
-const hueOf = (c: Color) => (c.startsWith('deep-') ? c.slice(5) : c) as (typeof HUES)[number];
+export const hueOf = (c: Color) => (c.startsWith('deep-') ? c.slice(5) : c) as (typeof HUES)[number];
 export const SWATCHES = Object.fromEntries(
   COLORS.map((c) => {
     const [light, deep, edge] = SHADES[hueOf(c)];

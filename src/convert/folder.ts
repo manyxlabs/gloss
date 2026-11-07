@@ -1,3 +1,4 @@
+import { m } from '../i18n';
 import { kindOf } from './formats';
 
 /** A file from a folder, with the folders it is in, from the one dropped or chosen down. */
@@ -33,9 +34,10 @@ const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric
 export function openable(all: FolderFile[]) {
   const files = all.filter((f) => kindOf(f.file)).sort((a, b) => byName(a.path.join('/'), b.path.join('/')) || byName(a.file.name, b.file.name));
   const skipped = all.filter((f) => !kindOf(f.file)).map(where);
-  const list = skipped.slice(0, 10).join(', ') + (skipped.length > 10 ? ` and ${skipped.length - 10} more` : '');
-  const problems = skipped.length ? [`Not added, as Gloss cannot open ${skipped.length === 1 ? 'it' : `these ${skipped.length}`}: ${list}.`] : [];
-  return { files, problems: all.length ? problems : ['The folder is empty.'] };
+  const shown = skipped.slice(0, 10).join(', ');
+  const list = skipped.length > 10 ? m.engineConvert.more(shown, skipped.length - 10) : shown;
+  const problems = skipped.length ? [m.engineConvert.skipped(skipped.length, list)] : [];
+  return { files, problems: all.length ? problems : [m.engineConvert.emptyFolder] };
 }
 
 /** Files grouped by a key, in the order the groups first appear. */

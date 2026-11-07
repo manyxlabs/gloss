@@ -2,6 +2,7 @@ import { FileText, FolderOpen, MessageSquare, Search, StickyNote, Type } from 'l
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AllHit } from '../allSearch';
 import { arriveAt } from '../arrive';
+import { m } from '../i18n';
 
 const ICONS = { project: FolderOpen, page: FileText, card: StickyNote, comment: MessageSquare, box: Type } as const;
 
@@ -66,13 +67,13 @@ export function AllSearch() {
   };
 
   return (
-    <section className="all-search" aria-label="Search all projects">
+    <section className="all-search" aria-label={m.homeSearch.label}>
       <div className="all-search-box glass">
         <Search size={17} />
         <input
           type="search"
-          placeholder="Search all projects: names, documents, cards and comments"
-          aria-label="Search all projects"
+          placeholder={m.homeSearch.placeholder}
+          aria-label={m.homeSearch.label}
           aria-controls="all-results"
           aria-activedescendant={current ? current.id : undefined}
           value={query}
@@ -81,17 +82,17 @@ export function AllSearch() {
         />
       </div>
       {q.length >= 2 && (
-        <div className="all-results glass" id="all-results" role="listbox" aria-label="Results in all projects" aria-busy={!shown} ref={list}>
+        <div className="all-results glass" id="all-results" role="listbox" aria-label={m.homeSearch.results} aria-busy={!shown} ref={list}>
           {indexing ? (
             <p className="none" role="status">
-              Reading documents for search, {indexing[0]} of {indexing[1]}. This happens once for each document.
+              {m.homeSearch.indexing(...indexing)}
             </p>
           ) : !shown ? (
             <p className="none" role="status">
-              Searching…
+              {m.homeSearch.searching}
             </p>
           ) : (
-            !shown.length && <p className="none">Nothing in any project matches “{q}”.</p>
+            !shown.length && <p className="none">{m.homeSearch.none(q)}</p>
           )}
           {groups.map(({ project, hits }) => (
             <div key={project.id} role="group" aria-label={project.name}>

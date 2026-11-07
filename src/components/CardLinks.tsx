@@ -1,6 +1,7 @@
 import { Link2, SquareStack } from 'lucide-react';
 import { docName, where } from '../links';
 import { setCanvas, showSource, useStore } from '../store/project';
+import { m } from '../i18n';
 
 /**
  * The passages a card was linked to with the pen, each a chip that opens the document there, and
@@ -19,15 +20,13 @@ export function CardLinks({ cardId }: { cardId: string }) {
   return (
     <div className="card-links nodrag">
       {linked.map(({ id, h }) => (
-        <button key={id} className={`hl-${h.color}`} data-card-link={id} onClick={() => showSource(h.id)} title="Show the linked passage">
+        <button key={id} className={`hl-${h.color}`} data-card-link={id} onClick={() => showSource(h.id)} title={m.canvasCard.showLinked}>
           <Link2 size={12} aria-hidden="true" />
-          <span>
-            Linked to {docName(project, h.docId)} {where(h)}
-          </span>
+          <span>{m.canvasCard.linkedTo(docName(project, h.docId), where(h))}</span>
         </button>
       ))}
       {canvases.map((c) => (
-        <button key={c.id} className="canvas-chip" data-canvas-link={`${cardId} ${c.id}`} onClick={() => setCanvas(c.id)} title={`Open the canvas “${c.name}”`}>
+        <button key={c.id} className="canvas-chip" data-canvas-link={`${cardId} ${c.id}`} onClick={() => setCanvas(c.id)} title={m.canvasCard.openCanvas(c.name)}>
           <SquareStack size={12} aria-hidden="true" />
           <span>{c.name}</span>
         </button>

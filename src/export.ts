@@ -1,3 +1,4 @@
+import { m } from './i18n';
 import { inkOf, inkSvg, type InkImage } from './inkImage';
 import { cite, commentOf, endsOf, quoted, where } from './links';
 import { cardText } from './search';
@@ -121,32 +122,32 @@ export function toMarkdown(p: Project) {
   const o = outline(p);
   const out = [`# ${o.title}`, ''];
   for (const s of o.sections) {
-    if (s.title !== undefined) out.push(`## ${s.title}`, '', ...(s.tags?.length ? [`Tags: ${s.tags.join(' ')}`, ''] : []));
+    if (s.title !== undefined) out.push(`## ${s.title}`, '', ...(s.tags?.length ? [m.canvasNotes.tags(s.tags.join(' ')), ''] : []));
     for (const i of s.items) {
       if (i.kind !== 'excerpt') {
         if (i.kind === 'note' && i.text) out.push(i.text, '');
-        if (i.ink) out.push(`![Handwriting](${inkSvg(i.ink)})`, '');
+        if (i.ink) out.push(`![${m.canvasNotes.handwriting}](${inkSvg(i.ink)})`, '');
       } else {
         out.push(quote(i.text), `> (${i.doc}, ${i.where})`, '');
-        if (i.note) out.push(`Comment: ${i.note}`, '');
+        if (i.note) out.push(m.canvasNotes.comment(i.note), '');
         if (i.comment) out.push(i.comment, '');
       }
-      if (i.tags.length) out.push(`Tags: ${i.tags.join(' ')}`, '');
-      if (i.links.length) out.push(`Linked to: ${i.links.map((l) => `“${l}”`).join('; ')}`, '');
-      for (const passage of i.passages) out.push(`Linked passage: ${passage}`, '');
+      if (i.tags.length) out.push(m.canvasNotes.tags(i.tags.join(' ')), '');
+      if (i.links.length) out.push(m.canvasNotes.linkedTo(i.links), '');
+      for (const passage of i.passages) out.push(m.canvasNotes.passage(passage), '');
       out.push('---', '');
     }
   }
   if (o.highlights.length) {
-    out.push('## Highlights', '');
+    out.push(`## ${m.canvasNotes.highlights}`, '');
     for (const d of o.highlights) {
       out.push(`### ${d.doc}`, '');
       for (const h of d.items)
         out.push(
           `- ${h.where}: ${h.text}`,
-          ...(h.note ? [`  Comment: ${h.note}`] : []),
-          ...(h.tags.length ? [`  Tags: ${h.tags.join(' ')}`] : []),
-          ...h.passages.map((l) => `  Linked passage: ${l}`),
+          ...(h.note ? [`  ${m.canvasNotes.comment(h.note)}`] : []),
+          ...(h.tags.length ? [`  ${m.canvasNotes.tags(h.tags.join(' '))}`] : []),
+          ...h.passages.map((l) => `  ${m.canvasNotes.passage(l)}`),
         );
       out.push('');
     }

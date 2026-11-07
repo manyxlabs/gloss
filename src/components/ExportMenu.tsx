@@ -6,6 +6,7 @@ import { withProgress } from '../store/progress';
 import { useStore } from '../store/project';
 import { openCanvasExport } from './CanvasExport';
 import { CombinedExport } from './CombinedExport';
+import { m } from '../i18n';
 
 const FORMATS = [
   ['Markdown (.md)', 'md', async () => new Blob([toMarkdown(useStore.getState().project!)], { type: 'text/markdown' })],
@@ -15,8 +16,8 @@ const FORMATS = [
 ] as const;
 /** Send opens the system's share sheet, to hand the notes to another app. */
 const WAYS = [
-  ['Download', download],
-  ['Send', send],
+  [m.workspace.download, m.workspace.downloadNotes, download],
+  [m.workspace.send, m.workspace.sendNotes, send],
 ] as const;
 
 /**
@@ -44,26 +45,26 @@ export function ExportMenu({ disabled, onProblems, more }: { disabled: boolean; 
   return (
     <div className="export menu-wrap" ref={root}>
       {more ? (
-        <button className="icon" aria-haspopup="menu" aria-expanded={open} aria-label="More" title="More" onClick={() => setOpen(!open)}>
+        <button className="icon" aria-haspopup="menu" aria-expanded={open} aria-label={m.workspace.more} title={m.workspace.more} onClick={() => setOpen(!open)}>
           <Ellipsis size={17} />
         </button>
       ) : (
         <button
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={busy ? 'Exporting notes' : 'Export notes'}
-          title="Download the canvas and highlights as notes"
+          aria-label={busy ? m.workspace.exportingNotes : m.workspace.exportNotes}
+          title={m.workspace.exportNotesTitle}
           disabled={disabled || busy}
           onClick={() => setOpen(!open)}
         >
-          <NotebookText size={16} /> <span>{busy ? 'Exporting…' : 'Export notes'}</span> <ChevronDown size={14} />
+          <NotebookText size={16} /> <span>{busy ? m.canvasExport.exporting : m.workspace.exportNotes}</span> <ChevronDown size={14} />
         </button>
       )}
       {open && (
         <div className="menu glass" role="menu">
-          {WAYS.map(([how, hand]) => (
+          {WAYS.map(([how, howNotes, hand]) => (
             <div key={how} className="menu-group" role="group" aria-label={how}>
-              <h4>{more ? `${how} notes` : how}</h4>
+              <h4>{more ? howNotes : how}</h4>
               {FORMATS.map(([label, ext, make]) => (
                 <button
                   key={ext}
@@ -73,9 +74,9 @@ export function ExportMenu({ disabled, onProblems, more }: { disabled: boolean; 
                     setOpen(false);
                     setBusy(true);
                     try {
-                      await hand(`${useStore.getState().project!.name}.${ext}`, await withProgress('Making the notes…', make));
+                      await hand(`${useStore.getState().project!.name}.${ext}`, await withProgress(m.workspace.makingNotes, make));
                     } catch (err) {
-                      onProblems([`The notes could not be exported: ${(err as Error).message}`]);
+                      onProblems([m.workspace.notesFailed((err as Error).message)]);
                     } finally {
                       setBusy(false);
                     }
@@ -88,10 +89,10 @@ export function ExportMenu({ disabled, onProblems, more }: { disabled: boolean; 
           ))}
           <hr />
           <button role="menuitem" disabled={noCards} onClick={() => (setOpen(false), openCanvasExport())}>
-            Canvas as a picture…
+            {m.workspace.canvasPicture}
           </button>
           <button role="menuitem" onClick={() => (setOpen(false), setCombining(true))}>
-            Documents as one PDF…
+            {m.workspace.docsPdf}
           </button>
           {more && (
             <>

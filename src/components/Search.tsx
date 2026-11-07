@@ -6,6 +6,7 @@ import { tagWord } from '../tags';
 import { useLastSearch } from '../store/bulk';
 import { SearchActions } from './SearchActions';
 import { tagStyle } from './Tags';
+import { m } from '../i18n';
 
 type Option = { id: string; go: () => void; body: ReactNode };
 
@@ -90,13 +91,13 @@ export function Search() {
   const groups: { title: string; docId?: string; options: Option[] }[] = shown
     ? [
         {
-          title: parseQuery(shown.query, project?.tags ?? []).picks.length ? 'Tagged passages' : 'Text boxes',
+          title: parseQuery(shown.query, project?.tags ?? []).picks.length ? m.canvasSearch.tagged : m.canvasSearch.textBoxes,
           options: shown.highlights.map((hit) => ({
             id: `tagged-${hit.highlightId}`,
             go: close(() => showSource(hit.highlightId)),
             body: (
               <>
-                <span className="page">p. {hit.page}</span>
+                <span className="page">{m.canvasSearch.page(hit.page)}</span>
                 <span className="snippet">
                   {docName(hit.docId)}: {hit.text}
                 </span>
@@ -105,17 +106,17 @@ export function Search() {
           })),
         },
         {
-          title: 'On the canvas',
+          title: m.canvasSearch.onCanvas,
           options: shown.cards.map((hit) => ({ id: `card-${hit.cardId}`, go: close(() => showCard(hit.cardId)), body: <span className="snippet">{hit.text}</span> })),
         },
         {
-          title: 'Comments',
+          title: m.canvasSearch.comments,
           options: shown.comments.map((hit) => ({
             id: `comment-${hit.highlightId}`,
             go: close(() => showSource(hit.highlightId)),
             body: (
               <>
-                <span className="page">p. {hit.page}</span>
+                <span className="page">{m.canvasSearch.page(hit.page)}</span>
                 <span className="snippet">
                   {docName(hit.docId)}: {hit.note}
                 </span>
@@ -133,7 +134,7 @@ export function Search() {
               go: close(() => showPage(doc.id, hit.page, { query: shown.query })),
               body: (
                 <>
-                  <span className="page">p. {hit.page}</span>
+                  <span className="page">{m.canvasSearch.page(hit.page)}</span>
                   <span className="snippet">
                     …{hit.before}
                     <mark>{hit.match}</mark>
@@ -177,15 +178,15 @@ export function Search() {
 
   return (
     <div className={`search${open ? ' open' : ''}`} ref={box}>
-      <button className="icon opener" aria-label="Search" title="Search (Ctrl+K)" onClick={() => setOpen(true)}>
+      <button className="icon opener" aria-label={m.canvasSearch.search} title={m.canvasSearch.searchTitle} onClick={() => setOpen(true)}>
         <SearchIcon size={17} />
       </button>
       <SearchIcon size={15} />
       <input
         ref={input}
         type="search"
-        placeholder="Search"
-        aria-label="Search documents and cards"
+        placeholder={m.canvasSearch.search}
+        aria-label={m.canvasSearch.label}
         aria-controls="search-results"
         aria-activedescendant={listed && current ? current.id : undefined}
         value={query}
@@ -194,11 +195,11 @@ export function Search() {
         onClick={() => setOpen(true)}
         onKeyDown={onKeyDown}
       />
-      {!query && <kbd>Ctrl K</kbd>}
+      {!query && <kbd>{m.canvasSearch.key}</kbd>}
       {listed && (
-        <div className="results" id="search-results" role="listbox" aria-label="Search results" aria-busy={searching} ref={list}>
+        <div className="results" id="search-results" role="listbox" aria-label={m.canvasSearch.results} aria-busy={searching} ref={list}>
           {tags.length > 0 && (
-            <div className="search-tags" role="group" aria-label="Search by tag">
+            <div className="search-tags" role="group" aria-label={m.canvasSearch.byTag}>
               {tags.map((t) => (
                 <button
                   key={t.id}
@@ -217,15 +218,15 @@ export function Search() {
           )}
           {searching ? (
             <p className="none" role="status">
-              Searching…
+              {m.canvasSearch.searching}
             </p>
           ) : (
-            shown && !options.length && <p className="none">Nothing matches “{shown.query}”.</p>
+            shown && !options.length && <p className="none">{m.canvasPalette.none(shown.query)}</p>
           )}
           {bulk && (
             <div className="act-all">
               <button className="ghost" aria-expanded={actingOn === 'all'} onClick={() => act('all')}>
-                <ListChecks size={15} /> Act on all matches
+                <ListChecks size={15} /> {m.canvasSearch.actAll}
               </button>
               {actingOn === 'all' && <SearchActions key={bulk} query={bulk} onDone={() => (setOpen(false), setActing(null))} />}
             </div>
@@ -237,8 +238,8 @@ export function Search() {
                 {bulk && g.docId && (
                   <button
                     className="icon"
-                    aria-label={`Act on the matches in ${g.title}`}
-                    title="Highlight, tag, excerpt or link every match in this document"
+                    aria-label={m.canvasSearch.actIn(g.title)}
+                    title={m.canvasSearch.actInTitle}
                     aria-expanded={actingOn === g.docId}
                     onClick={() => act(g.docId!)}
                   >

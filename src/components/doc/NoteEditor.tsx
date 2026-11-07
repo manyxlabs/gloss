@@ -2,6 +2,7 @@ import { Link2, Trash2, Unlink } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { CopyLink, LinkChips } from '../LinkChips';
 import { MentionSuggest } from '../Mentions';
+import { m } from '../../i18n';
 
 /**
  * Writes or edits the comment pinned beside a highlight. Kept as a draft until saved, so the whole edit is one undo step.
@@ -37,8 +38,8 @@ export function NoteEditor({
     >
       <textarea
         ref={field}
-        aria-label="Comment"
-        placeholder="Your comment"
+        aria-label={m.doc.comment}
+        placeholder={m.docNote.placeholder}
         rows={3}
         value={draft}
         autoFocus
@@ -54,33 +55,27 @@ export function NoteEditor({
       />
       <MentionSuggest field={field} />
       <LinkChips text={draft} />
-      {shared > 1 && <p className="shared">On {shared} passages. Editing it here edits it on all of them.</p>}
+      {shared > 1 && <p className="shared">{m.docNote.shared(shared)}</p>}
       <div className="row">
         {note !== undefined && (
-          <button
-            type="button"
-            className="icon"
-            aria-label="Remove comment"
-            title={shared > 1 ? 'Remove the comment from every passage' : 'Remove comment'}
-            onClick={() => onSave('')}
-          >
+          <button type="button" className="icon" aria-label={m.docNote.remove} title={shared > 1 ? m.docNote.removeAll : m.docNote.remove} onClick={() => onSave('')}>
             <Trash2 size={16} />
           </button>
         )}
         {shared > 1 && (
-          <button type="button" className="icon" aria-label="Detach from this passage" title="Take the comment off this passage only" onClick={onDetach}>
+          <button type="button" className="icon" aria-label={m.docNote.detach} title={m.docNote.detachTitle} onClick={onDetach}>
             <Unlink size={16} />
           </button>
         )}
         {commentId && <CopyLink target={{ kind: 'm', id: commentId }} />}
-        <button type="button" className="icon" aria-label="Attach to another passage" title="Attach to another passage" disabled={!draft.trim()} onClick={() => onAttach(draft)}>
+        <button type="button" className="icon" aria-label={m.docNote.attach} title={m.docNote.attach} disabled={!draft.trim()} onClick={() => onAttach(draft)}>
           <Link2 size={16} />
         </button>
         <button type="button" className="push" onClick={onCancel}>
-          Cancel
+          {m.doc.cancel}
         </button>
         <button type="submit" className="primary">
-          Save
+          {m.docNote.save}
         </button>
       </div>
     </form>

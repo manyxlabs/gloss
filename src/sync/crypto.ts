@@ -3,6 +3,7 @@
 // encrypts everything, the other proves to the server that a device may use the room. The
 // server keeps only a hash of the second and cannot work back to the first.
 
+import { split } from '../i18n/langs';
 import type { Project } from '../types';
 
 const text = new TextEncoder();
@@ -23,7 +24,10 @@ export const newRoom = (): Binding => ({ room: b64(random(16)), key: b64(random(
 export const newScreens = () => b64(random(16));
 
 const LINK = /^#\/join\/([\w-]{22})\.([\w-]{43})(?:\/screen\/([\w-]{22}))?$/;
-export const shareLink = ({ room, key }: Binding, screen?: string) => `${location.origin}${location.pathname}#/join/${room}.${key}${screen ? `/screen/${screen}` : ''}`;
+/** This app's address, without a language's prefix, so whoever opens a link to it has it in their own language. */
+export const appUrl = () => `${location.origin}${split(location.pathname).prefixed ? '/' : location.pathname}`;
+
+export const shareLink = ({ room, key }: Binding, screen?: string) => `${appUrl()}#/join/${room}.${key}${screen ? `/screen/${screen}` : ''}`;
 export const parseLink = (hash: string): (Binding & { screen?: string }) | null => {
   const m = LINK.exec(hash);
   return m ? { room: m[1]!, key: m[2]!, ...(m[3] ? { screen: m[3] } : {}) } : null;

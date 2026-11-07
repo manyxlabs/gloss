@@ -1,4 +1,5 @@
 import { PDFArray, PDFDict, PDFName, PDFRef } from 'pdf-lib';
+import { m } from '../i18n';
 import { PAPER } from '../ink';
 import { SWATCHES } from '../palette';
 import { editable, rewrite, saveVersion } from '../pdf/pages';
@@ -7,7 +8,7 @@ import { canvasSpot, newCard, uid } from '../store/project';
 import { COLORS, INKS, type Card, type Color, type Comment, type Highlight, type Ink, type Rect } from '../types';
 import { foreignAnnotations, type Foreign } from './read';
 
-export const LOCKED = 'Bringing in annotations needs an unprotected copy of this PDF. Save a copy without the password, add that, and bring them in there.';
+export const LOCKED = m.engineAnnots.locked;
 
 /** A note further than this from any text, in points, is not about a passage: it goes on the canvas. */
 const NEAR = 72;
@@ -58,7 +59,6 @@ async function passageNear(docId: string, password: string | undefined, page: nu
 }
 
 const round = (r: Rect) => r.map((v) => Math.round(v * 1e5) / 1e5) as Rect;
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /**
  * Brings a document's highlights, notes and ink from other apps into Gloss: marked text becomes
@@ -68,7 +68,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
  * they are not drawn twice and the annotated export has each once. All of it is one step to undo.
  * Resolves with what to tell the reader.
  */
-export const bringIn = (docId: string) => rewrite('The annotations could not be brought in.', () => convert(docId));
+export const bringIn = (docId: string) => rewrite(m.engineAnnots.notBrought, () => convert(docId));
 
 async function convert(docId: string): Promise<string[]> {
   const open = await editable(docId, LOCKED);
@@ -82,7 +82,7 @@ async function convert(docId: string): Promise<string[]> {
   const inks: Ink[] = [];
   const cards: Card[] = [];
   const onCanvas: string[] = [];
-  const replies = (f: Foreign) => found.flatMap((r) => (r.kind === 'reply' && r.to === f.id && r.text ? [`${r.author || 'Reply'}: ${r.text}`] : []));
+  const replies = (f: Foreign) => found.flatMap((r) => (r.kind === 'reply' && r.to === f.id && r.text ? [`${r.author || m.engineAnnots.reply}: ${r.text}`] : []));
   const said = (f: Foreign) => [f.text, ...replies(f)].filter(Boolean).join('\n\n');
   const commentOn = (f: Foreign) => {
     const text = said(f);
@@ -104,9 +104,12 @@ async function convert(docId: string): Promise<string[]> {
       if (near) highlights.push({ id: uid(), docId, parts: [{ page: f.page, rects: [round(near.rect)] }], text: near.text, color: color(f), ...commentOn(f) });
       else if (said(f)) {
         const text = said(f);
-        onCanvas.push(`p. ${f.page}`);
+        onCanvas.push(m.engineAnnots.page(f.page));
         const at = canvasSpot.next();
-        cards.push({ ...newCard({ kind: 'note', text: `${text}\n\n(${doc.name}, p. ${f.page})` }, { x: at.x, y: at.y + cards.length * 140 }), selected: false });
+        cards.push({
+          ...newCard({ kind: 'note', text: `${text}\n\n${m.engineAnnots.source(doc.name, m.engineAnnots.page(f.page))}` }, { x: at.x, y: at.y + cards.length * 140 }),
+          selected: false,
+        });
       }
     } else if (f.kind === 'box') {
       if (f.text)
@@ -153,7 +156,5 @@ async function convert(docId: string): Promise<string[]> {
     cards: [...p.cards, ...cards],
   }));
   if (failed) return [failed];
-  return onCanvas.length
-    ? [`${plural(onCanvas.length, 'note')} (${onCanvas.join(', ')}) had no text near ${onCanvas.length === 1 ? 'it, so it is a note' : 'them, so they are notes'} on the canvas.`]
-    : [];
+  return onCanvas.length ? [m.engineAnnots.onCanvas(onCanvas.length, onCanvas.join(', '))] : [];
 }

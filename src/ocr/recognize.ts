@@ -1,5 +1,6 @@
 import type { Line } from 'tesseract.js';
-import { loadDoc } from '../pdf/pdfjs';
+import { m } from '../i18n';
+import { loadDoc, ReaderError } from '../pdf/pdfjs';
 
 /** A recognised word in PDF space: its baseline starts `at` and runs `along` the word; `up` is one em up from the baseline. */
 export type Placed = { text: string; at: [number, number]; along: [number, number]; up: [number, number] };
@@ -57,7 +58,7 @@ export async function recognize(docId: string, pages: number[], langs: string, p
       await Promise.race([page.render({ canvas, viewport }).promise, stopped]);
       const image = await new Promise<Blob | null>((done) => canvas.toBlob(done));
       canvas.width = canvas.height = 0;
-      if (!image) throw new Error('The page could not be drawn for reading.');
+      if (!image) throw new ReaderError(m.engineOcr.notDrawn);
       const { data } = await Promise.race([worker.recognize(image, {}, { blocks: true, text: false }), stopped]);
       const toPdf = (x: number, y: number) => viewport.convertToPdfPoint(x, y) as [number, number];
       const lines = (data.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines));

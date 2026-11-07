@@ -1,6 +1,7 @@
 // Google Drive: Google's sign in gives a token for the drive.file scope, which reaches only the
 // files the reader picks in Google's Picker, and Drive's API downloads them.
 import { blocked, CloudError, KEYS, load, type Picked } from './cloud';
+import { m } from './i18n';
 
 type Token = { access_token: string; expires_in: number; error?: string };
 type PickerDoc = { id: string; name: string; mimeType: string };
@@ -66,8 +67,7 @@ async function signIn(): Promise<string | null> {
         callback: (t) => {
           if (t.error === 'access_denied') return ok(null);
           // Google's consent screen lets the reader untick the one permission Gloss asks for.
-          if (t.error || !google.accounts.oauth2.hasGrantedAllScopes(t, SCOPE))
-            return fail(new CloudError('Gloss needs permission to open the files you pick in Google Drive. Add from Google Drive again and allow it.'));
+          if (t.error || !google.accounts.oauth2.hasGrantedAllScopes(t, SCOPE)) return fail(new CloudError(m.homeCloud.drivePermission));
           token = { value: t.access_token, until: Date.now() + t.expires_in * 1000 };
           ok(token.value);
         },
@@ -80,7 +80,7 @@ async function signIn(): Promise<string | null> {
 const pick = (oauth: string) =>
   new Promise<PickerDoc[] | null>((ok, fail) =>
     gapi.load('picker', {
-      onerror: () => fail(new CloudError('Gloss could not reach Google Drive. Check the connection and try again.')),
+      onerror: () => fail(new CloudError(m.homeCloud.couldNotReach(PROVIDER))),
       callback: () => {
         const { picker } = google;
         new picker.PickerBuilder()

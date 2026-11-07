@@ -1,7 +1,9 @@
 import { Download, FileOutput } from 'lucide-react';
 import { download } from '../../export';
 import { extractPages, pagesPdf } from '../../pdf/extract';
+import { ReaderError } from '../../pdf/pdfjs';
 import type { Pane } from '../../store/project';
+import { m } from '../../i18n';
 
 /** A page menu's ways to take its pages out: as a new document of the project, with the marks on them, or as a PDF to download. */
 export function ExtractItems({
@@ -17,11 +19,10 @@ export function ExtractItems({
   onClose: () => void;
   onProblems: (problems: string[]) => void;
 }) {
-  const several = pages.length > 1;
   return (
     <>
       <button role="menuitem" onClick={() => (onClose(), void extractPages(docId, pages, pane).then(onProblems))}>
-        <FileOutput size={16} /> {several ? 'Extract pages' : 'Extract page'} to a new document
+        <FileOutput size={16} /> {m.docPages.extract(pages.length)}
       </button>
       <button
         role="menuitem"
@@ -31,13 +32,11 @@ export function ExtractItems({
             const { blob, name } = await pagesPdf(docId, pages);
             download(`${name}.pdf`, blob);
           } catch (err) {
-            onProblems([
-              `The ${several ? 'pages' : 'page'} could not be downloaded. ${err instanceof Error && /^[A-Z].*\.$/.test(err.message) ? err.message : 'The PDF may be damaged, or in a form Gloss cannot rewrite.'}`,
-            ]);
+            onProblems([`${m.docPages.downloadFailed(pages.length)} ${err instanceof ReaderError ? err.message : m.enginePdf.notRewritten}`]);
           }
         }}
       >
-        <Download size={16} /> Download {several ? 'them' : 'it'} as a PDF
+        <Download size={16} /> {m.docPages.download(pages.length)}
       </button>
     </>
   );

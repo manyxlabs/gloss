@@ -1,3 +1,4 @@
+import { m } from '../i18n';
 import { findMatches, pageLines, type Match } from '../pdf/matches';
 import { before } from '../pdf/folds';
 import type { Card, CardLink, Color, Fold, Highlight, Project, Rect, Spot } from '../types';
@@ -73,7 +74,7 @@ export function actOnMatches(found: Found[], query: string, act: Act, undoable =
     const todo = unique.filter((id) => !excerpted.has(id));
     const cols = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(todo.length))));
     const origin = canvasSpot.next();
-    const box = newCard({ kind: 'group', title: `Search: ${query}` }, origin);
+    const box = newCard({ kind: 'group', title: m.engineStore.searchGroup(query) }, origin);
     let y = HEADER;
     const kids: Card[] = [];
     for (let row = 0; row * cols < todo.length; row++) {
@@ -89,7 +90,7 @@ export function actOnMatches(found: Found[], query: string, act: Act, undoable =
   }
   let linkTo = act.link && act.link !== 'note' ? act.link.cardId : undefined;
   if (act.link === 'note') {
-    const note = newCard({ kind: 'note', text: `Search: “${query}”` }, canvasSpot.next());
+    const note = newCard({ kind: 'note', text: m.engineStore.searchNote(query) }, canvasSpot.next());
     cards.push(note);
     linkTo = note.id;
     focus ??= note.id;

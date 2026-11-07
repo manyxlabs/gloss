@@ -4,6 +4,8 @@ import { useStore } from '../store/project';
 import { KIND_OF, noticesFor, type Notice } from '../sync/notify';
 import { PERSON, useActivity, useMe, type Activity } from '../sync/state';
 import { Menu } from './Menu';
+import { ago } from './Projects';
+import { m } from '../i18n';
 
 const SEEN = (projectId: string) => `gloss:seen:${projectId}`;
 const keepSeen = (projectId: string, at: number) => {
@@ -25,26 +27,7 @@ const readSeen = (projectId: string) => {
   return Date.now();
 };
 
-const THING: Record<string, string> = {
-  docs: 'a document',
-  highlights: 'a highlight',
-  cards: 'a card',
-  canvases: 'a canvas',
-  comments: 'a comment',
-  passageLinks: 'a link between passages',
-  cardLinks: 'a link from a passage to a card',
-  links: 'a line between cards',
-};
-const DONE: Record<Activity['op'], string> = { add: 'added', edit: 'changed', remove: 'removed' };
-
-const ago = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
-function when(at: number) {
-  const s = Math.round((at - Date.now()) / 1000);
-  if (s > -60) return 'just now';
-  if (s > -3600) return ago.format(Math.round(s / 60), 'minute');
-  if (s > -86400) return ago.format(Math.round(s / 3600), 'hour');
-  return ago.format(Math.round(s / 86400), 'day');
-}
+const THING: Record<string, string> = m.homeNotices.things;
 
 /**
  * The bell in a shared project: mentions of this person and replies to them, and what everyone else
@@ -73,16 +56,17 @@ export function Notifications() {
   const item = (a: Activity | Notice, key: string) => {
     const person = who(a.by);
     const kind = KIND_OF[a.list];
-    const what = 'why' in a ? (a.why === 'mention' ? `mentioned you in ${THING[a.list]}` : `replied in ${THING[a.list]}`) : `${DONE[a.op]} ${THING[a.list]}`;
+    const thing = THING[a.list]!;
+    const what = 'why' in a ? (a.why === 'mention' ? m.homeNotices.mentioned(thing) : m.homeNotices.replied(thing)) : m.homeNotices.did[a.op](thing);
     const body = (
       <>
         <span className="avatar" style={{ '--peer': person?.color ?? 'var(--muted)' } as React.CSSProperties} aria-hidden="true">
           {(person?.name ?? '?')[0]!.toUpperCase()}
         </span>
         <span className="what">
-          <b>{person?.name ?? 'Someone'}</b> {what}
+          <b>{person?.name ?? m.homePeople.someone}</b> {what}
           {a.text && <q>{a.text}</q>}
-          <time dateTime={new Date(a.at).toISOString()}>{when(a.at)}</time>
+          <time dateTime={new Date(a.at).toISOString()}>{ago(a.at)}</time>
         </span>
       </>
     );
@@ -100,8 +84,8 @@ export function Notifications() {
     <>
       <button
         className="icon bell"
-        aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
-        title="Mentions, replies and what the others did"
+        aria-label={unread ? m.homeNotices.unread(unread) : m.homeNotices.label}
+        title={m.homeNotices.title}
         aria-expanded={!!open}
         onClick={(e) => toggle(e.currentTarget)}
       >
@@ -109,16 +93,12 @@ export function Notifications() {
         {unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <Menu anchor={open.anchor} label="Notifications" role="dialog" onClose={() => setOpen(null)}>
+        <Menu anchor={open.anchor} label={m.homeNotices.label} role="dialog" onClose={() => setOpen(null)}>
           <div className="notices">
-            <h3>For you</h3>
-            {notices.length ? (
-              notices.slice(0, 20).map((n) => item(n, `n ${n.by} ${n.list} ${n.id}`))
-            ) : (
-              <p className="none">No mentions or replies yet. Type @ and a name to mention someone.</p>
-            )}
-            <h3>Since you last looked</h3>
-            {news.length ? news.slice(0, 40).map((a) => item(a, `a ${a.by} ${a.list} ${a.id}`)) : <p className="none">Nothing new from the others.</p>}
+            <h3>{m.homeNotices.forYou}</h3>
+            {notices.length ? notices.slice(0, 20).map((n) => item(n, `n ${n.by} ${n.list} ${n.id}`)) : <p className="none">{m.homeNotices.noMentions}</p>}
+            <h3>{m.homeNotices.since}</h3>
+            {news.length ? news.slice(0, 40).map((a) => item(a, `a ${a.by} ${a.list} ${a.id}`)) : <p className="none">{m.homeNotices.nothingNew}</p>}
           </div>
         </Menu>
       )}

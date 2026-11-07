@@ -1,6 +1,8 @@
 import fontkit from '@pdf-lib/fontkit';
 import type { PDFDocument, PDFFont } from 'pdf-lib';
 import { covered, fontFile } from '../convert/typeset';
+import { m } from '../i18n';
+import { ReaderError } from '../pdf/pdfjs';
 import type { PageWords } from './recognize';
 
 const n = (v: number) => +v.toFixed(3);
@@ -8,7 +10,7 @@ const DEVANAGARI = /[ऀ-ॿ]/;
 
 async function devanagari(pdf: PDFDocument) {
   const res = await fetch(`${import.meta.env.BASE_URL}ocr/NotoSansDevanagari.woff`);
-  if (!res.ok) throw new Error('The font for Devanagari text could not be loaded.');
+  if (!res.ok) throw new ReaderError(m.engineOcr.noFont);
   const font = await pdf.embedFont(await res.arrayBuffer(), { subset: true });
   // pdf-lib lays text out with fontkit, whose Devanagari shaper fails. Invisible text needs no
   // shaping, only each letter mapped to a glyph in reading order, which a Latin layout gives:

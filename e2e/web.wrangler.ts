@@ -52,18 +52,18 @@ test('a web page becomes a document with its title, source and article', async (
 });
 
 test('the Worker refuses private, local and oversized addresses', async ({ page, request }) => {
-  const refused = async (base: string, url: string, status: number, error: RegExp) => {
+  const refused = async (base: string, url: string, status: number, error: object) => {
     const res = await request.get(`${base}/api/page?url=${encodeURIComponent(url)}`);
     expect(res.status(), url).toBe(status);
-    expect((await res.json()).error, url).toMatch(error);
+    expect((await res.json()).error, url).toEqual(error);
   };
-  for (const url of ['http://localhost:8080/', 'http://printer.local/', 'http://intranet/']) await refused(guarded, url, 400, /private network/);
+  for (const url of ['http://localhost:8080/', 'http://printer.local/', 'http://intranet/']) await refused(guarded, url, 400, { code: 'private' });
   for (const url of ['http://127.0.0.1/', 'http://169.254.169.254/latest/meta-data/', 'http://[::1]/', 'http://2130706433/', 'http://0x7f.1/'])
-    await refused(guarded, url, 400, /IP numbers/);
-  await refused(guarded, 'file:///etc/passwd', 400, /Only http and https/);
-  await refused(guarded, 'http://user:secret@example.com/', 400, /user name or password/);
-  await refused(guarded, 'not a url', 400, /not a web address/);
-  await refused('', `${site}/huge`, 413, /too large/);
+    await refused(guarded, url, 400, { code: 'ipNumber' });
+  await refused(guarded, 'file:///etc/passwd', 400, { code: 'scheme' });
+  await refused(guarded, 'http://user:secret@example.com/', 400, { code: 'credentials' });
+  await refused(guarded, 'not a url', 400, { code: 'notAddress' });
+  await refused('', `${site}/huge`, 413, { code: 'pageTooLarge' });
 
   // And the app shows the reason.
   await page.goto(guarded);

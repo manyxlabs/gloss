@@ -5,6 +5,8 @@ import { showPage, useStore, type Pane } from '../../store/project';
 import type { Bookmark } from '../../types';
 import { CopyLink } from '../LinkChips';
 import { Menu } from '../Menu';
+import { m } from '../../i18n';
+import { rich } from '../../i18n/rich';
 
 const MIME = 'application/x-gloss-bookmark';
 
@@ -27,19 +29,14 @@ export function Bookmarks({ docId, pane, fresh, onJump }: { docId: string; pane:
     if (!id || !drop) return;
     e.preventDefault();
     setDrop(null);
-    const i = marks.findIndex((m) => m.id === b.id);
-    if (id !== b.id) moveBookmark(id, drop.after ? (marks.slice(i + 1).find((m) => m.id !== id)?.id ?? null) : b.id);
+    const i = marks.findIndex((x) => x.id === b.id);
+    if (id !== b.id) moveBookmark(id, drop.after ? (marks.slice(i + 1).find((x) => x.id !== id)?.id ?? null) : b.id);
   };
 
-  if (!marks.length)
-    return (
-      <p className="side-empty">
-        No bookmarks yet. Press <BookmarkIcon size={13} aria-label="Bookmark" /> in the toolbar or Ctrl+D to keep the place you are reading.
-      </p>
-    );
+  if (!marks.length) return <p className="side-empty">{rich(m.docSidebar.noBookmarks, { icon: (label) => <BookmarkIcon size={13} aria-label={label} /> })}</p>;
   return (
     <>
-      <ul className="bookmarks" aria-label="Bookmarks" onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}>
+      <ul className="bookmarks" aria-label={m.docSidebar.bookmarks} onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}>
         {marks.map((b) => (
           <li
             key={b.id}
@@ -61,7 +58,7 @@ export function Bookmarks({ docId, pane, fresh, onJump }: { docId: string; pane:
             {renaming === b.id ? (
               <input
                 className="rename"
-                aria-label="Bookmark name"
+                aria-label={m.docSidebar.bookmarkName}
                 defaultValue={b.name}
                 autoFocus
                 onFocus={(e) => e.currentTarget.select()}
@@ -86,11 +83,11 @@ export function Bookmarks({ docId, pane, fresh, onJump }: { docId: string; pane:
                 <span className="what">
                   <BookmarkIcon size={14} aria-hidden="true" />
                   <span className="text">{b.name}</span>
-                  <span className="page">p. {b.page}</span>
+                  <span className="page">{m.doc.pageShort(b.page)}</span>
                 </span>
               </button>
             )}
-            <button className="icon" aria-label={`Actions for ${b.name}`} aria-haspopup="menu" onClick={(e) => setMenu({ mark: b, button: e.currentTarget })}>
+            <button className="icon" aria-label={m.doc.actionsFor(b.name)} aria-haspopup="menu" onClick={(e) => setMenu({ mark: b, button: e.currentTarget })}>
               <Ellipsis size={16} />
             </button>
           </li>
@@ -99,26 +96,26 @@ export function Bookmarks({ docId, pane, fresh, onJump }: { docId: string; pane:
       {menu && (
         <Menu anchor={menu.button} label={menu.mark.name} onClose={() => setMenu(null)}>
           <button role="menuitem" onClick={() => (setRenaming(menu.mark.id), setMenu(null))}>
-            <Pencil size={16} /> Rename
+            <Pencil size={16} /> {m.doc.rename}
           </button>
-          <CopyLink target={{ kind: 'b', id: menu.mark.id }} role="menuitem" className="" text="Copy link" />
+          <CopyLink target={{ kind: 'b', id: menu.mark.id }} role="menuitem" className="" text={m.doc.copyLink} />
           <button
             role="menuitem"
             disabled={marks[0]?.id === menu.mark.id}
-            onClick={() => (moveBookmark(menu.mark.id, marks[marks.findIndex((m) => m.id === menu.mark.id) - 1]!.id), setMenu(null))}
+            onClick={() => (moveBookmark(menu.mark.id, marks[marks.findIndex((x) => x.id === menu.mark.id) - 1]!.id), setMenu(null))}
           >
-            <ArrowUp size={16} /> Move up
+            <ArrowUp size={16} /> {m.doc.moveUp}
           </button>
           <button
             role="menuitem"
             disabled={marks.at(-1)?.id === menu.mark.id}
-            onClick={() => (moveBookmark(menu.mark.id, marks[marks.findIndex((m) => m.id === menu.mark.id) + 2]?.id ?? null), setMenu(null))}
+            onClick={() => (moveBookmark(menu.mark.id, marks[marks.findIndex((x) => x.id === menu.mark.id) + 2]?.id ?? null), setMenu(null))}
           >
-            <ArrowDown size={16} /> Move down
+            <ArrowDown size={16} /> {m.doc.moveDown}
           </button>
           <hr />
           <button role="menuitem" className="danger" onClick={() => (removeBookmark(menu.mark.id), setMenu(null))}>
-            <Trash2 size={16} /> Delete
+            <Trash2 size={16} /> {m.doc.delete}
           </button>
         </Menu>
       )}

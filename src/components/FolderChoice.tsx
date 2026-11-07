@@ -1,5 +1,6 @@
 import { Folder, Folders } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { m } from '../i18n';
 
 /** Asks whether a folder with subfolders opens as one project, or as a project for each subfolder; null when the reader cancels. */
 export function FolderChoice({ name, projects, answer }: { name?: string; projects: number; answer: (many: boolean | null) => void }) {
@@ -13,22 +14,22 @@ export function FolderChoice({ name, projects, answer }: { name?: string; projec
       onClose={(e) => answer(e.currentTarget.returnValue === 'many' ? true : e.currentTarget.returnValue === 'one' ? false : null)}
     >
       <form method="dialog">
-        <h2 id="folder-choice-h">{name ? `Open “${name}”` : 'Open these folders'}</h2>
-        <p>{name && 'It has folders inside it. '}Keep them together in one project, or make a project of each?</p>
+        <h2 id="folder-choice-h">{name ? m.homeFolderChoice.openNamed(name) : m.homeFolderChoice.openThese}</h2>
+        <p>{name ? m.homeFolderChoice.questionNamed : m.homeFolderChoice.question}</p>
         <div className="folder-options">
           <button value="one" autoFocus>
             <Folder size={20} />
-            <strong>One project</strong>
-            <span>Each folder becomes a folder of documents in it.</span>
+            <strong>{m.homeFolderChoice.one}</strong>
+            <span>{m.homeFolderChoice.oneText}</span>
           </button>
           <button value="many">
             <Folders size={20} />
-            <strong>A project for each folder</strong>
-            <span>{projects} projects in your library.</span>
+            <strong>{m.homeFolderChoice.many}</strong>
+            <span>{m.homeFolderChoice.manyText(projects)}</span>
           </button>
         </div>
         <footer>
-          <button value="">Cancel</button>
+          <button value="">{m.home.cancel}</button>
         </footer>
       </form>
     </dialog>

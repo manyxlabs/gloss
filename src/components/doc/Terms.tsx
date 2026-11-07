@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { showPage, useStore, type Pane } from '../../store/project';
 import { definitionsOf, setTermsOn, termPattern, useTerms, type Definition } from '../../terms';
+import { m } from '../../i18n';
 
 /** A document's defined terms, once worked out; empty until then and for a document that defines none. */
 function useDefinitions(docId: string | null) {
@@ -34,17 +35,17 @@ function markPage(page: HTMLElement, pattern: RegExp) {
   layer.className = 'term-layer';
   const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
-    for (const m of node.data.matchAll(pattern)) {
+    for (const match of node.data.matchAll(pattern)) {
       // The term where it is defined, in its quotes, is not a use of it.
-      if (/["“]$/.test(node.data.slice(0, m.index))) continue;
+      if (/["“]$/.test(node.data.slice(0, match.index))) continue;
       const range = document.createRange();
-      range.setStart(node, m.index);
-      range.setEnd(node, m.index + m[0].length);
+      range.setStart(node, match.index);
+      range.setEnd(node, match.index + match[0].length);
       for (const r of range.getClientRects()) {
         if (r.width < 1) continue;
         const mark = document.createElement('div');
         mark.className = 'term-mark';
-        mark.dataset.term = m[0];
+        mark.dataset.term = match[0];
         Object.assign(mark.style, {
           left: `${((r.left - box.left) / box.width) * 100}%`,
           top: `${((r.top - box.top) / box.height) * 100}%`,
@@ -180,7 +181,7 @@ export function DefinedTerms({
       ref={card}
       className="term-card glass"
       role="dialog"
-      aria-label={`Definition of ${shown.def.term}`}
+      aria-label={m.docTerms.definitionOf(shown.def.term)}
       style={{
         left: Math.min(Math.max(12, shown.x - 170), innerWidth - 352),
         ...(below ? { top: shown.bottom + 8 } : { bottom: innerHeight - shown.top + 8 }),
@@ -189,18 +190,18 @@ export function DefinedTerms({
     >
       <header>
         <strong>{shown.def.term}</strong>
-        <span className="where">Defined on p. {shown.def.page}</span>
-        <button className="icon" aria-label="Close" title="Close" onClick={() => setShown(null)}>
+        <span className="where">{m.docTerms.definedOn(shown.def.page)}</span>
+        <button className="icon" aria-label={m.doc.close} title={m.doc.close} onClick={() => setShown(null)}>
           <X size={15} />
         </button>
       </header>
       <p>{shown.def.text}</p>
       <footer>
         <button onClick={() => (setShown(null), showPage(docId, shown.def.page, { pane, query: `"${shown.def.term}"` }))}>
-          <CornerDownRight size={15} /> Go to the definition
+          <CornerDownRight size={15} /> {m.docTerms.goTo}
         </button>
         <button className="ghost" onClick={() => (setShown(null), setTermsOn(false))}>
-          Turn off
+          {m.docTerms.turnOff}
         </button>
       </footer>
     </div>,
@@ -215,10 +216,10 @@ export function TermsToggle({ docId }: { docId: string }) {
   if (!defs.length) return null;
   const Icon = on ? BookOpenCheck : BookOpen;
   return (
-    <button type="button" className="terms-toggle" role="switch" aria-checked={on} aria-label="Defined terms" onClick={() => setTermsOn(!on)}>
+    <button type="button" className="terms-toggle" role="switch" aria-checked={on} aria-label={m.docTerms.title} onClick={() => setTermsOn(!on)}>
       <Icon size={16} />
       <span>
-        Defined terms <small>{defs.length} found; point at one to read its definition</small>
+        {m.docTerms.title} <small>{m.docTerms.found(defs.length)}</small>
       </span>
       <span className="track" aria-hidden="true" />
     </button>

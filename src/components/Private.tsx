@@ -1,6 +1,7 @@
 import { Lock, LockOpen } from 'lucide-react';
 import { privateWarning } from '../store/privacy';
 import { useStore } from '../store/project';
+import { m } from '../i18n';
 
 /**
  * Turns "Only on this device" on or off for a document or a canvas. In a shared project, turning it
@@ -19,7 +20,7 @@ export function PrivateSwitch({ on, disabled, what, note, onChange }: { on: bool
           onChange(!on);
         }}
       >
-        {on ? <Lock size={15} /> : <LockOpen size={15} />} Only on this device
+        {on ? <Lock size={15} /> : <LockOpen size={15} />} {m.homePrivate.only}
         <i aria-hidden="true" />
       </button>
       <p>{note}</p>

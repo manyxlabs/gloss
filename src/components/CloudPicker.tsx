@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CloudError, fromCloud } from '../cloud';
 import { chooseFromDropbox } from '../dropbox';
 import { chooseFromDrive } from '../gdrive';
+import { m } from '../i18n';
 
 function DriveLogo({ size }: { size: number }) {
   return (
@@ -53,15 +54,15 @@ export function CloudPicker({
     <button
       className={kind === 'text' ? undefined : kind}
       disabled={disabled || busy}
-      aria-label={busy ? 'Adding…' : `Add from ${provider}`}
-      title={`Add files from your ${provider}`}
+      aria-label={busy ? m.home.adding : m.homeCloud.addFrom(provider)}
+      title={m.homeCloud.addFilesFrom(provider)}
       onClick={async () => {
         setBusy(true);
         try {
           const got = await fromCloud(provider, choose);
           if (got) await add(got.files, got.problems);
         } catch (err) {
-          await add([], [err instanceof CloudError ? err.message : `Gloss could not open ${provider}. Try again.`]);
+          await add([], [err instanceof CloudError ? err.message : m.homeCloud.couldNotOpen(provider)]);
           if (!(err instanceof CloudError)) throw err;
         } finally {
           setBusy(false);
@@ -69,7 +70,7 @@ export function CloudPicker({
       }}
     >
       <Logo size={kind === 'icon' ? 16 : 15} />
-      {kind !== 'icon' && (busy ? 'Adding…' : provider)}
+      {kind !== 'icon' && (busy ? m.home.adding : provider)}
     </button>
   );
 }

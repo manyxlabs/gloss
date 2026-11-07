@@ -1,5 +1,7 @@
 import fontkit from '@pdf-lib/fontkit';
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type RGB } from 'pdf-lib';
+import { m } from '../i18n';
+import { ReaderError } from '../pdf/pdfjs';
 import { embeddable } from './image';
 
 export type Run = { text: string; bold?: boolean; italic?: boolean; mono?: boolean; link?: boolean };
@@ -33,7 +35,7 @@ export function fontFile(face: keyof typeof FACES) {
   let file = fontFiles.get(face);
   if (!file) {
     file = fetch(`${import.meta.env.BASE_URL}fonts/${FACES[face]}.ttf`).then((r) => {
-      if (!r.ok) throw new Error('The fonts for typesetting could not be loaded.');
+      if (!r.ok) throw new ReaderError(m.engineConvert.noFonts);
       return r.arrayBuffer();
     });
     file.catch(() => fontFiles.delete(face));
@@ -41,10 +43,6 @@ export function fontFile(face: keyof typeof FACES) {
   }
   return file;
 }
-
-const UNSHAPED =
-  'Some text uses a script Gloss cannot typeset yet (such as Devanagari, Arabic, Hebrew, Thai or Chinese), so it was added as a picture that cannot be selected or searched.';
-const MISSING = 'Some characters in tables or code could not be shown and were replaced with “?”.';
 
 /** y is measured down from the top of the page; for text it is the baseline. */
 type Op =
@@ -111,7 +109,7 @@ export class Typesetter {
       image = embeddable(data).then(
         ({ bytes, type }) => (type === 'png' ? this.pdf.embedPng(bytes) : this.pdf.embedJpg(bytes)),
         () => {
-          this.warnings.add('An image in an unsupported format was left out.');
+          this.warnings.add(m.engineConvert.imageLeftOut);
           return null;
         },
       );
@@ -281,7 +279,7 @@ class Flow {
    * The browser shapes them correctly on a canvas, so such a paragraph is drawn there and placed as an image, line by line.
    */
   private async picture(runs: Run[], style: Style, x: number, width: number, lh: number) {
-    this.ts.warnings.add(UNSHAPED);
+    this.ts.warnings.add(m.engineConvert.unshaped);
     const k = 3;
     const text = runs.map((r) => r.text).join('');
     const font = `${style.bold ? 'bold ' : ''}${style.size * k}px "Noto Sans", sans-serif`;
@@ -322,7 +320,7 @@ class Flow {
       const font = await this.face(run, style);
       let text = '';
       for (const ch of clean(run.text)) text += covered(font, ch) ? ch : '?';
-      if (text !== clean(run.text)) this.ts.warnings.add(MISSING);
+      if (text !== clean(run.text)) this.ts.warnings.add(m.engineConvert.missingChars);
       out.push({ ...run, text });
     }
     return out;

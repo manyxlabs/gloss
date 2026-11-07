@@ -21,6 +21,7 @@ import { LanguageSelect } from './LanguageSelect';
 import { useMedia } from '../panes';
 import { isCard } from '../ink';
 import { PeopleItems } from './Presence';
+import { m } from '../i18n';
 
 const SPLIT_KEY = 'gloss:split';
 const readSplit = () => {
@@ -69,7 +70,7 @@ export function Workspace({ id }: { id: string }) {
   );
 
   useEffect(() => {
-    if (project) document.title = `${project.name} · Gloss`;
+    if (project) document.title = m.workspace.title(project.name);
   }, [project?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -105,27 +106,22 @@ export function Workspace({ id }: { id: string }) {
     addEventListener('pointerup', up, { once: true });
   };
 
-  if (missing)
-    return (
-      <Lost title="This project is not here">
-        Projects are kept in the browser they were made in. To open one on this device, open its share link here, or restore a backup of it from the start page.
-      </Lost>
-    );
+  if (missing) return <Lost title={m.workspace.missingTitle}>{m.workspace.missing}</Lost>;
   if (!project) return null;
   const cards = project.cards.filter(isCard).length;
 
   return (
     <div className="workspace field">
       <header className="bar">
-        <a className="home" href="#/" aria-label="All projects" title="All projects">
+        <a className="home" href="#/" aria-label={m.common.allProjects} title={m.common.allProjects}>
           <ArrowLeft size={18} />
         </a>
         <ProjectName name={project.name} id={project.id} wrap={compact} />
         <span className="history">
-          <button className="icon" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
+          <button className="icon" aria-label={m.workspace.undo} title={m.workspace.undoTitle} disabled={!canUndo} onClick={undo}>
             <Undo2 size={17} />
           </button>
-          <button className="icon" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled={!canRedo} onClick={redo}>
+          <button className="icon" aria-label={m.workspace.redo} title={m.workspace.redoTitle} disabled={!canRedo} onClick={redo}>
             <Redo2 size={17} />
           </button>
         </span>
@@ -151,12 +147,12 @@ export function Workspace({ id }: { id: string }) {
       </header>
 
       {shown === 'both' && (
-        <div className="switch" role="tablist" aria-label="Show">
+        <div className="switch" role="tablist" aria-label={m.workspace.show}>
           <button role="tab" aria-selected={view === 'doc'} onClick={() => setView('doc')}>
-            Document
+            {m.canvasCard.document}
           </button>
           <button role="tab" aria-selected={view === 'canvas'} onClick={() => setView('canvas')}>
-            Canvas{cards ? ` (${cards})` : ''}
+            {cards ? m.workspace.canvasCount(cards) : m.canvas.label}
           </button>
         </div>
       )}
@@ -166,7 +162,7 @@ export function Workspace({ id }: { id: string }) {
           {problems.map((p) => (
             <p key={p}>{p}</p>
           ))}
-          <button aria-label="Dismiss" onClick={() => setProblems([])}>
+          <button aria-label={m.common.dismiss} onClick={() => setProblems([])}>
             ×
           </button>
         </div>
@@ -178,7 +174,7 @@ export function Workspace({ id }: { id: string }) {
         style={{ '--split': `${split}%` } as React.CSSProperties}
       >
         <DocPanes onProblems={setProblems} only={typeof shown === 'number' ? shown : undefined} />
-        <div className="divider" role="separator" aria-orientation="vertical" aria-label="Resize" onPointerDown={drag} />
+        <div className="divider" role="separator" aria-orientation="vertical" aria-label={m.workspace.resize} onPointerDown={drag} />
         <ReactFlowProvider>
           <Canvas />
         </ReactFlowProvider>
@@ -215,7 +211,7 @@ function ProjectName({ name, id, wrap }: { name: string; id: string; wrap: boole
   }, [wrap, name, id]);
   const props = {
     className: 'name',
-    'aria-label': 'Project name',
+    'aria-label': m.workspace.projectName,
     defaultValue: name,
     onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const next = e.target.value.replace(/\s+/g, ' ').trim();

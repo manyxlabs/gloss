@@ -8,12 +8,12 @@ import { Menu } from './Menu';
 import { DocActions, openDocDialog } from './DocActions';
 import { CloudPicker } from './CloudPicker';
 import { FilePicker } from './FilePicker';
+import { locale, m } from '../i18n';
 
 /** Dragged between tabs and rows of the list to reorder documents. */
 export const DOC_MIME = 'application/x-gloss-doc';
 
-export const confirmRemove = (d: DocMeta) =>
-  confirm(`Remove “${d.name}” from this project, with its highlights, comments and the excerpts made from it? Undo brings it all back.`) && removeDoc(d.id);
+export const confirmRemove = (d: DocMeta) => confirm(m.docList.confirmRemove(d.name)) && removeDoc(d.id);
 
 /**
  * Every document of the project in one list, opened from the tabs: pinned ones first, then each
@@ -26,8 +26,8 @@ export function DocList({ pane, onProblems }: { pane: Pane; onProblems: (problem
     <>
       <button
         className="icon"
-        aria-label="All documents"
-        title="All documents, in folders"
+        aria-label={m.docList.all}
+        title={m.docList.allTitle}
         aria-haspopup="dialog"
         aria-expanded={!!open}
         onClick={(e) => setOpen(open ? null : e.currentTarget)}
@@ -35,7 +35,7 @@ export function DocList({ pane, onProblems }: { pane: Pane; onProblems: (problem
         <Files size={16} />
       </button>
       {open && (
-        <Menu anchor={open} label="All documents" role="dialog" className="doc-list" onClose={() => setOpen(null)}>
+        <Menu anchor={open} label={m.docList.all} role="dialog" className="doc-list" onClose={() => setOpen(null)}>
           <Panel pane={pane} onDone={() => setOpen(null)} onProblems={onProblems} />
         </Menu>
       )}
@@ -54,7 +54,7 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
 
   const addFromCloud = async (files: File[], problems: string[]) => onProblems([...problems, ...(await addDocs(files))]);
   const docs = orderedDocs(project);
-  const folders = [...project.docFolders].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const folders = [...project.docFolders].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name, locale, { numeric: true }));
   const known = new Set(folders.map((f) => f.id));
   const groupOf = (d: DocMeta): Place => (d.pinned ? { pinned: true } : { folder: d.folder && known.has(d.folder) ? d.folder : null, pinned: false });
   const pinned = docs.filter((d) => d.pinned);
@@ -111,8 +111,8 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
       </button>
       <button
         className="icon pin"
-        aria-label={d.pinned ? `Unpin ${d.name}` : `Pin ${d.name}`}
-        title={d.pinned ? 'Unpin' : 'Pin: shown first'}
+        aria-label={d.pinned ? m.docList.unpin(d.name) : m.docList.pin(d.name)}
+        title={d.pinned ? m.docMenu.unpin : m.docList.pinTitle}
         aria-pressed={!!d.pinned}
         onClick={() => placeDoc(d.id, { pinned: !d.pinned })}
       >
@@ -120,7 +120,7 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
       </button>
       <button
         className="icon"
-        aria-label={`Actions for ${d.name}`}
+        aria-label={m.doc.actionsFor(d.name)}
         aria-haspopup="menu"
         aria-expanded={menu && 'doc' in menu ? menu.doc.id === d.id : false}
         onClick={(e) => setMenu({ doc: d, button: e.currentTarget })}
@@ -136,15 +136,15 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
     return (
       <>
         <button role="menuitem" disabled={i === 0} onClick={() => (moveDoc(d.id, docs[i - 1]!.id, { pinned: !!docs[i - 1]!.pinned }), close())}>
-          <ArrowUp size={16} /> Move up
+          <ArrowUp size={16} /> {m.doc.moveUp}
         </button>
         <button role="menuitem" disabled={i === docs.length - 1} onClick={() => (moveDoc(d.id, docs[i + 2]?.id ?? null, { pinned: !!docs[i + 1]!.pinned }), close())}>
-          <ArrowDown size={16} /> Move down
+          <ArrowDown size={16} /> {m.doc.moveDown}
         </button>
         <DocActions doc={d} onClose={close} onProblems={onProblems} />
         <hr />
         <button role="menuitem" className="danger" onClick={() => (close(), confirmRemove(d))}>
-          <Trash2 size={16} /> Remove from project
+          <Trash2 size={16} /> {m.docList.remove}
         </button>
       </>
     );
@@ -153,12 +153,12 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
   return (
     <>
       <div className="doc-list-head">
-        <h2>Documents</h2>
-        <button className="icon" aria-label="New folder" title="New folder" onClick={() => setRenaming(addDocFolder('New folder'))}>
+        <h2>{m.docList.heading}</h2>
+        <button className="icon" aria-label={m.docList.newFolder} title={m.docList.newFolder} onClick={() => setRenaming(addDocFolder(m.docList.untitledFolder))}>
           <FolderPlus size={16} />
         </button>
-        <FilePicker label="Add a folder of files" kind="icon" folder onProblems={onProblems} />
-        <button className="icon" aria-label="Add from Zotero" title="Add from your Zotero library" onClick={() => (onDone(), openDocDialog({ zotero: true }))}>
+        <FilePicker label={m.docList.addFolder} kind="icon" folder onProblems={onProblems} />
+        <button className="icon" aria-label={m.docList.addZotero} title={m.docList.addZoteroTitle} onClick={() => (onDone(), openDocDialog({ zotero: true }))}>
           <BookOpen size={16} />
         </button>
         <CloudPicker provider="Google Drive" kind="icon" add={addFromCloud} />
@@ -168,7 +168,7 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
         {pinned.length > 0 && (
           <li className="doc-group">
             <span className="doc-group-name">
-              <Pin size={13} aria-hidden="true" /> Pinned
+              <Pin size={13} aria-hidden="true" /> {m.doc.pinned}
             </span>
             <ul>{pinned.map(row)}</ul>
           </li>
@@ -181,7 +181,7 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
               <div className="folder-head">
                 {renaming === f.id ? (
                   <input
-                    aria-label="Folder name"
+                    aria-label={m.docList.folderName}
                     defaultValue={f.name}
                     autoFocus
                     onFocus={(e) => e.currentTarget.select()}
@@ -206,17 +206,17 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
                     <span className="count">{inside.length}</span>
                   </button>
                 )}
-                <button className="icon" aria-label={`Actions for folder ${f.name}`} aria-haspopup="menu" onClick={(e) => setMenu({ folder: f, button: e.currentTarget })}>
+                <button className="icon" aria-label={m.docList.folderActions(f.name)} aria-haspopup="menu" onClick={(e) => setMenu({ folder: f, button: e.currentTarget })}>
                   <Ellipsis size={16} />
                 </button>
               </div>
-              {!shut && (inside.length ? <ul>{inside.map(row)}</ul> : <p className="side-empty">Drag documents here.</p>)}
+              {!shut && (inside.length ? <ul>{inside.map(row)}</ul> : <p className="side-empty">{m.docList.dragHere}</p>)}
             </li>
           );
         })}
         {loose.length > 0 && (
           <li className="doc-group">
-            {(pinned.length > 0 || folders.length > 0) && <span className="doc-group-name">Not in a folder</span>}
+            {(pinned.length > 0 || folders.length > 0) && <span className="doc-group-name">{m.docList.notInFolder}</span>}
             <ul>{loose.map(row)}</ul>
           </li>
         )}
@@ -228,10 +228,10 @@ function Panel({ pane, onDone, onProblems }: { pane: Pane; onDone: () => void; o
           ) : (
             <>
               <button role="menuitem" onClick={() => (setRenaming(menu.folder.id), setMenu(null))}>
-                <Pencil size={16} /> Rename
+                <Pencil size={16} /> {m.doc.rename}
               </button>
               <button role="menuitem" className="danger" onClick={() => (removeDocFolder(menu.folder.id), setMenu(null))}>
-                <Trash2 size={16} /> Delete folder
+                <Trash2 size={16} /> {m.docList.deleteFolder}
               </button>
             </>
           )}

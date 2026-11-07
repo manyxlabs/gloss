@@ -2,6 +2,7 @@
 // with the reader's own key: their library to import PDFs from, and notes sent back to an item.
 import { commentOf, quoted, where } from './links';
 import type { DocMeta, Project, ZoteroItem } from './types';
+import { m } from './i18n';
 
 const ACCOUNT_KEY = 'gloss:zotero';
 const API = 'https://api.zotero.org';
@@ -35,32 +36,37 @@ export function disconnect() {
   }
 }
 
-export class ZoteroError extends Error {}
+export class ZoteroError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 
 async function call(a: Pick<ZoteroAccount, 'apiKey'>, path: string, init: RequestInit = {}) {
   let res: Response;
   try {
     res = await fetch(`${API}${path}`, { ...init, headers: { 'Zotero-API-Key': a.apiKey, 'Zotero-API-Version': '3', ...init.headers } });
   } catch {
-    throw new ZoteroError('Zotero could not be reached. Check the connection and try again.');
+    throw new ZoteroError(m.homeZotero.unreachable);
   }
-  if (res.status === 403) throw new ZoteroError('Zotero refused: the key does not allow this. Check its permissions at zotero.org/settings/keys.');
-  if (res.status === 404) throw new ZoteroError('Zotero does not know this item or library.');
-  if (res.status === 429 || res.status === 503) throw new ZoteroError('Zotero is busy. Try again in a minute.');
-  if (!res.ok) throw new ZoteroError(`Zotero answered with an error (${res.status}).`);
+  if (res.status === 403) throw new ZoteroError(m.homeZotero.refused, 403);
+  if (res.status === 404) throw new ZoteroError(m.homeZotero.unknown, 404);
+  if (res.status === 429 || res.status === 503) throw new ZoteroError(m.homeZotero.busy, res.status);
+  if (!res.ok) throw new ZoteroError(m.homeZotero.error(res.status), res.status);
   return res;
 }
 
 /** Checks a key against Zotero, and keeps it in this browser only once it works for the user given. */
 export async function connect(userId: string, apiKey: string): Promise<ZoteroAccount> {
   const res = await call({ apiKey }, '/keys/current').catch((err: unknown) => {
-    throw err instanceof ZoteroError && /refused|know/.test(err.message)
-      ? new ZoteroError('Zotero does not recognise this key. Copy it again from zotero.org/settings/keys.')
-      : err;
+    throw err instanceof ZoteroError && (err.status === 403 || err.status === 404) ? new ZoteroError(m.homeZotero.badKey) : err;
   });
   const info = (await res.json()) as { userID?: number; username?: string; access?: { user?: { library?: boolean; write?: boolean } } };
-  if (String(info.userID) !== userId.trim()) throw new ZoteroError(`This key belongs to user ID ${info.userID}, not ${userId.trim()}.`);
-  if (!info.access?.user?.library) throw new ZoteroError('This key cannot read your library. Allow library access for it at zotero.org/settings/keys.');
+  if (String(info.userID) !== userId.trim()) throw new ZoteroError(m.homeZotero.wrongUser(String(info.userID), userId.trim()));
+  if (!info.access?.user?.library) throw new ZoteroError(m.homeZotero.noLibrary);
   const account = { userId: userId.trim(), apiKey, username: info.username ?? userId, write: !!info.access.user.write };
   try {
     localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
@@ -84,7 +90,7 @@ function itemOf(a: ZoteroAccount, i: Item): ZoteroItem {
   return {
     userId: a.userId,
     key: i.key,
-    title: d.title?.trim() || 'Untitled',
+    title: d.title?.trim() || m.homeZotero.untitled,
     authors: (d.creators ?? []).map((c) => c.name ?? [c.firstName, c.lastName].filter(Boolean).join(' ')).filter(Boolean),
     ...(year ? { year } : {}),
     ...(citationKey ? { citationKey } : {}),
@@ -123,14 +129,14 @@ export function noteOf(p: Project, doc: DocMeta) {
   const cardNotes = new Map(p.cards.flatMap((c) => (c.data.kind === 'excerpt' && c.data.comment?.trim() ? [[c.data.highlightId, c.data.comment.trim()]] : [])));
   const body = marks.map((h) => {
     const notes = [commentOf(p, h)?.text, cardNotes.get(h.id)].filter(Boolean).map((t) => `<p>${escape(t!)}</p>`);
-    return `<blockquote><p>${escape(h.area || h.typed ? quoted(h) : `“${h.text}”`)} (${where(h)})</p></blockquote>${notes.join('')}`;
+    return `<blockquote><p>${escape(h.area || h.typed ? quoted(h) : m.homeLinks.quote(h.text))} (${where(h)})</p></blockquote>${notes.join('')}`;
   });
-  return { html: `<h1>Notes from Gloss: ${escape(doc.name)}</h1>${body.join('')}`, count: marks.length };
+  return { html: `<h1>${escape(m.homeZotero.notesFrom(doc.name))}</h1>${body.join('')}`, count: marks.length };
 }
 
 /** Adds a note under the document's Zotero item; it needs a key that may write. */
 export async function sendNote(a: ZoteroAccount, p: Project, doc: DocMeta & { zotero: ZoteroItem }) {
-  if (!a.write) throw new ZoteroError('This key can only read your library. Make one that may write at zotero.org/settings/keys to send notes back.');
+  if (!a.write) throw new ZoteroError(m.homeZotero.readOnlyKey);
   const { html, count } = noteOf(p, doc);
   const res = await call(a, `/users/${encodeURIComponent(a.userId)}/items`, {
     method: 'POST',
@@ -138,9 +144,9 @@ export async function sendNote(a: ZoteroAccount, p: Project, doc: DocMeta & { zo
     body: JSON.stringify([{ itemType: 'note', parentItem: doc.zotero.key, note: html, tags: [], collections: [], relations: {} }]),
   });
   const out = (await res.json()) as { successful?: Record<string, unknown>; failed?: Record<string, { message?: string }> };
-  if (!out.successful?.['0']) throw new ZoteroError(`Zotero did not keep the note${out.failed?.['0']?.message ? `: ${out.failed['0'].message}` : '.'}`);
+  if (!out.successful?.['0']) throw new ZoteroError(m.homeZotero.notKept(out.failed?.['0']?.message ?? ''));
   return count;
 }
 
 /** How a Zotero item is cited in the documents' list and sidebar. */
-export const byline = (z: ZoteroItem) => [z.authors.length > 3 ? `${z.authors[0]} et al.` : z.authors.join(', '), z.year].filter(Boolean).join(' · ');
+export const byline = (z: ZoteroItem) => [z.authors.length > 3 ? m.homeZotero.etAl(z.authors[0]!) : z.authors.join(', '), z.year].filter(Boolean).join(' · ');

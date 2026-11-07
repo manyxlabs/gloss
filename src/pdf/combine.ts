@@ -1,10 +1,12 @@
 // Several documents of a project exported as one annotated PDF, each with an entry in its outline,
 // and the canvas after them if wanted.
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRef } from 'pdf-lib';
+import { m } from '../i18n';
 import { bookmarksOf } from '../store/bookmarks';
 import type { Project } from '../types';
 import { annotatedPdf } from './annotate';
 import { appendOutline, bookmarkEntries, type OutlineEntry } from './outline';
+import { ReaderError } from './pdfjs';
 
 const DEST = PDFName.of('Dest');
 const ACTION = PDFName.of('A');
@@ -60,21 +62,21 @@ export async function combinedPdf(project: Project, docIds: string[], canvasId: 
       const offset = await append(out, src);
       outline.push({ title: doc.name, page: out.getPage(offset), children: bookmarkEntries(out, bookmarksOf(project, id), offset) });
     } catch (err) {
-      problems.push(`“${doc.name}” was left out: ${(err as Error).message}`);
+      problems.push(m.enginePdf.leftOut(doc.name, (err as Error).message));
     }
   }
   if (canvasId !== null) {
     // The canvas as the Export menu pictures it, on a page of its own size.
     const { canvasPng } = await import('../components/CanvasExport');
     const png = await canvasPng(project, canvasId);
-    const title = project.canvases.find((c) => c.id === canvasId)?.name ?? 'Canvas';
+    const title = project.canvases.find((c) => c.id === canvasId)?.name ?? m.engineStore.canvas;
     if (png) {
       const { picturePdf } = await import('../canvasPicture');
       const page = await PDFDocument.load(await (await picturePdf(await png.blob.arrayBuffer(), png.width, png.height, 'fit', title)).arrayBuffer());
       outline.push({ title, page: out.getPage(await append(out, page)) });
     }
   }
-  if (!out.getPageCount()) throw new Error(problems.join(' ') || 'There was nothing to export.');
+  if (!out.getPageCount()) throw new ReaderError(problems.join(' ') || m.enginePdf.nothingToExport);
   appendOutline(out, outline);
   out.catalog.set(PDFName.of('PageMode'), PDFName.of('UseOutlines'));
   out.setTitle(project.name);
