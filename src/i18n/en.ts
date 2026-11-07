@@ -1,3 +1,8 @@
+import canvas from './parts/canvas';
+import doc from './parts/doc';
+import engine from './parts/engine';
+import home from './parts/home';
+
 /**
  * Every string Gloss shows, in English. Each other language's catalogue is typed as `Messages`, so a key
  * missing from one, or one it has that English does not, fails the type check.
@@ -115,6 +120,10 @@ export const en = {
     contactHeading: 'Contact',
     contact: 'Questions about privacy go to <mail>manish@manyxlabs.com</mail>.',
   },
+  ...doc,
+  ...canvas,
+  ...home,
+  ...engine,
 };
 
 export type Messages = typeof en;
