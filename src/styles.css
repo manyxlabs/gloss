@@ -19,6 +19,10 @@
   --shadow-tint: light-dark(rgb(20 20 50 / 0.14), rgb(0 0 0 / 0.6));
   --shadow: 0 1px 2px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.4)), 0 12px 32px -12px var(--shadow-tint);
   --danger: light-dark(#c2410c, #fb923c);
+  /* Inter has no Indian scripts; each Noto face is declared only on pages in its language (src/i18n). */
+  --sans:
+    'Inter Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Telugu', 'Noto Sans Tamil', 'Noto Sans Gujarati', 'Noto Sans Kannada', 'Noto Sans Malayalam',
+    system-ui, sans-serif;
 
   /* The highlight colours, --hl-<colour> and --edge-<colour>, are set from src/palette.ts. */
 }
@@ -44,10 +48,7 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font:
-    15px/1.5 'Inter Variable',
-    system-ui,
-    sans-serif;
+  font: 15px/1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -807,9 +808,7 @@ a.button.primary {
   right: 8px;
   top: 50%;
   translate: 0 -50%;
-  font:
-    500 11px/1 'Inter Variable',
-    system-ui;
+  font: 500 11px/1 var(--sans);
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -1534,10 +1533,7 @@ a.button.primary {
   border-radius: 6px;
   background: var(--accent);
   color: #fff;
-  font:
-    500 12px/1.4 'Inter Variable',
-    system-ui,
-    sans-serif;
+  font: 500 12px/1.4 var(--sans);
   white-space: nowrap;
 }
 
@@ -2731,6 +2727,58 @@ button.screens.linked {
   font-size: 14px;
 }
 
+/* The language switch: a select drawn as a ghost button, its icon inside it. */
+.language {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--muted);
+}
+
+.language svg {
+  position: absolute;
+  left: 9px;
+  pointer-events: none;
+}
+
+.language select {
+  appearance: none;
+  height: 32px;
+  max-width: 10em;
+  padding: 0 10px 0 31px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.language select:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.language option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* In a menu, a row like the menu's buttons. */
+.language.item svg {
+  left: 12px;
+}
+
+.language.item select {
+  width: 100%;
+  max-width: none;
+  padding-left: 38px;
+  color: var(--text);
+}
+
 .progress-notice {
   padding-right: 16px;
 }
@@ -3503,7 +3551,8 @@ section.folder {
   .card-links button,
   .group button,
   button.link,
-  .foot a {
+  .foot a,
+  .language select {
     min-width: 40px;
     min-height: 40px;
   }

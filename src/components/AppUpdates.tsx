@@ -1,6 +1,7 @@
 import { RefreshCw, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { m } from '../i18n';
 
 /** Says when Gloss can work offline, and when a new version is waiting, which the reader loads when they choose. */
 export function AppUpdates() {
@@ -19,13 +20,13 @@ export function AppUpdates() {
   const close = () => (setNeedRefresh(false), setOfflineReady(false));
   return (
     <div className="toast glass" role="status">
-      <span>{needRefresh ? 'A new version of Gloss is ready.' : 'Gloss now works offline on this device.'}</span>
+      <span>{needRefresh ? m.updates.ready : m.updates.offline}</span>
       {needRefresh && (
         <button className="primary" onClick={() => void updateServiceWorker(true)}>
-          <RefreshCw size={15} /> Reload
+          <RefreshCw size={15} /> {m.updates.reload}
         </button>
       )}
-      <button className="icon" aria-label="Dismiss" onClick={close}>
+      <button className="icon" aria-label={m.common.dismiss} onClick={close}>
         <X size={16} />
       </button>
     </div>

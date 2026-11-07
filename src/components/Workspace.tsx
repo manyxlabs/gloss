@@ -17,6 +17,7 @@ import { Screens, useShown } from './Screens';
 import { Share } from './Share';
 import { TagsDialog } from './TagsDialog';
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageSelect } from './LanguageSelect';
 import { useMedia } from '../panes';
 import { isCard } from '../ink';
 import { PeopleItems } from './Presence';
@@ -139,11 +140,13 @@ export function Workspace({ id }: { id: string }) {
             compact && (
               <>
                 <ThemeToggle item />
+                <LanguageSelect item />
                 {project.sync && <PeopleItems />}
               </>
             )
           }
         />
+        {!compact && <LanguageSelect />}
         {!compact && <ThemeToggle />}
       </header>
 

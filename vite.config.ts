@@ -1,11 +1,64 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { ACCEPT } from './src/convert/formats';
+import { LANGS, PAGES, SCRIPTS, type Lang, type Page } from './src/i18n/langs';
+import { fileOf, head, noscript, sitemap } from './src/i18n/pages';
+
+// When the public pages last changed, for the sitemap.
+const UPDATED = '2026-11-07';
+
+/**
+ * Writes index.html once for each public page in each language (/, /privacy, /hi/, /hi/privacy, …),
+ * so each is served in its language before any script runs. A page in another language also asks for
+ * its catalogue and its script's font straight away, rather than once the app has loaded.
+ */
+function pages(): Plugin {
+  const fill = (html: string, lang: Lang, page: Page, extra = '') =>
+    html
+      .replace('<html lang="en">', `<html lang="${lang}">`)
+      .replace('<!--page-head-->', head(lang, page) + extra)
+      .replace('<!--page-noscript-->', noscript(lang));
+  return {
+    name: 'gloss-pages',
+    transformIndexHtml: (html, { server }) => (server ? fill(html, 'en', '') : html),
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      const index = bundle['index.html'];
+      if (index?.type !== 'asset') throw new Error('index.html was not built');
+      const template = String(index.source);
+      const files = Object.values(bundle);
+      const early = (lang: Lang) => {
+        if (lang === 'en') return '';
+        const script = SCRIPTS[lang];
+        const catalogue = files.find((f) => f.type === 'chunk' && f.facadeModuleId?.endsWith(`/src/i18n/${lang}.ts`));
+        const css = files.filter((f) => f.type === 'asset' && f.fileName.endsWith('.css') && f.originalFileNames.some((n) => n.includes(`@fontsource/noto-sans-${script}/`)));
+        // The regular weight is most of the page; the others load as they are drawn.
+        const font = files.find((f) => f.type === 'asset' && f.fileName.includes(`noto-sans-${script}-${script}-400-normal`) && f.fileName.endsWith('.woff2'));
+        if (!catalogue || css.length !== 4 || !font) throw new Error(`The catalogue or font of ${lang} was not built`);
+        return [
+          `<link rel="modulepreload" href="/${catalogue.fileName}" />`,
+          `<link rel="preload" as="font" type="font/woff2" href="/${font.fileName}" crossorigin />`,
+          ...css.map((c) => `<link rel="stylesheet" href="/${c.fileName}" />`),
+        ]
+          .map((tag) => `\n    ${tag}`)
+          .join('');
+      };
+      for (const lang of LANGS)
+        for (const page of PAGES) {
+          const source = fill(template, lang, page, early(lang));
+          if (lang === 'en' && !page) index.source = source;
+          else this.emitFile({ type: 'asset', fileName: fileOf(lang, page), source });
+        }
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemap(UPDATED) });
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    pages(),
     // Installable, and works offline once visited: the app and its code are cached up front;
     // the large pdf.js data files, fonts and text recognition files are cached the first time they are used.
     VitePWA({
@@ -55,6 +108,8 @@ export default defineConfig({
         // Only Gloss's own files: what comes from Google Drive or Dropbox is never kept by the service worker.
         runtimeCaching: [
           { urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/(pdfjs|fonts|ocr)\//.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-data' } },
+          // The faces for each language's script, kept once a page in it has drawn them, rather than every script up front.
+          { urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/.*\.woff2?$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-fonts' } },
           { urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/heic[^/]*\.js$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'gloss-heic' } },
         ],
       },
