@@ -146,7 +146,7 @@ test('a phone shows one side at a time and excerpts a touch selection', async ({
   expect(await centre()).toBe('Canvas');
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     // Colours ease over 150 ms.
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);

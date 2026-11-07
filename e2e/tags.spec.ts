@@ -115,11 +115,11 @@ test('passages and cards are tagged, filtered and searched by tag, and tags are 
     await expect(chips(sidebar)).toHaveText(['Reefs', 'Climate']);
     await expect(note(page, 'Kelp forests are the next survey').locator('.card')).toHaveClass(/dim/);
     for (const scheme of ['light', 'dark'] as const) {
-      await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+      await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
       await page.waitForTimeout(300);
       await shot(page, `tags-sidebar-${scheme}`);
     }
-    await page.evaluate(() => delete document.documentElement.dataset.theme);
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
     await page.getByRole('button', { name: 'Clear the tag filter' }).first().click();
     await expect(sidebar.locator('.marks > li')).toHaveCount(2);
   });
@@ -262,7 +262,7 @@ test('on a phone, a highlight is tagged from its toolbar, with the picker on the
   expect(r.x).toBeGreaterThanOrEqual(0);
   expect(r.x + r.width).toBeLessThanOrEqual(390);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.waitForTimeout(300);
     await shot(page, `tags-phone-${scheme}`);
   }

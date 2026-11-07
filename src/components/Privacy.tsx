@@ -5,14 +5,17 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageSelect } from './LanguageSelect';
 import { href, m } from '../i18n';
 import { rich } from '../i18n/rich';
+import { useMotion } from '../motion';
 
 /** The privacy policy, at /privacy, where Google's consent screen links to it. */
 export function Privacy() {
+  useMotion();
   useEffect(() => {
     document.title = m.meta.privacyTitle;
   }, []);
   return (
     <div className="library field">
+      <div className="progress-bar" aria-hidden="true" />
       <header className="bar">
         <a className="brand" href={href('')}>
           <Logo />
@@ -22,7 +25,7 @@ export function Privacy() {
         <ThemeToggle />
       </header>
       <main className="wrap">
-        <article className="privacy glass">
+        <article className="privacy glass reveal">
           <h1>{m.privacy.heading}</h1>
           <p className="fine">{m.privacy.updated}</p>
           {m.privacy.prevails && (

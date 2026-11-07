@@ -102,7 +102,7 @@ test('the palette jumps to a page, a document, a contents entry, a canvas, a tag
     await page.keyboard.type('Nothing is called this');
     await expect(palette(page)).toContainText('Nothing matches');
     for (const scheme of ['light', 'dark'] as const) {
-      await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+      await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
       await page.waitForTimeout(300);
       await shot(page, `palette-${scheme}`);
     }
@@ -164,11 +164,11 @@ test('the start page searches every project, reading each document once, and ope
     await expect(hit).toBeVisible();
     expect(await sawIndexing(page)).toBe(true);
     for (const scheme of ['light', 'dark'] as const) {
-      await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+      await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
       await page.waitForTimeout(300);
       await shot(page, `all-search-${scheme}`);
     }
-    await page.evaluate(() => delete document.documentElement.dataset.theme);
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
     await hit.click();
     await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue('Kelp report');
     await expect(pageNo(page)).toHaveText('Page 2 / 2');
@@ -214,7 +214,7 @@ test('on a phone, the start page search and its results fit the screen', async (
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(390);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.waitForTimeout(300);
     await shot(page, `all-search-phone-${scheme}`);
   }

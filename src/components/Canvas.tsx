@@ -376,7 +376,7 @@ export function Canvas() {
       aria-label={m.canvas.label}
       style={
         {
-          ...(style?.accent ? { '--accent': `var(--edge-${style.accent})`, '--accent-soft': `color-mix(in srgb, var(--edge-${style.accent}) 15%, transparent)` } : {}),
+          ...(style?.accent ? { '--accent': `var(--edge-${style.accent}-rgb)`, '--accent-text': `var(--edge-${style.accent}-rgb)` } : {}),
           ...(style?.cardColor ? { '--card-tint': `var(--hl-${style.cardColor})` } : {}),
         } as React.CSSProperties
       }

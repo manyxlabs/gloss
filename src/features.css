@@ -33,7 +33,7 @@
 .palette-hint {
   margin: 0;
   max-width: 232px;
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 12.5px;
 }
 
@@ -102,7 +102,7 @@
   align-items: center;
   gap: 2px;
   min-width: 0;
-  color: var(--muted);
+  color: rgb(var(--muted));
 }
 
 .canvas-path li:last-child {
@@ -131,7 +131,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text);
+  color: rgb(var(--fg));
   font-weight: 600;
 }
 
@@ -147,7 +147,7 @@
 .card.canvas-card {
   display: grid;
   gap: 10px;
-  border-top: 4px solid var(--accent);
+  border-top: 4px solid rgb(var(--accent));
   cursor: zoom-in;
 }
 
@@ -155,7 +155,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--accent);
+  color: rgb(var(--accent-text));
 }
 
 .canvas-card input {
@@ -165,7 +165,7 @@
   background: transparent;
   font-weight: 650;
   font-size: 15px;
-  color: var(--text);
+  color: rgb(var(--fg));
   outline: none;
 }
 
@@ -176,7 +176,7 @@
 }
 
 .canvas-card .count {
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 12.5px;
 }
 
@@ -191,7 +191,7 @@
   height: 100%;
   padding: 0;
   overflow: hidden;
-  background-image: radial-gradient(color-mix(in srgb, var(--muted) 35%, transparent) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, rgb(var(--muted)) 35%, transparent) 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
@@ -201,20 +201,20 @@
   display: grid;
   place-items: center;
   margin: 0;
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 13px;
   pointer-events: none;
 }
 
 .react-flow__node .sketch-edge {
-  border-color: var(--accent);
+  border-color: rgb(var(--accent));
 }
 
 .react-flow__node .sketch-corner {
   width: 10px;
   height: 10px;
   border-radius: 3px;
-  background: var(--accent);
+  background: rgb(var(--accent));
   border: 2px solid var(--panel);
 }
 
@@ -246,7 +246,7 @@
 }
 
 .card-links .canvas-chip svg {
-  color: var(--accent);
+  color: rgb(var(--accent-text));
 }
 
 /* The look of the canvas on show: notes take its colour. */
@@ -267,7 +267,7 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--muted);
+  color: rgb(var(--muted));
   text-transform: uppercase;
 }
 
@@ -289,7 +289,7 @@
 }
 
 .style-panel .default[aria-pressed='true'] {
-  color: var(--text);
+  color: rgb(var(--fg));
   background: var(--panel-2);
 }
 
@@ -365,18 +365,18 @@
   padding: 2px 8px;
   border-radius: 7px;
   background: var(--panel-2);
-  color: var(--text);
+  color: rgb(var(--fg));
   font-size: 12.5px;
   text-decoration: none;
 }
 
 .link-chips a:hover {
-  color: var(--accent);
+  color: rgb(var(--accent-text));
 }
 
 .link-chips a svg {
   flex: none;
-  color: var(--accent);
+  color: rgb(var(--accent-text));
 }
 
 .link-chips .text {
@@ -387,12 +387,12 @@
 
 .link-chips .where {
   flex: none;
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 11.5px;
 }
 
 .link-chips a.gone {
-  color: var(--muted);
+  color: rgb(var(--muted));
   text-decoration: line-through;
 }
 
@@ -443,7 +443,7 @@
 }
 
 .private-switch [aria-checked='true'] i {
-  background: var(--accent);
+  background: rgb(var(--accent));
 }
 
 .private-switch [aria-checked='true'] i::after {
@@ -453,7 +453,7 @@
 .private-switch p,
 .style-panel > p {
   margin: 0 8px;
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 12px;
   line-height: 1.4;
 }
@@ -461,7 +461,7 @@
 .tab button .lock,
 .menu.floating .lock {
   flex: none;
-  color: var(--accent);
+  color: rgb(var(--accent-text));
 }
 
 .tab button .lock {
@@ -505,7 +505,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgb(var(--muted));
 }
 
 .notices a,
@@ -515,7 +515,7 @@
   gap: 10px;
   padding: 7px 8px;
   border-radius: 10px;
-  color: var(--text);
+  color: rgb(var(--fg));
   text-decoration: none;
   font-size: 13.5px;
   line-height: 1.4;
@@ -528,7 +528,7 @@
 }
 
 .notices a.unread {
-  background: var(--accent-soft);
+  background: var(--selected);
 }
 
 .notices .avatar {
@@ -549,17 +549,17 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  color: var(--muted);
+  color: rgb(var(--muted));
 }
 
 .notices time {
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 12px;
 }
 
 .notices .none {
   margin: 2px 8px 6px;
-  color: var(--muted);
+  color: rgb(var(--muted));
   font-size: 13px;
 }
 
@@ -584,8 +584,8 @@
 }
 
 .mentions li[aria-selected='true'] {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--selected);
+  color: rgb(var(--accent-text));
 }
 
 @media (pointer: coarse) {

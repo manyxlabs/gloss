@@ -112,7 +112,7 @@ test('the library looks right in both themes on a desktop and a phone', async ({
     await projects(page).getByRole('button', { name: 'New folder', exact: true }).click();
     await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
     for (const theme of ['light', 'dark'] as const) {
-      await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+      await page.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
       // Nothing is wider than the screen.
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(options.viewport.width);
       await projects(page).scrollIntoViewIfNeeded();

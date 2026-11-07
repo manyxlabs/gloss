@@ -191,7 +191,7 @@ Conversion keeps a document's words, structure and pictures, not its exact look.
 
 ## Pictures of the canvas and page colours
 
-A picture of the canvas is taken of a copy drawn out of sight in its own React Flow, with nothing selected, and captured with [html-to-image](https://github.com/bubkoo/html-to-image), which embeds the Inter font and the figures' images.
+A picture of the canvas is taken of a copy drawn out of sight in its own React Flow, with nothing selected, and captured with [html-to-image](https://github.com/bubkoo/html-to-image), which embeds the Geist font and the figures' images.
 A picture too large for the browser to hold (beyond 16384 pixels a side or 40 million pixels) is drawn at a smaller scale, and the dialog says so.
 The PDF holds the picture at 2× as one image, so its text cannot be selected.
 The SVG wraps the cards as HTML, so it opens in browsers but not in most drawing programs.

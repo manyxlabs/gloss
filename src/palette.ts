@@ -42,10 +42,14 @@ export const swatchOf = (c: string) => SWATCHES[isColor(c) ? c : 'yellow'];
  * itself on a dark screen, where the deep edges would sink into the panel; inside a PDF page it is
  * always the paper edge, as the page stays white.
  */
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(' ');
+
 function css() {
   const vars = COLORS.map((c) => `--hl-${c}: ${SWATCHES[c].fill}; --edge-${c}: light-dark(${SWATCHES[c].edge}, ${SWATCHES[c].fill});`).join('\n');
+  // The edges again as RGB channels, for a canvas whose accent, a channel token, is one of them.
+  const channels = (shade: 'edge' | 'fill') => COLORS.map((c) => `--edge-${c}-rgb: ${rgb(SWATCHES[c][shade])};`).join('\n');
   const classes = COLORS.map((c) => `.hl-${c} { --hl: var(--hl-${c}); --edge: var(--edge-${c}); }\n.page .hl-${c} { --edge: ${SWATCHES[c].edge}; }`).join('\n');
-  return `:root {\n${vars}\n}\n${classes}`;
+  return `:root {\n${vars}\n}\n:root, .export-stage.light {\n${channels('edge')}\n}\n.dark {\n${channels('fill')}\n}\n${classes}`;
 }
 
 if (typeof document !== 'undefined') {

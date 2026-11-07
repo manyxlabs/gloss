@@ -150,7 +150,7 @@ test('passages link within a document and across two side by side, and the links
   await page.reload();
   await expect(page.locator('.page[data-page-number="1"] .link-mark')).toHaveCount(2);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.locator('.page[data-page-number="1"] .link-mark').first().click();
     await page.waitForTimeout(300);
     await shot(page, `links-marker-popover-${scheme}`);
@@ -356,11 +356,11 @@ test('a pen stroke from a passage to a card links them, across the panes, with t
   const ink = (await page.locator('[data-ink-card]').boundingBox())!;
   expect((await scribbleChip.boundingBox())!.y).toBeGreaterThan(ink.y + ink.height);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.waitForTimeout(300);
     await shot(page, `links-ink-cards-${scheme}`);
   }
-  await page.evaluate(() => delete document.documentElement.dataset.theme);
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
   // The link, then the card, are taken back.
   await page.keyboard.press('Control+z');
   await expect(scribbleChip).toHaveCount(0);
@@ -517,7 +517,7 @@ test('on a phone, link and comment markers share a line without touching each ot
   expect(boxes[1]!.y).toBeGreaterThanOrEqual(link.y + link.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await linkMarks(page).first().tap();
     await expect(page.getByRole('dialog', { name: 'Linked passages' })).toBeInViewport({ ratio: 1 });
     await page.waitForTimeout(300);

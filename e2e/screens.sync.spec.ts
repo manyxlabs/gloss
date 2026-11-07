@@ -222,14 +222,14 @@ test('the Screens dialog fits a phone and a tablet, in light and dark', async ({
   };
   await fits('screens-phone-light');
   await p.emulateMedia({ colorScheme: 'dark' });
-  await p.evaluate(() => (document.documentElement.dataset.theme = 'dark'));
+  await p.evaluate(() => document.documentElement.classList.add('dark'));
   await fits('screens-phone-dark');
   await p.setViewportSize({ width: 820, height: 1180 });
   await fits('screens-tablet-dark');
   await p.evaluate(() => (document.documentElement.dataset.theme = 'light'));
   await fits('screens-tablet-light');
   await p.setViewportSize({ width: 1400, height: 860 });
-  await p.evaluate(() => (document.documentElement.dataset.theme = 'dark'));
+  await p.evaluate(() => document.documentElement.classList.add('dark'));
   await fits('screens-desktop-dark');
   await phone.context.close();
 });

@@ -172,11 +172,11 @@ test('a document squeezes down to search matches or highlights with lines of con
     expect(await inView(page, 'The ocean covers')).toBe(false);
     await expect(page.locator('.pdfViewer > .page[data-page-number="2"]')).toHaveAttribute('data-from', '-1');
     for (const scheme of ['light', 'dark'] as const) {
-      await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+      await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
       await page.waitForTimeout(300);
       await shot(page, `collapse-matches-${scheme}`);
     }
-    await page.evaluate(() => delete document.documentElement.dataset.theme);
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
   });
 
   await test.step('With no context, only the line of the match shows; undo brings back the squeeze before', async () => {
@@ -236,7 +236,7 @@ test('on a phone, the actions on search results and the squeeze panel fit the sc
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(390);
   for (const scheme of ['light', 'dark'] as const) {
-    await page.evaluate((s) => (document.documentElement.dataset.theme = s), scheme);
+    await page.evaluate((s) => document.documentElement.classList.toggle('dark', s === 'dark'), scheme);
     await page.waitForTimeout(300);
     await shot(page, `bulk-phone-${scheme}`);
   }
