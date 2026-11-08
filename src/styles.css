@@ -193,6 +193,8 @@ a {
 .results,
 .canvas-tools,
 .doc-status {
+  /* The rim below is the edge; this also takes away a dialog's default border. */
+  border: 0;
   background: var(--glass-bg);
   box-shadow: var(--glass-shadow);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
