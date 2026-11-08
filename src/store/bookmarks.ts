@@ -1,6 +1,7 @@
 import { before } from '../pdf/folds';
 import type { Bookmark, Project } from '../types';
-import { edit, uid } from './project';
+import { edit } from './project';
+import { uid } from '../id';
 
 /** A document's bookmarks in the reader's order. */
 export const bookmarksOf = (p: Pick<Project, 'bookmarks'>, docId: string) => p.bookmarks.filter((b) => b.docId === docId).sort((a, b) => a.rank - b.rank);

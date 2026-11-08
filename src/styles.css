@@ -2215,7 +2215,8 @@ a.button:active {
 /* Only the document's name gives way, so the page stays in sight. */
 .card .source {
   justify-content: flex-start;
-  gap: 0;
+  /* A flex row drops the spaces around the dot between the document's name and its page. */
+  gap: 0.3em;
   border: 0;
   background: var(--panel-2);
   border-radius: 7px;

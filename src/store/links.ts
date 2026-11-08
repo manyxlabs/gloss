@@ -3,7 +3,8 @@ import { m } from '../i18n';
 import { prune } from '../links';
 import type { Anchor } from '../pdf/anchor';
 import type { Color, Highlight } from '../types';
-import { addHighlight, edit, PANES, setActiveDoc, showSource, shownPanes, uid, useStore, type Pane } from './project';
+import { addHighlight, edit, PANES, setActiveDoc, showSource, shownPanes, useStore, type Pane } from './project';
+import { uid } from '../id';
 
 /**
  * Waiting for the reader to pick a passage: the other end of a link from `from`, or another

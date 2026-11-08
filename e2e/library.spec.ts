@@ -15,6 +15,18 @@ const folder = (page: Page, name: string) => projects(page).getByRole('region', 
 /** A folder's heading, which opens and closes it and is named with its count. */
 const toggle = (page: Page, name: string) => folder(page, name).getByRole('button', { name: new RegExp(`^${name} \\d+ projects?$`) });
 const top = (page: Page) => projects(page).getByRole('list', { name: 'Not in a folder' });
+/** The folders' names as stored. */
+const storedFolders = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<string[]>((done) => {
+        const open = indexedDB.open('gloss');
+        open.onsuccess = () => {
+          const all = open.result.transaction('folders').objectStore('folders').getAll();
+          all.onsuccess = () => (done(all.result.map((f: { name: string }) => f.name)), open.result.close());
+        };
+      }),
+  );
 /** Checks the projects listed in a place, in order. */
 const listed = (where: ReturnType<typeof projects>, expected: string[]) => expect(where.locator('li strong')).toHaveText(expected);
 
@@ -74,6 +86,8 @@ test('folders hold projects, moved by menu and by dragging, kept across reloads,
   await page.getByRole('textbox', { name: 'Folder name' }).fill('Thesis chapters');
   await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
   await expect(toggle(page, 'Thesis chapters')).toHaveAttribute('aria-expanded', 'false');
+  // The new name shows at once and is stored a moment later; a reload in between would cut the write short.
+  await expect.poll(() => storedFolders(page)).toContain('Thesis chapters');
   await page.reload();
   await expect(toggle(page, 'Thesis chapters')).toHaveAttribute('aria-expanded', 'false');
   await expect(toggle(page, 'Thesis chapters')).toHaveAccessibleName('Thesis chapters 2 projects');
@@ -267,4 +281,20 @@ test('a database from either earlier version 2, or from version 1, is brought up
     }
     await context.close();
   }
+});
+
+test('the start page and a document work from a plain HTTP address other than localhost, as a preview on another machine is', async ({ page, baseURL }) => {
+  // Browsers keep some APIs, such as crypto.randomUUID, to HTTPS and localhost. The page is served from
+  // a made-up host by passing each request on to the test server, so the browser sees a plain HTTP origin.
+  const origin = 'http://gloss.test';
+  await page.route(`${origin}/**`, async (route) => route.fulfill({ response: await route.fetch({ url: route.request().url().replace(origin, baseURL!) }) }));
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`${origin}/`);
+  expect(await page.evaluate(() => isSecureContext)).toBe(false);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open files' }).click()]);
+  await chooser.setFiles(await pdf('Reef notes.pdf', [['Reef notes: the survey starts at dawn.']]));
+  await expect(page.locator('.textLayer span').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue('Reef notes');
+  expect(errors).toEqual([]);
 });

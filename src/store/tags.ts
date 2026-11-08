@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { cardTags } from '../tags';
 import type { Card, Color, Highlight, Project, Tag } from '../types';
-import { edit, uid, useStore } from './project';
+import { edit, useStore } from './project';
+import { uid } from '../id';
 
 /**
  * The tags the reader is filtering by, on the canvas and in the sidebar's highlights alike: what

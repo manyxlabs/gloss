@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzip, zip, type Unzipped } from 'fflate';
 import { addFiles, fileKey, getFile, listProjects, putProject } from './store/db';
 import type { Project } from './types';
 import { m } from './i18n';
+import { uid } from './id';
 
 const FORMAT = 'gloss-backup';
 const VERSION = 1;
@@ -52,7 +53,7 @@ export async function restore(file: File, again: (name: string, original: boolea
   const original = here.find((p) => p.id === old.id);
   if (copy ? !again(copy.name, false) : original && !again(original.name, true)) return null;
 
-  const ids = new Map(old.docs.map((d) => [d.id, crypto.randomUUID()]));
+  const ids = new Map(old.docs.map((d) => [d.id, uid()]));
   const blobs: [string, Blob][] = old.docs.map((d) => {
     const bytes = entries[`files/${d.id}.pdf`];
     if (!bytes) throw new BackupError(m.homeBackup.docMissing(file.name, d.name));
@@ -63,7 +64,7 @@ export async function restore(file: File, again: (name: string, original: boolea
   const { sync, folder, ...rest } = old;
   const project: Project = {
     ...rest,
-    id: crypto.randomUUID(),
+    id: uid(),
     restoredFrom: from,
     updatedAt: Date.now(),
     openedAt: Date.now(),

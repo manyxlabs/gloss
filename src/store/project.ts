@@ -32,6 +32,7 @@ import { passwordAsker } from '../password';
 import { askAbout } from '../annots/ask';
 import { m } from '../i18n';
 import { addFiles, deleteVersion, dropOldVersions, emptyTrash, fileKey, getProject, putProject, trashFile } from './db';
+import { uid } from '../id';
 
 /** Which version of each document's file a document has, as page edits are undone with the rest. */
 export type Version = Pick<DocMeta, 'file' | 'pages' | 'size'>;
@@ -106,7 +107,6 @@ type State = {
 const MAX_UNDO = 200;
 /** Earlier versions of a document's file kept for undo; older page edits drop out of the history. */
 const MAX_VERSIONS = 10;
-export const uid = () => crypto.randomUUID();
 
 const PEN_KEY = 'gloss:pen';
 const INK_KEY = 'gloss:ink';
