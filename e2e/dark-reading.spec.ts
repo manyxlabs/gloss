@@ -167,11 +167,13 @@ test('pages can follow the app theme, on a phone too', async ({ browser }) => {
   await openReport(page);
   const margin = await onPage(page, 12, 600, 40, 120);
 
-  // Every button of the toolbar keeps to the screen, on the narrowest phones too, with the page colours in its More.
+  // Everything in the header and every button of the toolbar keeps to the screen, on the narrowest phones too, with the page colours in the toolbar's More.
   for (const width of [320, 360, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(async () => {
-      const edges = await page.locator('.doc-status button:visible').evaluateAll((all) => all.map((b) => [b.getBoundingClientRect().left, b.getBoundingClientRect().right]));
+      const edges = await page
+        .locator('.workspace > .bar > :visible, .doc-status button:visible')
+        .evaluateAll((all) => all.map((b) => [b.getBoundingClientRect().left, b.getBoundingClientRect().right]));
       expect(Math.min(...edges.map(([left]) => left!)), `${width}px`).toBeGreaterThanOrEqual(8);
       expect(Math.max(...edges.map(([, right]) => right!)), `${width}px`).toBeLessThanOrEqual(width - 8);
     }).toPass();

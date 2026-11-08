@@ -2855,6 +2855,17 @@ button.screens.linked {
 }
 
 /* On a phone the header's buttons are a fingertip wide, and who is here is listed in its More instead. */
+/* On the narrowest phones every header button keeps to the screen, and the name takes what is left. */
+@media (max-width: 340px) {
+  .bar .name {
+    min-width: 64px;
+  }
+
+  .bar textarea.name {
+    padding: 0 4px;
+  }
+}
+
 @media (max-width: 760px) and (pointer: coarse) {
   .workspace .bar {
     gap: 0;
