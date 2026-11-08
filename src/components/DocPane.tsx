@@ -1177,7 +1177,7 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           </span>
           <Collapse docId={active.id} />
           <button
-            className="icon"
+            className="icon overflow"
             aria-label={marked ? m.doc.bookmarked : m.doc.bookmarkHere}
             title={marked ? m.doc.bookmarked : m.doc.bookmarkHereTitle}
             onClick={() => void bookmarkHere()}
@@ -1191,6 +1191,10 @@ export function DocPane({ pane, onProblems }: { pane: Pane; onProblems: (problem
           <MoreMenu label={m.doc.moreTools}>
             {(close) => (
               <>
+                <button role="menuitem" onClick={() => (close(), void bookmarkHere())}>
+                  {marked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />} {marked ? m.doc.bookmarked : m.doc.bookmarkHere}
+                </button>
+                <hr />
                 <PageLookItems close={close} />
                 <hr />
                 <button role="menuitem" disabled={exporting} onClick={() => (close(), void exportPdf())}>

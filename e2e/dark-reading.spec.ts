@@ -167,10 +167,16 @@ test('pages can follow the app theme, on a phone too', async ({ browser }) => {
   await openReport(page);
   const margin = await onPage(page, 12, 600, 40, 120);
 
-  // The toolbar keeps to the screen, with the page colours in its More.
-  const bar = (await page.locator('.doc-status').boundingBox())!;
-  expect(bar.x).toBeGreaterThanOrEqual(8);
-  expect(bar.x + bar.width).toBeLessThanOrEqual(390 - 8);
+  // Every button of the toolbar keeps to the screen, on the narrowest phones too, with the page colours in its More.
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(async () => {
+      const edges = await page.locator('.doc-status button:visible').evaluateAll((all) => all.map((b) => [b.getBoundingClientRect().left, b.getBoundingClientRect().right]));
+      expect(Math.min(...edges.map(([left]) => left!)), `${width}px`).toBeGreaterThanOrEqual(8);
+      expect(Math.max(...edges.map(([, right]) => right!)), `${width}px`).toBeLessThanOrEqual(width - 8);
+    }).toPass();
+  }
+  await page.setViewportSize(PHONE.viewport);
 
   await choose(page, 'Follow the app theme');
   await expect(page.locator('html')).toHaveAttribute('data-pages', 'light');
