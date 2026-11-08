@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { take } from '../notices';
+import { forget, left } from '../notices';
 import { takeArrival } from '../arrive';
 import { closeProject, openProject, redo, rename, setView, showCard, showPage, showSource, undo, useStore } from '../store/project';
 import { Canvas } from './Canvas';
@@ -37,7 +37,8 @@ const editable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isCon
 export function Workspace({ id }: { id: string }) {
   const project = useStore((s) => s.project);
   const [missing, setMissing] = useState(false);
-  const [problems, setProblems] = useState<string[]>(take);
+  const [problems, setProblems] = useState<string[]>(left);
+  useEffect(forget, []);
   const [split, setSplit] = useState(readSplit);
   const view = useStore((s) => s.view);
   const shown = useShown();
@@ -111,7 +112,7 @@ export function Workspace({ id }: { id: string }) {
   const cards = project.cards.filter(isCard).length;
 
   return (
-    <div className="workspace field">
+    <div className="workspace">
       <header className="bar">
         <a className="home" href="#/" aria-label={m.common.allProjects} title={m.common.allProjects}>
           <ArrowLeft size={18} />
