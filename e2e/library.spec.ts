@@ -310,3 +310,27 @@ test('the public pages ask nothing of any other site, as the privacy policy prom
   await page.waitForLoadState('networkidle');
   expect(outside).toEqual([]);
 });
+
+test('the scripts arrive compressed from the live site', async ({ request }) => {
+  test.skip(!process.env.BASE_URL, 'The local preview server does not compress; the host does.');
+  // A cache rule like no-transform on the scripts once stopped the host compressing them, and the app took 15 s or more to open.
+  const script = /\/assets\/[^"]+\.js/.exec(await (await request.get('/')).text())?.[0];
+  expect(script).toBeTruthy();
+  const response = await request.get(script!, { headers: { 'Accept-Encoding': 'br, gzip' } });
+  expect(response.headers()['content-encoding']).toMatch(/^(br|gzip)$/);
+});
+
+test('a project shows that it is opening while the canvas is still arriving, as on a slow network', async ({ page }) => {
+  await addProject(page, 'Kelp study');
+  let arrive!: () => void;
+  const arrived = new Promise<void>((done) => (arrive = done));
+  await page.route('**/assets/Workspace-*.js', async (route) => (await arrived, route.continue()));
+  await page.getByRole('link', { name: /Kelp study/ }).click();
+  const opening = page.getByRole('status').filter({ hasText: 'Opening…' });
+  // It fades in late, so a quick open does not flash it.
+  await expect(opening).toHaveCSS('opacity', '1');
+  await shot(page, 'opening');
+  arrive();
+  await expect(page.locator('.textLayer span').first()).toBeVisible();
+  await expect(opening).toHaveCount(0);
+});
