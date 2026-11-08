@@ -1,7 +1,8 @@
 import type { XYPosition } from '@xyflow/react';
 import { m } from '../i18n';
 import type { Background, CanvasMeta, Card, Color, Project, Stroke } from '../types';
-import { canvasSpot, edit, newCard, uid, useStore, without, type Drawn } from './project';
+import { canvasSpot, edit, newCard, useStore, without, type Drawn } from './project';
+import { uid } from '../id';
 
 const { getState: get } = useStore;
 

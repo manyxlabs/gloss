@@ -4,7 +4,8 @@ import { PAPER } from '../ink';
 import { SWATCHES } from '../palette';
 import { editable, rewrite, saveVersion } from '../pdf/pages';
 import { loadDoc, textIn } from '../pdf/pdfjs';
-import { canvasSpot, newCard, uid } from '../store/project';
+import { canvasSpot, newCard } from '../store/project';
+import { uid } from '../id';
 import { COLORS, INKS, type Card, type Color, type Comment, type Highlight, type Ink, type Rect } from '../types';
 import { foreignAnnotations, type Foreign } from './read';
 

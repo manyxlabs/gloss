@@ -7,6 +7,7 @@ import { deleteFolder, deleteProject, listFolders, moveProject, putFolder } from
 import type { Folder, Project } from '../types';
 import { Menu } from './Menu';
 import { locale, m } from '../i18n';
+import { uid } from '../id';
 
 const PROJECT_MIME = 'application/x-gloss-project';
 
@@ -87,7 +88,7 @@ export function Projects({
   };
   const create = async (project?: Project) => {
     setMenu(null);
-    const folder: Folder = { id: crypto.randomUUID(), name: freeName(folders ?? []), createdAt: Date.now() };
+    const folder: Folder = { id: uid(), name: freeName(folders ?? []), createdAt: Date.now() };
     await putFolder(folder);
     if (project) await moveProject(project.id, folder.id);
     await refresh();

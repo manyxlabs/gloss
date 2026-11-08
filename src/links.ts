@@ -1,5 +1,6 @@
 import { m } from './i18n';
 import type { Card, CardLink, Comment, Highlight, PassageLink, Project } from './types';
+import { uid } from './id';
 
 /** Drops comments, passage links and card links whose passages or cards are gone; a comment stays while any passage still names it. */
 export function prune(p: Pick<Project, 'highlights' | 'cards' | 'comments' | 'passageLinks' | 'cardLinks'>): Pick<Project, 'comments' | 'passageLinks' | 'cardLinks'> {
@@ -25,7 +26,7 @@ export function migrate(p: Legacy): Project {
   const comments: Comment[] = [...(p.comments ?? [])];
   const highlights = p.highlights.map(({ note, ...h }) => {
     if (!note?.trim()) return h;
-    const comment = { id: crypto.randomUUID(), text: note.trim() };
+    const comment = { id: uid(), text: note.trim() };
     comments.push(comment);
     return { ...h, commentId: comment.id };
   });

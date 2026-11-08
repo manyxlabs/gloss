@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { m } from '../i18n';
+import { uid } from '../id';
 
 // What the interface shows of sync, apart from the engine (session.ts), which loads only for a shared project.
 
@@ -39,7 +40,7 @@ const firstColor = () => {
 export const PERSON = (() => {
   const saved = stored('gloss:person');
   if (saved) return saved;
-  const id = crypto.randomUUID();
+  const id = uid();
   keep('gloss:person', id);
   return id;
 })();

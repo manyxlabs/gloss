@@ -2,7 +2,8 @@
 // the marks on those pages copied onto it.
 import { m } from '../i18n';
 import { addFiles } from '../store/db';
-import { edit, setActiveDoc, uid, type Pane } from '../store/project';
+import { edit, setActiveDoc, type Pane } from '../store/project';
+import { uid } from '../id';
 import type { DocMeta, Highlight } from '../types';
 import { arrange, editable, PROTECTED, prune, remap, rewrite, type Sheet } from './pages';
 import { ReaderError } from './pdfjs';

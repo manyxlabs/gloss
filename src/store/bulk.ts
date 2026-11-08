@@ -3,7 +3,8 @@ import { findMatches, pageLines, type Match } from '../pdf/matches';
 import { before } from '../pdf/folds';
 import type { Card, CardLink, Color, Fold, Highlight, Project, Rect, Spot } from '../types';
 import { create } from 'zustand';
-import { canvasOf, canvasSpot, CARD_WIDTH, edit, newCard, PANES, uid, useStore } from './project';
+import { canvasOf, canvasSpot, CARD_WIDTH, edit, newCard, PANES, useStore } from './project';
+import { uid } from '../id';
 
 /** The words last searched for in the project, offered when squeezing a document to search matches. */
 export const useLastSearch = create<{ query: string }>(() => ({ query: '' }));

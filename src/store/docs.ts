@@ -4,7 +4,8 @@ import { kindOf } from '../convert/formats';
 import { m } from '../i18n';
 import type { DocMeta, Project } from '../types';
 import { withProgress } from './progress';
-import { addImported, edit, importFiles, uid } from './project';
+import { addImported, edit, importFiles } from './project';
+import { uid } from '../id';
 
 /** The documents as the tabs and the list show them: pinned first, then by rank, those without one keeping their place. */
 export function orderedDocs(p: Pick<Project, 'docs'>) {

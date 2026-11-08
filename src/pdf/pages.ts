@@ -3,7 +3,8 @@
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRef, PDFStream, type PDFObject } from 'pdf-lib';
 import type { Input } from '../convert';
 import { addFiles, deleteVersion, fileKey, getFile } from '../store/db';
-import { switchVersion, uid, useStore, without } from '../store/project';
+import { switchVersion, useStore, without } from '../store/project';
+import { uid } from '../id';
 import type { DocMeta, Fold, Point, Project, Rect } from '../types';
 import { m } from '../i18n';
 import { openPdf, ReaderError } from './pdfjs';
