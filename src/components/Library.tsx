@@ -30,7 +30,7 @@ const FEATURES = [
   [Lock, m.library.features.private],
 ] as const;
 
-/** A page with highlights on the left, the cards they became on the right. */
+/** A page with highlights on the left, the cards they became on the right: neutral, with the one emerald highlight and its card as the only colour. */
 function Illustration() {
   return (
     <svg className="art" viewBox="0 0 360 220" role="img" aria-label={m.library.illustration}>
@@ -38,26 +38,26 @@ function Illustration() {
       {[30, 44, 58, 86, 100, 114, 128, 156, 170, 184].map((y, i) => (
         <rect key={y} x="24" y={y} width={i % 3 === 2 ? 80 : 118} height="5" rx="2.5" fill="var(--border)" />
       ))}
-      <rect x="22" y="83" width="122" height="25" rx="3" fill="var(--hl-yellow)" opacity="0.7" />
-      <rect x="22" y="153" width="122" height="11" rx="3" fill="var(--hl-blue)" opacity="0.7" />
-      <path d="M150 95 C 185 95, 185 52, 214 52" fill="none" stroke="var(--edge-yellow)" strokeDasharray="3 4" />
-      <path d="M150 158 C 185 158, 185 160, 214 160" fill="none" stroke="var(--edge-blue)" strokeDasharray="3 4" />
+      <rect x="22" y="83" width="122" height="25" rx="3" fill="rgb(var(--accent))" opacity="0.16" />
+      <rect x="22" y="153" width="122" height="11" rx="3" fill="rgb(var(--fg))" opacity="0.07" />
+      <path d="M150 95 C 185 95, 185 52, 214 52" fill="none" stroke="rgb(var(--muted))" strokeDasharray="3 4" />
+      <path d="M150 158 C 185 158, 185 160, 214 160" fill="none" stroke="rgb(var(--muted))" strokeDasharray="3 4" />
       <g>
         <rect x="214" y="26" width="138" height="56" rx="8" fill="var(--panel)" stroke="var(--border)" />
-        <rect x="214" y="26" width="4" height="56" rx="2" fill="var(--edge-yellow)" />
+        <rect x="214" y="26" width="4" height="56" rx="2" fill="rgb(var(--accent))" />
         <rect x="228" y="40" width="110" height="5" rx="2.5" fill="rgb(var(--muted))" opacity="0.5" />
         <rect x="228" y="52" width="90" height="5" rx="2.5" fill="rgb(var(--muted))" opacity="0.5" />
         <rect x="228" y="66" width="44" height="8" rx="4" fill="var(--panel-2)" />
       </g>
       <g>
         <rect x="214" y="134" width="138" height="52" rx="8" fill="var(--panel)" stroke="var(--border)" />
-        <rect x="214" y="134" width="4" height="52" rx="2" fill="var(--edge-blue)" />
+        <rect x="214" y="134" width="4" height="52" rx="2" fill="rgb(var(--muted))" opacity="0.5" />
         <rect x="228" y="148" width="104" height="5" rx="2.5" fill="rgb(var(--muted))" opacity="0.5" />
         <rect x="228" y="162" width="44" height="8" rx="4" fill="var(--panel-2)" />
       </g>
       <path d="M283 82 C 283 105, 300 110, 300 134" fill="none" stroke="rgb(var(--muted))" strokeWidth="1.5" />
-      <rect x="296" y="96" width="56" height="22" rx="6" fill="var(--selected)" stroke="rgb(var(--accent))" />
-      <rect x="304" y="105" width="40" height="4" rx="2" fill="rgb(var(--accent))" opacity="0.7" />
+      <rect x="296" y="96" width="56" height="22" rx="6" fill="var(--panel)" stroke="var(--border)" />
+      <rect x="304" y="105" width="40" height="4" rx="2" fill="rgb(var(--muted))" opacity="0.5" />
     </svg>
   );
 }
