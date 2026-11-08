@@ -167,25 +167,30 @@ test('the sitemap lists every public page in every language, each with all its a
   expect(xml.match(/hreflang="/g)).toHaveLength(urls.length * (LANGS.length + 1));
 });
 
-test('a Hindi page and project keep working, in Hindi and its font, with no network after one visit', async ({ page, context }) => {
-  const hi = CATALOGUES.hi;
-  await page.goto('/hi/');
-  await expect(page.getByRole('status')).toHaveText(hi.updates.offline, { timeout: 30_000 });
-  await openProject(page, 'hi');
-  const project = page.url();
-  await page.waitForTimeout(500);
+// Through the service worker, which the other tests leave out.
+test.describe(() => {
+  test.use({ serviceWorkers: 'allow' });
 
-  await context.setOffline(true);
-  await page.goto('/hi/');
-  await expect(page.getByRole('link', { name: /Reef essay/ })).toBeVisible();
-  await page.goto('/hi/privacy');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(hi.privacy.heading);
-  await page.goto(project);
-  await expect(page.locator('.textLayer span').first()).toBeVisible();
-  await expect(page.getByRole('textbox', { name: hi.workspace.projectName })).toHaveValue('Reef essay');
-  const font = await page.evaluate(async () => (await document.fonts.ready, [...document.fonts].some((f) => f.family.includes('Devanagari') && f.status === 'loaded')));
-  expect(font).toBe(true);
-  await context.setOffline(false);
+  test('a Hindi page and project keep working, in Hindi and its font, with no network after one visit', async ({ page, context }) => {
+    const hi = CATALOGUES.hi;
+    await page.goto('/hi/');
+    await expect(page.getByRole('status')).toHaveText(hi.updates.offline, { timeout: 30_000 });
+    await openProject(page, 'hi');
+    const project = page.url();
+    await page.waitForTimeout(500);
+
+    await context.setOffline(true);
+    await page.goto('/hi/');
+    await expect(page.getByRole('link', { name: /Reef essay/ })).toBeVisible();
+    await page.goto('/hi/privacy');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(hi.privacy.heading);
+    await page.goto(project);
+    await expect(page.locator('.textLayer span').first()).toBeVisible();
+    await expect(page.getByRole('textbox', { name: hi.workspace.projectName })).toHaveValue('Reef essay');
+    const font = await page.evaluate(async () => (await document.fonts.ready, [...document.fonts].some((f) => f.family.includes('Devanagari') && f.status === 'loaded')));
+    expect(font).toBe(true);
+    await context.setOffline(false);
+  });
 });
 
 test('screenshots: Hindi at phone and desktop sizes in both themes, and each other language’s start page', async ({ browser }) => {

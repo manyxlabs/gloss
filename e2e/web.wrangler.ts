@@ -20,7 +20,8 @@ test('a web page becomes a document with its title, source and article', async (
   await page.goto('/');
   // Through a redirect, which the Worker checks again before following.
   await addFromWeb(page, `${site}/moved`);
-  await expect(page.locator('.doc-status')).toBeVisible();
+  // Fetched through the Worker, read for its article and typeset: seconds, and longer on a machine busy with other tests.
+  await expect(page.locator('.doc-status')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue('Tide pools at dawn');
   await expect(page.getByRole('tab', { name: 'Tide pools at dawn' })).toHaveAttribute('title', `Tide pools at dawn\nConverted from ${site}/article`);
 

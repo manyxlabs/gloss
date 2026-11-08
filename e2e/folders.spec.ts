@@ -235,32 +235,37 @@ test('a file that took too long to make is sent from a tap on its notice, and wh
   await desk.close();
 });
 
-test('files shared to the installed app from another app open as a project', async ({ page, request }) => {
-  const manifest = await (await request.get('/manifest.webmanifest')).json();
-  expect(manifest.share_target).toEqual({
-    action: '/share',
-    method: 'POST',
-    enctype: 'multipart/form-data',
-    params: { files: [{ name: 'files', accept: expect.arrayContaining(['application/pdf', '.pdf', '.docx', '.pptx', '.md', 'image/*']) }] },
+// The share arrives through the service worker, which the other tests leave out.
+test.describe(() => {
+  test.use({ serviceWorkers: 'allow' });
+
+  test('files shared to the installed app from another app open as a project', async ({ page, request }) => {
+    const manifest = await (await request.get('/manifest.webmanifest')).json();
+    expect(manifest.share_target).toEqual({
+      action: '/share',
+      method: 'POST',
+      enctype: 'multipart/form-data',
+      params: { files: [{ name: 'files', accept: expect.arrayContaining(['application/pdf', '.pdf', '.docx', '.pptx', '.md', 'image/*']) }] },
+    });
+    writeFileSync(`${ARTIFACTS}/manifest.webmanifest`, JSON.stringify(manifest, null, 2));
+
+    await page.goto('/');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 20_000 }).toBe(true);
+    // A share sheet hands the files over as this form does.
+    await page.evaluate(() =>
+      document.body.insertAdjacentHTML('beforeend', '<form method="post" action="/share" enctype="multipart/form-data"><input type="file" name="files" multiple></form>'),
+    );
+    await page.locator('form[action="/share"] input').setInputFiles([await pdf('Reef essay.pdf', ESSAY), await pdf('Survey notes.pdf', NOTES)]);
+    await page.locator('form[action="/share"]').evaluate((f: HTMLFormElement) => f.submit());
+
+    await expect(projectName(page)).toHaveValue('Reef essay', { timeout: 20_000 });
+    await expect(docTabs(page)).toHaveText(['Reef essay', 'Survey notes']);
+    expect(new URL(page.url()).search).toBe('');
+    // Taken once: the start page does not open them again.
+    expect(await page.evaluate(async () => (await (await caches.open('gloss-shared')).keys()).length)).toBe(0);
   });
-  writeFileSync(`${ARTIFACTS}/manifest.webmanifest`, JSON.stringify(manifest, null, 2));
-
-  await page.goto('/');
-  await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.reload();
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 20_000 }).toBe(true);
-  // A share sheet hands the files over as this form does.
-  await page.evaluate(() =>
-    document.body.insertAdjacentHTML('beforeend', '<form method="post" action="/share" enctype="multipart/form-data"><input type="file" name="files" multiple></form>'),
-  );
-  await page.locator('form[action="/share"] input').setInputFiles([await pdf('Reef essay.pdf', ESSAY), await pdf('Survey notes.pdf', NOTES)]);
-  await page.locator('form[action="/share"]').evaluate((f: HTMLFormElement) => f.submit());
-
-  await expect(projectName(page)).toHaveValue('Reef essay', { timeout: 20_000 });
-  await expect(docTabs(page)).toHaveText(['Reef essay', 'Survey notes']);
-  expect(new URL(page.url()).search).toBe('');
-  // Taken once: the start page does not open them again.
-  expect(await page.evaluate(async () => (await (await caches.open('gloss-shared')).keys()).length)).toBe(0);
 });
 
 test('folder import and sending look right on a desktop, a tablet and a phone, in both themes', async ({ browser }) => {

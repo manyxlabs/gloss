@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { card, openProject, select, shot, worksOffline } from './helpers';
 
+test.use({ serviceWorkers: 'allow' });
+
 test('once visited, Gloss installs as an app and keeps working with no network', async ({ page, context, request }) => {
   const manifest = await (await request.get('/manifest.webmanifest')).json();
   expect(manifest).toMatchObject({ name: 'Gloss', display: 'standalone', start_url: '/' });

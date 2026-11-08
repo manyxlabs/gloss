@@ -11,6 +11,9 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL ?? `http://localhost:${port}`,
     screenshot: 'only-on-failure',
+    // Each test's context is new, so the service worker would install and cache the whole app (about 11 MB)
+    // in every test, slowing the page under test on a busy machine. Tests of working offline allow it.
+    serviceWorkers: 'block',
     // Set CHROMIUM to a system browser where Playwright's own download is unavailable.
     launchOptions: { executablePath: process.env.CHROMIUM || undefined },
   },
