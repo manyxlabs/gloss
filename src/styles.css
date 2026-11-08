@@ -527,19 +527,22 @@ button.big:not(.primary):hover:not(:disabled) {
   font-size: 14px;
 }
 
+/* Actions written as links: neutral, as the accent is kept for links within running text. */
 button.link {
   border: 0;
   background: none;
   padding: 2px 0;
   font-size: 14px;
   font-weight: 500;
-  color: rgb(var(--accent-text));
+  color: rgb(var(--fg));
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--fg) / 0.25);
+  text-underline-offset: 3px;
 }
 
 button.link:hover:not(:disabled) {
   background: none;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-color: rgb(var(--fg));
 }
 
 .hero .hint {
