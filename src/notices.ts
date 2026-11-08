@@ -3,8 +3,10 @@ let pending: string[] = [];
 
 export const leave = (problems: string[]) => void (pending = problems);
 
-export function take() {
-  const problems = pending;
-  pending = [];
-  return problems;
-}
+/**
+ * Read while rendering, and cleared by `forget` only once the project has mounted: React may start
+ * a render, drop it for a more urgent update and render again, and a read that cleared would leave
+ * the second render nothing.
+ */
+export const left = () => pending;
+export const forget = () => void (pending = []);
