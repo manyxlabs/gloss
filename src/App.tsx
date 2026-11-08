@@ -15,6 +15,16 @@ import { split } from './i18n/langs';
 // pdf.js and the canvas are most of the app's weight, so the start page does not wait for them.
 const Workspace = lazy(() => import('./components/Workspace').then((m) => ({ default: m.Workspace })));
 
+/** Shows while the Workspace's chunk arrives, which on a slow phone network takes seconds. */
+function Opening() {
+  return (
+    <main className="opening" role="status">
+      <i />
+      {m.library.opening}
+    </main>
+  );
+}
+
 /** The project to open, and maybe something in it to show; see targets.ts. */
 const route = () => /^#\/p\/([\w-]+)(?:\/[hcmvdb]\/[\w-]+)?$/.exec(location.hash)?.[1] ?? null;
 /** A link to something in a shared project, named by its room. */
@@ -56,7 +66,7 @@ export function App() {
       ) : room ? (
         <OpenShared key={room} room={room} />
       ) : projectId ? (
-        <Suspense>
+        <Suspense fallback={<Opening />}>
           <Workspace key={projectId} id={projectId} />
         </Suspense>
       ) : (

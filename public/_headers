@@ -1,5 +1,0 @@
-# Workers Static Assets reads this file. no-transform keeps Cloudflare from changing what it serves,
-# such as adding its analytics beacon to the HTML: Gloss promises no tracking and no third-party requests.
-# The rest is the default Cloudflare already sends.
-/*
-  Cache-Control: public, max-age=0, must-revalidate, no-transform

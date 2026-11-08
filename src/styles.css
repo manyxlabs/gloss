@@ -919,6 +919,44 @@ button:disabled .cloud-logo {
   margin-top: 18px;
 }
 
+/* It fades in late, so an open that is quick does not flash it. */
+.opening {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  color: rgb(var(--muted));
+  font-size: 14px;
+  animation: appear 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+.opening i {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: rgb(var(--fg) / 0.6);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .opening i {
+    animation: turn 0.8s linear infinite;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes turn {
+  to {
+    rotate: 1turn;
+  }
+}
+
 .lost {
   min-height: 100%;
   display: grid;

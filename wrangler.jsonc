@@ -8,7 +8,8 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"],
+    // The Worker marks the pages no-transform (see worker/index.ts); the folders of scripts and files skip it.
+    "run_worker_first": ["/*", "!/assets/*", "!/pdfjs/*", "!/ocr/*", "!/fonts/*", "!/icons/*"],
   },
   "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],

@@ -22,6 +22,12 @@ export default {
     if (pathname.startsWith('/api/sync/')) return handleSync(request, env);
     if (pathname === '/api/page') return handlePage(request, env);
     if (pathname === '/api/file') return handleFile(request, env);
-    return env.ASSETS.fetch(request);
+    const response = await env.ASSETS.fetch(request);
+    if (!response.headers.get('Content-Type')?.startsWith('text/html')) return response;
+    // no-transform keeps Cloudflare from adding its analytics beacon to a page: Gloss promises no tracking and no
+    // third-party requests. It also stops Cloudflare compressing, so it goes on the pages alone, never the scripts.
+    const marked = new Response(response.body, response);
+    marked.headers.set('Cache-Control', `${response.headers.get('Cache-Control') ?? 'public, max-age=0, must-revalidate'}, no-transform`);
+    return marked;
   },
 } satisfies ExportedHandler<Env>;
