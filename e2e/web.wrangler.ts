@@ -17,6 +17,8 @@ async function addFromWeb(page: Page, url: string) {
 }
 
 test('a web page becomes a document with its title, source and article', async ({ page }) => {
+  // Fetched, converted, excerpted and exported as a PDF, each step through the Worker or pdf.js.
+  test.setTimeout(90_000);
   await page.goto('/');
   // Through a redirect, which the Worker checks again before following.
   await addFromWeb(page, `${site}/moved`);
@@ -25,6 +27,8 @@ test('a web page becomes a document with its title, source and article', async (
   await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue('Tide pools at dawn');
   await expect(page.getByRole('tab', { name: 'Tide pools at dawn' })).toHaveAttribute('title', `Tide pools at dawn\nConverted from ${site}/article`);
 
+  // The page draws its text a moment after the toolbar shows.
+  await expect(page.locator('.textLayer').first()).toContainText('Tide pools at dawn');
   const text = (await page.locator('.textLayer').allTextContents()).join(' ');
   for (const words of ['Tide pools at dawn', 'Ada Marsh', `${site}/article`, 'Saved on', 'What lives there', 'Sea stars that pry open mussels', 'A pool on the north shore.'])
     expect(text).toContain(words);
@@ -69,5 +73,6 @@ test('the Worker refuses private, local and oversized addresses', async ({ page,
   // And the app shows the reason.
   await page.goto(guarded);
   await addFromWeb(page, `${site}/article`);
-  await expect(page.getByRole('alert')).toContainText('Addresses on a private network are not fetched.');
+  // The app is loaded afresh from the second Worker before it asks.
+  await expect(page.getByRole('alert')).toContainText('Addresses on a private network are not fetched.', { timeout: 15_000 });
 });

@@ -173,6 +173,7 @@ npx playwright test -c playwright.links.config.ts
 The end-to-end tests build the app, drive it in Chromium on a desktop and a phone viewport, and leave screenshots and the exported notes in `test-results/artifacts/`.
 The sync tests (`sync.spec.ts` and `*.sync.spec.ts`) run against the Worker under wrangler with browser contexts as devices, and check that no WebSocket frame or uploaded file holds any of the text or PDF in the clear, and that what is kept on one device never reaches the other's copy of the shared document.
 Set `CHROMIUM` to a system Chromium where Playwright's own browser download is unavailable, and `BASE_URL` to test a deployed copy instead.
+On a machine with 4 GB of memory, run them with `--workers=1`: two browsers at once push it into swap, and tests then time out at steps as plain as loading the start page.
 
 ## Converted documents
 
