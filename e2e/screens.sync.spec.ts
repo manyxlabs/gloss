@@ -109,17 +109,20 @@ test('a second screen shows its own part of the project, follows jumps both ways
 
   await test.step('and Show on canvas in the document brings the card into view on the canvas screen', async () => {
     const coral = card(b, 'Coral reefs occupy');
+    // Pans the canvas from empty space right of the cards; a drag starting on the minimap in its corner flings the view
+    // hundreds of thousands of pixels away, and the card was then only glimpsed in passing on its way back.
     const flow = (await b.locator('.canvas .flow').boundingBox())!;
-    await b.mouse.move(flow.x + flow.width - 40, flow.y + flow.height - 40);
+    const y = flow.y + flow.height / 2;
+    await b.mouse.move(flow.x + flow.width * 0.75, y);
     await b.mouse.down();
-    await b.mouse.move(flow.x + 40, flow.y + 40, { steps: 8 });
+    await b.mouse.move(flow.x + 40, y, { steps: 8 });
     await b.mouse.up();
     await expect(coral).not.toBeInViewport();
     await reveal(a, 'Coral reefs occupy', 'top');
     const mark = (await a.locator('.hl[data-id]').first().boundingBox())!;
     await a.mouse.click(mark.x + 20, mark.y + mark.height / 2);
     await a.getByRole('toolbar', { name: 'Highlight' }).getByRole('button', { name: 'Show on canvas' }).click();
-    await expect(coral).toBeInViewport({ timeout: 10_000 });
+    await expect(coral).toBeInViewport({ ratio: 1 });
     await expect(coral).toHaveClass(/selected/);
     await shot(b, 'screens-tablet-followed');
     expect(await widths(a)).toEqual([1, 0]);
