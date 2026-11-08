@@ -16,11 +16,14 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     screenshot: 'only-on-failure',
+    // As in playwright.config.ts: no service worker caching the whole app in every test.
+    serviceWorkers: 'block',
     launchOptions: { executablePath: process.env.CHROMIUM || undefined },
   },
   // Servers start in order, so the build finishes before either Worker serves it.
   webServer: [
-    { command: `npm run build && ${worker(port, true)}`, port, reuseExistingServer: false, timeout: 120_000 },
-    { command: worker(port + 2, false), port: port + 2, reuseExistingServer: false },
+    // Ready once it serves the app, not when its port opens: the first page from a fresh Worker can take longer than a test.
+    { command: `npm run build && ${worker(port, true)}`, url: `http://localhost:${port}/`, reuseExistingServer: false, timeout: 120_000 },
+    { command: worker(port + 2, false), url: `http://localhost:${port + 2}/`, reuseExistingServer: false },
   ],
 });

@@ -204,26 +204,31 @@ test('a scan in Hindi is read in Hindi, and its words are written into the PDF i
   await shot(page, 'ocr-hindi');
 });
 
-test('once used, reading scans works with no network', async ({ page, context }) => {
-  await page.goto('/');
-  await worksOffline(page);
-  // Loaded again, the page is in the service worker's hands.
-  await page.goto('/');
-  await addScan(page, 'Lighthouse log.pdf');
-  await banner(page).getByRole('button', { name: 'Make text selectable' }).click();
-  await expect(page.locator('.page:not([data-copy]) .textLayer')).toContainText('recorded every', { timeout: 90_000 });
-  const project = page.url();
+// Through the service worker, which the other tests leave out.
+test.describe(() => {
+  test.use({ serviceWorkers: 'allow' });
 
-  await context.setOffline(true);
-  const fromNetwork: string[] = [];
-  page.on('response', (r) => new URL(r.url()).pathname.startsWith('/ocr/') && !r.fromServiceWorker() && fromNetwork.push(r.url()));
-  await page.goto(project);
-  await addScan(page, 'Harbour log.pdf', ['Fishing boats returned late with', 'herring and mackerel in their holds.']);
-  await banner(page).getByRole('button', { name: 'Make text selectable' }).click();
-  await expect(page.locator('.page:not([data-copy]) .textLayer')).toContainText('herring and mackerel', { timeout: 90_000 });
-  expect(fromNetwork).toEqual([]);
-  const cached = await page.evaluate(async () => (await (await caches.open('gloss-data')).keys()).map((r) => new URL(r.url).pathname));
-  expect(cached).toEqual(expect.arrayContaining(['/ocr/worker.min.js', '/ocr/tesseract-core-simd-lstm.wasm', '/ocr/lang/eng.traineddata.gz']));
-  await shot(page, 'ocr-offline');
-  await context.setOffline(false);
+  test('once used, reading scans works with no network', async ({ page, context }) => {
+    await page.goto('/');
+    await worksOffline(page);
+    // Loaded again, the page is in the service worker's hands.
+    await page.goto('/');
+    await addScan(page, 'Lighthouse log.pdf');
+    await banner(page).getByRole('button', { name: 'Make text selectable' }).click();
+    await expect(page.locator('.page:not([data-copy]) .textLayer')).toContainText('recorded every', { timeout: 90_000 });
+    const project = page.url();
+
+    await context.setOffline(true);
+    const fromNetwork: string[] = [];
+    page.on('response', (r) => new URL(r.url()).pathname.startsWith('/ocr/') && !r.fromServiceWorker() && fromNetwork.push(r.url()));
+    await page.goto(project);
+    await addScan(page, 'Harbour log.pdf', ['Fishing boats returned late with', 'herring and mackerel in their holds.']);
+    await banner(page).getByRole('button', { name: 'Make text selectable' }).click();
+    await expect(page.locator('.page:not([data-copy]) .textLayer')).toContainText('herring and mackerel', { timeout: 90_000 });
+    expect(fromNetwork).toEqual([]);
+    const cached = await page.evaluate(async () => (await (await caches.open('gloss-data')).keys()).map((r) => new URL(r.url).pathname));
+    expect(cached).toEqual(expect.arrayContaining(['/ocr/worker.min.js', '/ocr/tesseract-core-simd-lstm.wasm', '/ocr/lang/eng.traineddata.gz']));
+    await shot(page, 'ocr-offline');
+    await context.setOffline(false);
+  });
 });

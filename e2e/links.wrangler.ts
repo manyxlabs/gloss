@@ -109,6 +109,8 @@ const tab = (page: Page, name: string) => page.getByRole('tablist', { name: 'Ope
 const text = (page: Page, words: string) => expect(page.locator('.textLayer span', { hasText: words }).first()).toBeVisible();
 
 test('share links from Google Drive, Dropbox, OneDrive and Box add the file itself, converted like any file', async ({ page }) => {
+  // Seven links, each fetched through the Worker, converted and opened in turn.
+  test.setTimeout(120_000);
   await page.goto('/');
   await addLink(page, 'https://drive.google.com/file/d/reef/view?usp=sharing', 'links-dialog');
   await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue('Reef survey');
