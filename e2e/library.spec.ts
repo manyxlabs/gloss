@@ -298,3 +298,15 @@ test('the start page and a document work from a plain HTTP address other than lo
   await expect(page.getByRole('textbox', { name: 'Project name' })).toHaveValue('Reef notes');
   expect(errors).toEqual([]);
 });
+
+test('the public pages ask nothing of any other site, as the privacy policy promises', async ({ page, baseURL }) => {
+  // Run against the live site, this also catches what a host adds on the way, such as an analytics beacon.
+  const outside: string[] = [];
+  page.on('request', (r) => /^https?:/.test(r.url()) && new URL(r.url()).origin !== new URL(baseURL!).origin && outside.push(r.url()));
+  for (const path of ['/', '/privacy', '/hi/', '/ta/privacy']) {
+    await page.goto(path);
+    await expect(page.locator('h1')).toBeVisible();
+  }
+  await page.waitForLoadState('networkidle');
+  expect(outside).toEqual([]);
+});
