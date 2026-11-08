@@ -8,6 +8,8 @@ export default defineConfig({
   ...base,
   testIgnore: undefined,
   testMatch: /sync\.spec\.ts$/,
+  // Most checks here wait on a change crossing from one device to another through the Worker, as synced() does.
+  expect: { timeout: 15_000 },
   use: { ...base.use, baseURL: process.env.BASE_URL ?? `http://localhost:${port}` },
   webServer: process.env.BASE_URL
     ? undefined

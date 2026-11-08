@@ -147,7 +147,8 @@ test('share a project, edit it together and offline, and keep the server blind',
     const c = await device(browser);
     await c.page.goto(link);
     await giveName(c.page, 'Cy Third');
-    await expect(c.page.locator('.textLayer span', { hasText: 'The ocean covers' })).toBeVisible();
+    // The whole project arrives, is stored and its first page drawn, as openProject allows for.
+    await expect(c.page.locator('.textLayer span', { hasText: 'The ocean covers' })).toBeVisible({ timeout: 15_000 });
     for (const t of [...texts.slice(0, 4), 'Many small edits make a long log that a snapshot replaces.']) await expect(note(c.page, t)).toBeVisible();
     await expect(card(c.page, 'Coral reefs occupy')).toBeVisible();
     // The room starts the log it sends with the snapshot.
@@ -259,6 +260,7 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await a.page.locator('.page:not([data-copy]) .note-mark').last().click();
   await a.page.getByRole('dialog', { name: 'Comment' }).getByRole('textbox').fill('Check the survey again');
   await a.page.keyboard.press('Control+Enter');
+  await expect(a.page.locator('.page:not([data-copy]) .note-mark').last()).toHaveAttribute('title', 'Check the survey again');
   for (const mark of [comments.first(), comments.last()]) await expect(mark).toHaveAttribute('title', 'Check the survey again');
   // The second canvas and its note.
   await expect(tabs(b.page).getByRole('tab')).toHaveCount(2);
@@ -266,7 +268,8 @@ test('a second canvas, a margin comment on two passages, a passage link and a pa
   await expect(note(b.page, 'Only on the second canvas')).toBeVisible();
   // The protected PDF opens without asking: its password came with the project, encrypted.
   await b.page.getByRole('tab', { name: 'Locked survey' }).click();
-  await expect(b.page.locator('.textLayer span', { hasText: 'Confidential findings' }).first()).toBeVisible();
+  // Decrypted and drawn on arrival, as openProject allows for a first page.
+  await expect(b.page.locator('.textLayer span', { hasText: 'Confidential findings' }).first()).toBeVisible({ timeout: 15_000 });
   await expect(b.page.getByRole('dialog')).toHaveCount(0);
   await shot(b.page, 'sync-new-features');
 
