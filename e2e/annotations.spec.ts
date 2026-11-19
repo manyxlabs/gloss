@@ -62,18 +62,22 @@ async function addAnnotated(page: Page) {
   await expect(page.locator('.textLayer')).toContainText('Coral reefs occupy', { timeout: 15_000 });
 }
 
-/** How many of the page canvas's pixels across the middle of the first highlight's words are the highlight's yellow, as the PDF itself draws it. */
+/** How many of the page canvas's pixels over the first highlight's words are the highlight's yellow, as the PDF itself draws it. */
 const yellowInPdf = (page: Page) =>
   page
     .locator('.pdfViewer > .page[data-page-number="1"] .canvasWrapper canvas')
     .first()
     .evaluate((canvas: HTMLCanvasElement) => {
       const g = canvas.getContext('2d')!;
-      // The first line's words sit at 72 to about 190 points across a 612 point page, 92 points down.
-      const y = Math.round(canvas.height * ((792 - 700 - 4) / 792));
-      const { data } = g.getImageData(Math.round(canvas.width * (72 / 612)), y, Math.round(canvas.width * (110 / 612)), 1);
+      // The first line's words sit at 72 to about 190 points across a 612 point page, from 82 to 92 points down. All
+      // of their height, not one row, so how a rasterizer antialiases the letters is a small part of the count.
+      const [y, height] = [Math.round(canvas.height * ((792 - 710) / 792)), Math.round(canvas.height * (10 / 792))];
+      const width = Math.round(canvas.width * (110 / 612));
+      const { data } = g.getImageData(Math.round(canvas.width * (72 / 612)), y, width, height);
+      const yellow = (p: number) => data[p * 4]! > 200 && data[p * 4 + 1]! > 170 && data[p * 4 + 2]! < 140;
+      // With yellow on both sides too: subpixel antialiasing leaves lone yellowish pixels beside the letters of an unmarked line.
       let n = 0;
-      for (let i = 0; i < data.length; i += 4) if (data[i]! > 200 && data[i + 1]! > 170 && data[i + 2]! < 140) n++;
+      for (let p = 0; p < width * height; p++) if (p % width > 0 && p % width < width - 1 && yellow(p - 1) && yellow(p) && yellow(p + 1)) n++;
       return n;
     });
 

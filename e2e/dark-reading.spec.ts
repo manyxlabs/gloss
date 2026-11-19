@@ -39,7 +39,8 @@ async function look(page: Page, box: Box) {
       for (let k = 0; k < 3; k++) sum[k]! += d[i + k]!;
       const lum = 0.2126 * d[i]! + 0.7152 * d[i + 1]! + 0.0722 * d[i + 2]!;
       if (lum < 80) dark++;
-      if (lum > 170) light++;
+      // Not higher: x64 Chromium antialiases glyphs with fewer near-white pixels than arm64, for the same overall brightness.
+      if (lum > 150) light++;
     }
     const n = d.length / 4;
     return { rgb: sum.map((s) => s / n), dark: dark / n, light: light / n };

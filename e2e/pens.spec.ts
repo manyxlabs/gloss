@@ -19,6 +19,7 @@ function pixelsOf(page: Page, png: Buffer, kind: Kind) {
       const g = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!;
       g.drawImage(bitmap, 0, 0);
       const d = g.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      // Dark is below 80, not lower: x64 Chromium antialiases glyphs with half as many near-black pixels as arm64, for the same overall ink.
       const is = (r: number, gr: number, b: number) =>
         kind === 'red'
           ? r > 150 && r - gr > 80
@@ -28,7 +29,7 @@ function pixelsOf(page: Page, png: Buffer, kind: Kind) {
               ? r > 200 && gr > 170 && r - b > 40
               : kind === 'green'
                 ? gr > 190 && gr < 245 && gr - r > 30 && gr - b > 15
-                : 0.2126 * r + 0.7152 * gr + 0.0722 * b < 50;
+                : 0.2126 * r + 0.7152 * gr + 0.0722 * b < 80;
       const columns = Array<number>(bitmap.width).fill(0);
       const rows: string[] = [];
       for (let y = 0; y < bitmap.height; y++) {
@@ -100,7 +101,8 @@ test('pens on a page: highlighter under the text, calligraphy, widths and straig
   await expect(markers(page)).toHaveCount(1);
   await expect(inks(page)).toHaveCount(0);
   await expect(markers(page)).toHaveAttribute('fill-opacity', '0.4');
-  expect(await thickness(page, line, 'yellow', 0.5)).toBeGreaterThan(line.height * 0.4);
+  // Its thickest column, between letters: one at a fixed place may cross a stem, whose antialiasing differs by rasterizer.
+  expect(Math.max(...(await columns(page, line, 'yellow')))).toBeGreaterThan(line.height * 0.4);
   expect(await total(page, line, 'yellow')).toBeGreaterThan(line.width * line.height * 0.2);
   expect(await total(page, line, 'dark')).toBeGreaterThan(darkBefore * 0.85);
 
