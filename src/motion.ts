@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 
 /**
- * The design system's motion, for the start and privacy pages only, never working screens: `.reveal`
+ * The shared design's motion, for the start and privacy pages only, never working screens: `.reveal`
  * fades up as it scrolls into view, staggered by `--i`, and `.spotlight` glows under the pointer
  * and tilts slightly towards it. `content` re-runs it when what is shown changes.
  */
 export function useMotion(content?: unknown) {
   useEffect(() => {
-    // Any part in view counts: a share of the element, as on the design system, never comes for one taller than several screens.
+    // Any part in view counts: a share of the element, as in the shared design, never comes for one taller than several screens.
     const seen = new IntersectionObserver((entries) => {
       for (const e of entries) {
         if (!e.isIntersecting) continue;

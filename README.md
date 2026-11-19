@@ -294,7 +294,7 @@ To add a language:
 
 ## Design
 
-Gloss follows the design of [www.manyxlabs.com](https://www.manyxlabs.com/), shared by every Manyx Labs product: its colour tokens, glass, buttons and chips are copied into the top of `src/styles.css` from that site's `src/index.css`, so change them there first.
+Gloss follows the design shared by every Manyx Labs product: its colour tokens, glass, buttons and chips are copied into the top of `src/styles.css` from that design's `src/index.css`, so change them there first.
 Colours are RGB channels used as `rgb(var(--fg) / 0.8)`, and the `dark` class on the root element switches them; `index.html` applies the saved theme (`localStorage` key `theme`) before first paint.
 The emerald accent marks only small things (links, focus rings, a logo, a live dot, the scroll bar); buttons are monochrome and the background is a neutral halo over a dot grid.
 Text is set in Geist and Geist Mono, self-hosted, with each Indian script's Noto face after them.

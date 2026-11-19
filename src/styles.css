@@ -1,5 +1,5 @@
-/* Tokens, glass, buttons and chips follow src/index.css of the design system at www.manyxlabs.com,
-   the design every Manyx Labs product shares; change them there first.
+/* Tokens, glass, buttons and chips follow src/index.css of the design every Manyx Labs
+   product shares; change them there first.
    Colours are RGB channels, used as rgb(var(--x) / alpha); the `dark` class on the root, set
    before first paint by index.html, swaps them. A picture of the canvas in the light theme
    declares them again, as tokens built from other tokens resolve where they are declared. */
@@ -125,7 +125,7 @@ button:disabled {
   cursor: default;
 }
 
-/* Monochrome, as on the design system: the accent never fills a button. */
+/* Monochrome, as in the shared design: the accent never fills a button. */
 button.primary {
   background: rgb(var(--fg));
   border-color: transparent;
@@ -241,7 +241,7 @@ a {
   }
 }
 
-/* The fixed layer the glass frosts: a neutral halo at the top over a dot grid, as on the design system. */
+/* The fixed layer the glass frosts: a neutral halo at the top over a dot grid, as in the shared design. */
 .field::before,
 .field::after {
   content: '';
@@ -354,7 +354,7 @@ a {
   flex-direction: column;
 }
 
-/* The design system's navbar: a floating glass pill. Sticky rather than fixed, so nothing below needs room made for it. */
+/* The shared design's navbar: a floating glass pill. Sticky rather than fixed, so nothing below needs room made for it. */
 .library .bar {
   position: sticky;
   top: 16px;
@@ -405,7 +405,7 @@ a {
   padding: 88px 0 64px;
 }
 
-/* The design system's status badge: a glass pill with a live dot. */
+/* The shared design's status badge: a glass pill with a live dot. */
 .hero .badge {
   display: inline-flex;
   align-items: center;
@@ -498,7 +498,7 @@ a {
   margin-top: 40px;
 }
 
-/* The design system's .btn: a pill, its secondary of glass. */
+/* The shared design's .btn: a pill, its secondary of glass. */
 button.big {
   padding: 10px 20px;
   font-size: 14px;
@@ -592,7 +592,7 @@ button.link:hover:not(:disabled) {
   border-radius: 24px;
 }
 
-/* A neutral tile, as the design system keeps colour off its icons. */
+/* A neutral tile, as the shared design keeps colour off its icons. */
 .features svg {
   box-sizing: content-box;
   padding: 10px;
@@ -615,7 +615,7 @@ button.link:hover:not(:disabled) {
   line-height: 1.625;
 }
 
-/* The design system's eyebrow. */
+/* The shared design's eyebrow. */
 .library main > section > h2 {
   font-family: var(--mono);
   font-size: 14px;
@@ -739,7 +739,7 @@ button.link:hover:not(:disabled) {
   color: rgb(var(--fg));
 }
 
-/* 20px rather than the design system's 16: the start page's links reach 18px left of it to hide a line's first dot (see .more). */
+/* 20px rather than the shared design's 16: the start page's links reach 18px left of it to hide a line's first dot (see .more). */
 @media (max-width: 639px) {
   .wrap {
     padding: 0 20px;
@@ -751,7 +751,7 @@ button.link:hover:not(:disabled) {
   }
 }
 
-/* The design system's scroll progress: a 2px accent bar, drawn by the scroll itself where the browser can. */
+/* The shared design's scroll progress: a 2px accent bar, drawn by the scroll itself where the browser can. */
 @supports (animation-timeline: scroll()) {
   .progress-bar {
     position: fixed;
