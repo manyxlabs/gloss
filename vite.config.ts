@@ -99,8 +99,12 @@ export default defineConfig({
         },
       },
       workbox: {
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png}', 'pdfjs/standard_fonts/*', 'pdfjs/wasm/*', 'pdfjs/iccs/*'],
-        globIgnores: ['**/heic*.js', 'ocr/**'],
+        // Workbox fetches these one at a time, so each file costs a round trip before Gloss works offline.
+        // Only index.html: it serves every page through navigateFallback, and the app takes its language
+        // from the address; the other pages' .html addresses would also each cost a redirect.
+        globPatterns: ['**/*.{js,mjs,css,svg,png}', 'index.html', 'pdfjs/standard_fonts/*', 'pdfjs/wasm/*', 'pdfjs/iccs/*'],
+        // og.png is for link previews; quickjs runs a PDF's own scripts, which Gloss never enables.
+        globIgnores: ['**/heic*.js', 'ocr/**', '**/LICENSE*', 'og.png', 'pdfjs/wasm/quickjs*'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
